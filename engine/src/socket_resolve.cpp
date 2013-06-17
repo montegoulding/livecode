@@ -150,7 +150,7 @@ bool platform_launch_thread(_thread_function p_thread, void *p_context)
 
 	return t_success;
 }
-#elif defined(_MACOSX) || defined(_LINUX)
+#else
 void * pthread_thread(void *p_context)
 {
 	_thread_info *t_info = (_thread_info*)p_context;

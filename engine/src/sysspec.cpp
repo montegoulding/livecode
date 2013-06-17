@@ -1193,7 +1193,7 @@ bool MCSTextConvertToUnicode(MCTextEncoding p_encoding, const void *p_input, uin
 
 ////////////////////////////////////////////////////////////////////////////////
 
-MCSocket::~MCSocket(void)
+/* MCSocket::~MCSocket(void)
 {
 }
 
@@ -1234,7 +1234,7 @@ void MCS_write_socket(const MCString& p_data, MCSocket *p_socket, MCObject *p_ob
 MCSocket *MCS_accept(uint2 p_port, MCObject* p_object, MCNameRef p_message, Boolean p_datagram, Boolean p_secure, Boolean p_ssl_verify, char *p_ssl_cert_file)
 {
 	return NULL;
-}
+} 
 
 void MCS_ha(MCExecPoint& ep, MCSocket *p_socket)
 {
@@ -1299,9 +1299,6 @@ void MCS_ntoa(MCExecPoint& ep, MCExecPoint& ep2)
 	delete t_hostname;
 }
 
-void MCS_getDNSservers(MCExecPoint& ep)
-{
-}
 
 char *MCS_dnsresolve(const char *p_hostname)
 {
@@ -1311,6 +1308,10 @@ char *MCS_dnsresolve(const char *p_hostname)
 char *MCS_hostaddress(void)
 {
 	return NULL;
+}
+*/
+void MCS_getDNSservers(MCExecPoint& ep)
+{
 }
 
 ////////////////////////////////////////////////////////////////////////////////

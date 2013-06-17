@@ -48,8 +48,12 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include <ws2tcpip.h>
 #include <wincrypt.h>
 #include <iphlpapi.h>
-#elif defined(_MAC_DESKTOP)
+#elif defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
+#if defined(_MACOSX)
 #include "osxprefix.h"
+#else
+#include <CoreFoundation/CoreFoundation.h>
+#endif
 #include <SystemConfiguration/SCDynamicStore.h>
 #include <SystemConfiguration/SCDynamicStoreKey.h>
 #include <SystemConfiguration/SCSchemaDefinitions.h>
@@ -59,8 +63,6 @@ extern char *osx_cfstring_to_cstring(CFStringRef p_string, bool p_release);
 
 #include <sys/types.h>
 #include <sys/stat.h>
-
-#ifdef MCSSL
 
 #ifndef _WINDOWS
 #include <sys/uio.h>
@@ -84,23 +86,27 @@ extern char *osx_cfstring_to_cstring(CFStringRef p_string, bool p_release);
 
 #endif
 
+#ifdef MCSSL
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 #include <openssl/ssl.h>
 #include <openssl/x509v3.h>
+#endif
 
-#if !defined(X11) && (!defined(_MACOSX))
+#if !defined(X11) && !defined(_MACOSX) && !defined(TARGET_SUBPLATFORM_IPHONE)
 #define socklen_t int
 #endif
 
 extern real8 curtime;
 
+#ifdef MCSSL
 static char *sslerror = NULL;
 static long post_connection_check(SSL *ssl, char *host);
 static int verify_callback(int ok, X509_STORE_CTX *store);
+#endif
 
-#ifdef _MACOSX
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 extern char *path2utf(char *path);
 #endif
 
@@ -114,7 +120,7 @@ extern "C" char *strdup(const char *);
 
 Boolean MCSocket::sslinited = False;
 
-#ifdef _MACOSX
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 static void socketCallback (CFSocketRef cfsockref, CFSocketCallBackType type, CFDataRef address, const void *pData, void *pInfo)
 {
 	uint2 i;
@@ -156,7 +162,7 @@ static void socketCallback (CFSocketRef cfsockref, CFSocketCallBackType type, CF
 }
 #endif
 
-#if defined(_MACOSX)
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 Boolean MCS_handle_sockets()
 {
 	return MCS_poll(0.0, 0.0);
@@ -672,7 +678,7 @@ void MCS_read_socket(MCSocket *s, MCExecPoint &ep, uint4 length, char *until, MC
 					MCresult->sets("eof");
 					break;
 				}
-				if (curtime > eptr->timeout)
+				if (MCS_time() > eptr->timeout)
 				{
 					MCresult->sets("timeout");
 					break;
@@ -753,7 +759,7 @@ void MCS_write_socket(const MCString &d, MCSocket *s, MCObject *optr, MCNameRef 
 					MCresult->sets("socket closed");
 					break;
 				}
-				if (curtime > eptr->timeout)
+				if (MCS_time() > eptr->timeout)
 				{
 					MCresult->sets("timeout");
 					break;
@@ -976,7 +982,7 @@ MCSocketread::MCSocketread(uint4 s, char *u, MCObject *o, MCNameRef m)
 {
 	size = s;
 	until = u;
-	timeout = curtime + MCsockettimeout;
+	timeout = MCS_time() + MCsockettimeout;
 	optr = o;
 	if (m != nil)
 		/* UNCHECKED */ MCNameClone(m, message);
@@ -997,7 +1003,7 @@ MCSocketwrite::MCSocketwrite(const MCString &d, MCObject *o, MCNameRef m)
 	else
 		buffer = (char *)d.getstring();
 	size = d.getlength();
-	timeout = curtime + MCsockettimeout;
+	timeout = MCS_time() + MCsockettimeout;
 	optr = o;
 	done = 0;
 	if (m != nil)
@@ -1036,9 +1042,11 @@ MCSocket::MCSocket(char *n, MCObject *o, MCNameRef m, Boolean d, MCSocketHandle 
 	rbuffer = NULL;
 	error = NULL;
 	rsize = nread = 0;
-	timeout = curtime + MCsockettimeout;
+	timeout = MCS_time() + MCsockettimeout;
+#ifdef MCSSL
 	_ssl_context = NULL;
 	_ssl_conn = NULL;
+#endif
 	sslstate = SSTATE_NONE; // Not on Mac?
 	secure = issecure;
 	resolve_state = kMCSocketStateNew;
@@ -1223,7 +1231,7 @@ void MCSocket::readsome()
 				params->getnext()->setbuffer(dbuffer, l);
 				params->getnext()->setnext(new MCParameter);
 				params->getnext()->getnext()->setbuffer(strclone(name), strlen(name));
-				MCscreen->addmessage(object, message, curtime, params);
+				MCscreen->addmessage(object, message, MCS_time(), params);
 			}
 		}
 		added = True;
@@ -1251,8 +1259,10 @@ void MCSocket::readsome()
 				MCsockets[MCnsockets] = new MCSocket(n, object, NULL,
 													 False, newfd, False, False,secure);
 				MCsockets[MCnsockets]->connected = True;
+#ifdef MCSSL
 				if (secure)
 					MCsockets[MCnsockets]->sslaccept();
+#endif
 				MCsockets[MCnsockets++]->setselect();
 				MCscreen->delaymessage(object, message, strclone(n), strclone(name));
 				added = True;
@@ -1305,13 +1315,17 @@ void MCSocket::readsome()
 #endif
 						if (errno != 0)
 						{
+#ifdef MCSSL
 							if (secure)
 								error = sslgraberror();
 							else
 							{
+#endif
 								error = new char[21 + I4L];
 								sprintf(error, "Error %d reading socket", errno);
+#ifdef MCSSL
 							}
+#endif
 						}
 						doclose();
 
@@ -1329,7 +1343,7 @@ void MCSocket::readsome()
 #endif
 					nread += l;
 					if (revents != NULL)
-						revents->timeout = curtime + MCsockettimeout;
+						revents->timeout = MCS_time() + MCsockettimeout;
 				}
 			}
 			doread = False;
@@ -1360,7 +1374,7 @@ void MCSocket::processreadqueue()
 				params->setbuffer(strclone(name), strlen(name));
 				params->setnext(new MCParameter);
 				params->getnext()->setbuffer(datacopy, size);
-				MCscreen->addmessage(e->optr, e->message, curtime, params);
+				MCscreen->addmessage(e->optr, e->message, MCS_time(), params);
 				delete e;
 				if (nread == 0 && fd == 0)
 					MCscreen->delaymessage(object, MCM_socket_closed, strclone(name));
@@ -1403,13 +1417,17 @@ void MCSocket::writesome()
 			if (errno == EPIPE)
 #endif
 			{
+#ifdef MCSSL
 				if (secure)
 					error = sslgraberror();
 				else
 				{
+#endif
 					error = new char[16 + I4L];
 					sprintf(error, "Error %d on socket", errno);
+#ifdef MCSSL
 				}
+#endif
 				doclose();
 			}
 			break;
@@ -1417,7 +1435,7 @@ void MCSocket::writesome()
 		else
 		{
 			wevents->done += nwritten;
-			wevents->timeout = curtime + MCsockettimeout;
+			wevents->timeout = MCS_time() + MCsockettimeout;
 			if (wevents->done == wevents->size && wevents->message != NULL)
 			{
 				MCSocketwrite *e = wevents->remove
@@ -1497,7 +1515,7 @@ void MCSocket::setselect(uint2 sflags)
 		WSAAsyncSelect(fd, sockethwnd, WM_USER, event);
 	}
 #endif
-#ifdef _MACOSX
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 	if (sflags & BIONB_TESTWRITE)
 		CFSocketEnableCallBacks(cfsockref,kCFSocketWriteCallBack);
 	if (sflags & BIONB_TESTREAD)
@@ -1508,7 +1526,7 @@ void MCSocket::setselect(uint2 sflags)
 Boolean MCSocket::init(MCSocketHandle newfd)
 {
 	fd = newfd;
-#ifdef _MACOSX
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 
 	cfsockref = NULL;
 	rlref = NULL;
@@ -1517,7 +1535,11 @@ Boolean MCSocket::init(MCSocketHandle newfd)
 	if (cfsockref)
 	{
 		rlref = CFSocketCreateRunLoopSource(kCFAllocatorDefault, cfsockref, 0);
+#if defined(_MACOSX)
 		CFRunLoopAddSource((CFRunLoopRef)GetCFRunLoopFromEventLoop(GetMainEventLoop()), rlref, kCFRunLoopDefaultMode);
+#else
+		CFRunLoopAddSource(CFRunLoopGetMain(), rlref, kCFRunLoopDefaultMode);
+#endif
 		CFOptionFlags socketOptions = 0 ;
 		CFSocketSetSocketFlags( cfsockref, socketOptions );
 	}
@@ -1530,9 +1552,11 @@ void MCSocket::close()
 
 	if (fd)
 	{
+#ifdef MCSSL
 		if (secure)
 			sslclose();
-#ifdef _MACOSX
+#endif
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 
 		if (rlref != NULL)
 		{
@@ -1549,7 +1573,7 @@ void MCSocket::close()
 #endif
 
 		fd = 0;
-#ifdef _MACOSX
+#if defined(_MACOSX) || defined(TARGET_SUBPLATFORM_IPHONE)
 
 		if (cfsockref != NULL)
 		{
@@ -1565,6 +1589,7 @@ void MCSocket::close()
 int4 MCSocket::write(const char *buffer, uint4 towrite)
 {
 	int4 rc = 0;
+#ifdef MCSSL
 	if (secure)
 	{
 		sslstate &= ~SSTATE_RETRYWRITE;
@@ -1618,6 +1643,7 @@ int4 MCSocket::write(const char *buffer, uint4 towrite)
 		return rc;
 	}
 	else
+#endif
 #ifdef _WINDOWS
 
 		return send(fd, buffer, towrite, 0);
@@ -1630,6 +1656,7 @@ int4 MCSocket::write(const char *buffer, uint4 towrite)
 int4 MCSocket::read(char *buffer, uint4 toread)
 {
 	int4 rc = 0;
+#ifdef MCSSL
 	if (secure)
 	{
 		sslstate &= ~SSTATE_RETRYREAD;
@@ -1679,6 +1706,7 @@ int4 MCSocket::read(char *buffer, uint4 toread)
 		return rc;
 	}
 	else
+#endif
 #ifdef _WINDOWS
 
 		return recv(fd, buffer, toread, 0);
@@ -1687,7 +1715,7 @@ int4 MCSocket::read(char *buffer, uint4 toread)
 #endif
 }
 
-//
+#ifdef MCSSL
 
 char *MCSocket::sslgraberror()
 {
@@ -2417,7 +2445,6 @@ static int verify_callback(int ok, X509_STORE_CTX *store)
 
 	return ok;
 }
-
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////

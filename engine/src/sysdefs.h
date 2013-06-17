@@ -482,6 +482,11 @@ struct MCFontStruct
 
 typedef int MCSocketHandle;
 
+#if defined(TARGET_SUBPLATFORM_IPHONE)
+typedef struct __CFSocket * CFSocketRef;
+typedef struct __CFRunLoopSource * CFRunLoopSourceRef;
+#endif
+
 inline void *operator new(size_t, void *p)
 {
 	return p;
