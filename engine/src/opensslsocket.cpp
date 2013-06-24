@@ -158,6 +158,7 @@ static void socketCallback (CFSocketRef cfsockref, CFSocketCallBackType type, CF
 			break;
 		}
 	}
+    MCscreen -> pingwait();
 	//MCS_poll(0.0,0);//quick poll of other sockets
 }
 #endif
@@ -678,7 +679,7 @@ void MCS_read_socket(MCSocket *s, MCExecPoint &ep, uint4 length, char *until, MC
 					MCresult->sets("eof");
 					break;
 				}
-				if (MCS_time() > eptr->timeout)
+				if (curtime > eptr->timeout)
 				{
 					MCresult->sets("timeout");
 					break;
@@ -759,7 +760,7 @@ void MCS_write_socket(const MCString &d, MCSocket *s, MCObject *optr, MCNameRef 
 					MCresult->sets("socket closed");
 					break;
 				}
-				if (MCS_time() > eptr->timeout)
+				if (curtime > eptr->timeout)
 				{
 					MCresult->sets("timeout");
 					break;
@@ -982,7 +983,7 @@ MCSocketread::MCSocketread(uint4 s, char *u, MCObject *o, MCNameRef m)
 {
 	size = s;
 	until = u;
-	timeout = MCS_time() + MCsockettimeout;
+	timeout = curtime + MCsockettimeout;
 	optr = o;
 	if (m != nil)
 		/* UNCHECKED */ MCNameClone(m, message);
@@ -1003,7 +1004,7 @@ MCSocketwrite::MCSocketwrite(const MCString &d, MCObject *o, MCNameRef m)
 	else
 		buffer = (char *)d.getstring();
 	size = d.getlength();
-	timeout = MCS_time() + MCsockettimeout;
+	timeout = curtime + MCsockettimeout;
 	optr = o;
 	done = 0;
 	if (m != nil)
@@ -1042,7 +1043,7 @@ MCSocket::MCSocket(char *n, MCObject *o, MCNameRef m, Boolean d, MCSocketHandle 
 	rbuffer = NULL;
 	error = NULL;
 	rsize = nread = 0;
-	timeout = MCS_time() + MCsockettimeout;
+	timeout = curtime + MCsockettimeout;
 #ifdef MCSSL
 	_ssl_context = NULL;
 	_ssl_conn = NULL;
@@ -1231,7 +1232,7 @@ void MCSocket::readsome()
 				params->getnext()->setbuffer(dbuffer, l);
 				params->getnext()->setnext(new MCParameter);
 				params->getnext()->getnext()->setbuffer(strclone(name), strlen(name));
-				MCscreen->addmessage(object, message, MCS_time(), params);
+				MCscreen->addmessage(object, message, curtime, params);
 			}
 		}
 		added = True;
@@ -1343,7 +1344,7 @@ void MCSocket::readsome()
 #endif
 					nread += l;
 					if (revents != NULL)
-						revents->timeout = MCS_time() + MCsockettimeout;
+						revents->timeout = curtime + MCsockettimeout;
 				}
 			}
 			doread = False;
@@ -1374,7 +1375,7 @@ void MCSocket::processreadqueue()
 				params->setbuffer(strclone(name), strlen(name));
 				params->setnext(new MCParameter);
 				params->getnext()->setbuffer(datacopy, size);
-				MCscreen->addmessage(e->optr, e->message, MCS_time(), params);
+				MCscreen->addmessage(e->optr, e->message, curtime, params);
 				delete e;
 				if (nread == 0 && fd == 0)
 					MCscreen->delaymessage(object, MCM_socket_closed, strclone(name));
@@ -1435,7 +1436,7 @@ void MCSocket::writesome()
 		else
 		{
 			wevents->done += nwritten;
-			wevents->timeout = MCS_time() + MCsockettimeout;
+			wevents->timeout = curtime + MCsockettimeout;
 			if (wevents->done == wevents->size && wevents->message != NULL)
 			{
 				MCSocketwrite *e = wevents->remove
