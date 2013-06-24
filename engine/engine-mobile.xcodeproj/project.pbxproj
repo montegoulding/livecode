@@ -260,6 +260,8 @@
 		4DC684BE1348EAD7002469A4 /* OpenGLES.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DC684BD1348EAD7002469A4 /* OpenGLES.framework */; };
 		4DD3E17B1040BDAF00CAC7EF /* libz.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DD3E17A1040BDAF00CAC7EF /* libz.dylib */; };
 		4DE9499E142762490072D9C6 /* CoreText.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4DE9499D142762490072D9C6 /* CoreText.framework */; };
+		B28D99321776834A00142087 /* iphone_test.livecode in Resources */ = {isa = PBXBuildFile; fileRef = B28D99311776834A00142087 /* iphone_test.livecode */; };
+		B2A46178177686C600A22171 /* socket_resolve.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B2A461771776866E00A22171 /* socket_resolve.cpp */; };
 		E8111F8C1541938E00DB16E3 /* CoreMotion.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E8111F8B1541938E00DB16E3 /* CoreMotion.framework */; };
 		E8111F8E154193A500DB16E3 /* AddressBook.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E8111F8D154193A500DB16E3 /* AddressBook.framework */; };
 		E8111F90154193AB00DB16E3 /* AddressBookUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E8111F8F154193AB00DB16E3 /* AddressBookUI.framework */; };
@@ -813,6 +815,8 @@
 		4DFFC8EE13DD909F006233A4 /* name.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = name.cpp; path = src/name.cpp; sourceTree = "<group>"; };
 		4DFFC8F213DD90AF006233A4 /* objectpropsets.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = objectpropsets.cpp; path = src/objectpropsets.cpp; sourceTree = "<group>"; };
 		4DFFC8F613DD90CE006233A4 /* syscfdate.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = syscfdate.cpp; path = src/syscfdate.cpp; sourceTree = "<group>"; };
+		B28D99311776834A00142087 /* iphone_test.livecode */ = {isa = PBXFileReference; lastKnownFileType = file; path = iphone_test.livecode; sourceTree = "<group>"; };
+		B2A461771776866E00A22171 /* socket_resolve.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = socket_resolve.cpp; path = src/socket_resolve.cpp; sourceTree = "<group>"; };
 		E8111F8B1541938E00DB16E3 /* CoreMotion.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreMotion.framework; path = System/Library/Frameworks/CoreMotion.framework; sourceTree = SDKROOT; };
 		E8111F8D154193A500DB16E3 /* AddressBook.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AddressBook.framework; path = System/Library/Frameworks/AddressBook.framework; sourceTree = SDKROOT; };
 		E8111F8F154193AB00DB16E3 /* AddressBookUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AddressBookUI.framework; path = System/Library/Frameworks/AddressBookUI.framework; sourceTree = SDKROOT; };
@@ -1189,6 +1193,7 @@
 		4DD3DD7B1040AA4700CAC7EF = {
 			isa = PBXGroup;
 			children = (
+				B28D99311776834A00142087 /* iphone_test.livecode */,
 				E82D43BF1712CF1A00A10289 /* Projects */,
 				E82D43BE1712CEF500A10289 /* Frameworks */,
 				4DD3DF3A1040B03B00CAC7EF /* Configurations */,
@@ -1549,6 +1554,7 @@
 		E84BE35C170C96D500807CF6 /* Core - Misc */ = {
 			isa = PBXGroup;
 			children = (
+				B2A461771776866E00A22171 /* socket_resolve.cpp */,
 				4DD3DE051040ACE300CAC7EF /* debug.cpp */,
 				4DD3DE041040ACE300CAC7EF /* debug.h */,
 				4DD3DE101040ACED00CAC7EF /* dllst.cpp */,
@@ -1817,6 +1823,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B28D99321776834A00142087 /* iphone_test.livecode in Resources */,
 				4D7E3A591281835D00E7F80A /* Default.png in Resources */,
 				4CD038F316C8FE1700EBCCBA /* Default-568h@2x.png in Resources */,
 			);
@@ -2086,6 +2093,7 @@
 				4DABCE5E15ECD4B50085E214 /* variablevalue.cpp in Sources */,
 				4DABCE5F15ECD4B50085E214 /* vclip.cpp in Sources */,
 				4DABCE6115ECD4B50085E214 /* visual.cpp in Sources */,
+				B2A46178177686C600A22171 /* socket_resolve.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
