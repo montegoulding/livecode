@@ -1090,6 +1090,31 @@ LCError LCWaitBreak(LCWaitRef wait);
 LCError LCWaitReset(LCWaitRef wait);
 
 ////////////////////////////////////////////////////////////////////////////////
+    
+// Function:
+//   LCNotificationPost
+// Parameters:
+//   (in) message - const char *
+//   (in) signature - const char *
+//   (in) ... - variadic argument list
+// Errors:
+//   OutOfMemory - memory ran out while attempting to perform the operation
+//   NoObject - the 'object' parameter was nil
+//   NoObjectMessage - the 'message' parameter was nil
+//   ObjectDoesNotExist - the object handles target no longer exists
+// Context Safety:
+//   May be called in universal context.
+// Semantics:
+//   Appends an event to the internal event queue. When the event is dispatched
+//   'message' is sent to current default card with the given parameters.
+//
+//   Note: Posting from an auxillary thread will block until the main thread
+//   reaches a suitable point to process the request and schedule the event.
+//
+LCError LCNotificationPost(const char *message, const char *signature, ...);
+
+////////////////////////////////////////////////////////////////////////////////
+
 
 typedef enum LCImageRasterFormat
 {

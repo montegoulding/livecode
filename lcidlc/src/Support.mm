@@ -1770,6 +1770,18 @@ LCError LCObjectPost(LCObjectRef p_object, const char *p_message, const char *p_
 	
 	return t_error;
 }
+    
+LCError LCNotificationPost(const char *p_message, const char *p_signature, ...)
+{
+    LCError t_error;
+    
+    va_list t_args;
+    va_start(t_args, p_signature);
+    t_error = LCObjectPostV(nil, p_message, p_signature, t_args);
+    va_end(t_args);
+    
+    return t_error;
+}
 
 LCError LCObjectSendV(LCObjectRef p_object, const char *p_message, const char *p_signature, va_list p_args)
 {

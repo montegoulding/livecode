@@ -1688,16 +1688,22 @@ static MCExternalError MCExternalObjectRelease(MCExternalObjectRef p_handle)
 
 static MCExternalError MCExternalObjectDispatch(MCExternalObjectRef p_object, MCExternalDispatchType p_type, const char *p_message, MCExternalVariableRef *p_argv, uint32_t p_argc, MCExternalDispatchStatus *r_status)
 {
+    MCCard * t_current_card;
 	if (p_object == nil)
-		return kMCExternalErrorNoObject;
-
+    {
+        t_current_card = MCdefaultstackptr->getchild(CT_THIS, MCnullmcstring, CT_CARD);
+        if (t_current_card == nil)
+            return kMCExternalErrorNoObject;
+    }
+     
 	if (p_message == nil)
 		return kMCExternalErrorNoObjectMessage;
 
 	if (p_argv == nil && p_argc > 0)
 		return kMCExternalErrorNoObjectArguments;
 
-	if (!p_object -> Exists())
+    
+	if (p_object != nil && !p_object -> Exists())
 		return kMCExternalErrorObjectDoesNotExist;
 
 	MCExternalError t_error;
@@ -1733,7 +1739,11 @@ static MCExternalError MCExternalObjectDispatch(MCExternalObjectRef p_object, MC
 	if (t_error == kMCExternalErrorNone)
 	{
 		Exec_stat t_stat;
-		t_stat = p_object -> Get() -> dispatch(p_type == kMCExternalDispatchCommand ? HT_MESSAGE : HT_FUNCTION, t_message_as_name, t_params);
+        if (p_object != nil)
+            t_stat = p_object -> Get() -> dispatch(p_type == kMCExternalDispatchCommand ? HT_MESSAGE : HT_FUNCTION, t_message_as_name, t_params);
+        else
+            t_stat = t_current_card -> dispatch(p_type == kMCExternalDispatchCommand ? HT_MESSAGE : HT_FUNCTION, t_message_as_name, t_params);
+            
 		if (r_status != nil)
 			switch(t_stat)
 			{
