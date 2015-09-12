@@ -1,5 +1,5 @@
 /*
-This library provides support for generating and parsing YAML files.  See also <http://yaml.org>.
+This library provides support for generating and parsing YAML files.  See also [yaml.org](http://yaml.org).
 
 Tags: YAML, Library
 */
@@ -12,12 +12,33 @@ library com.livecode.library.yaml
 
    use com.livecode.foreign
 
-   constant kMappingStart is 0
-   constant kMappingEnd is 1
-   constant kSequenceStart is 2
-   constant kSequenceEnd is 3
-   constant kScalar is 4
-   constant kDocumentEnded is 5
+   /** An empty event. */
+   constant kYAML_NO_EVENT is 0
+
+   /** A STREAM-START event. */
+   constant kYAML_STREAM_START_EVENT is 1
+   /** A STREAM-END event. */
+   constant kYAML_STREAM_END_EVENT is 2
+
+   /** A DOCUMENT-START event. */
+   constant kYAML_DOCUMENT_START_EVENT is 3
+   /** A DOCUMENT-END event. */
+   constant kYAML_DOCUMENT_END_EVENT is 4
+
+   /** An ALIAS event. */
+   constant kYAML_ALIAS_EVENT is 5
+   /** A SCALAR event. */
+   constant kYAML_SCALAR_EVENT is 6
+
+   /** A SEQUENCE-START event. */
+   constant kYAML_SEQUENCE_START_EVENT is 7
+   /** A SEQUENCE-END event. */
+   constant kYAML_SEQUENCE_END_EVENT is 8
+
+   /** A MAPPING-START event. */
+   constant kYAML_MAPPING_START_EVENT is 9
+   /** A MAPPING-END event. */
+   constant kYAML_MAPPING_END_EVENT is 10
 
    foreign handler MCStringEncode(in Source as String, \
          in Encoding as CInt, in IsExternalRep as CBool, \
@@ -27,15 +48,78 @@ library com.livecode.library.yaml
          in Encoding as CInt, in IsExternalRep as CBool, \
          out Encoded as String) returns CBool binds to "<builtin>"
 
-   foreign handler yaml_get_version_string() returns ZStringNative binds to "libyaml-0.2>yaml_get_version_string()"
+   foreign handler yaml_get_version_string() \
+         returns ZStringNative binds to "libyaml-0.2>yaml_get_version_string"
 
+   -- foreign handler LibYAMLStartParser(in fileName as ZStringNative) \
+   --       returns CBool binds to "mergYAML>LibYAMLStartParser"
+   --
+   -- foreign handler LibYAMLEndParser() \
+   --       returns CBool binds to "mergYAML>LibYAMLEndParser"
+   --
+   -- foreign handler LibYAMLParseNextEvent() \
+   --       returns CInt binds to "mergYAML>LibYAMLParseNextEvent"
+   --
+   -- foreign handler LibYAMLGetScalar() \
+   --       returns ZStringNative binds to "mergYAML>LibYAMLGetScalar"
+   --
+   -- foreign handler LibYAMLStartEmitter(in fileName as ZStringNative) \
+   --       returns CBool binds to "mergYAML>LibYAMLStartEmitter"
+   --
+   -- foreign handler LibYAMLEndEmitter() \
+   --       returns CBool binds to "mergYAML>LibYAMLEndEmitter"
+   --
+   -- foreign handler LibYAMLStartMapping() \
+   --       returns CBool binds to "mergYAML>LibYAMLStartMapping"
+   --
+   -- foreign handler LibYAMLEndMapping() \
+   --       returns CBool binds to "mergYAML>LibYAMLEndMapping"
+   --
+   -- foreign handler LibYAMLStartSequence() \
+   --       returns CBool binds to "mergYAML>LibYAMLStartSequence"
+   --
+   -- foreign handler LibYAMLEndSequence() \
+   --       returns CBool binds to "mergYAML>LibYAMLEndSequence"
+   --
+   -- foreign handler LibYAMLEmitScalar(in scalarValue as ZStringNative, in quoteIt as CBool) \
+   --       returns CBool binds to "mergYAML>LibYAMLEmitScalar"
+
+
+   /*
+   Summary: Get the version number of the libyaml that is being used
+
+   Returns: A version number
+
+   Description:
+   The YAML extension uses libyaml as it's underlying parser and emitter.
+
+   Tags: YAML
+   */
    public handler LibYAMLVersion() returns String
       return DecodeUTF8(yaml_get_version_string())
    end handler
 
-   -- public handler ImportYAML(in pFilename as string) returns any
+
+   /*
+   Summary: Import YAML from a file to an array
+
+   Returns: An array containing the content of the file
+
+   Description:
+   The returned array will be formatted as follows:
+
+    * Array for YAML Mapping
+    * List for YAML Sequence (in LCS this is an array with keys 1...N)
+    * String for YAML Scalar
+
+   If there was an error starting the parser the function will return nothing.
+
+   Tags: YAML
+   */
+   -- public handler ImportYAML(in pFilename as String) returns any
    --    -- create the parser
-   --    LibYAMLStartParser(pFilename)
+   --    if !LibYAMLStartParser(pFilename) then
+   --       return nothing
    --    -- parse
    --    put ParseNode() into pValue
    --    -- delete the parser
@@ -44,32 +128,32 @@ library com.livecode.library.yaml
    -- end handler
    --
    -- private handler ParseNode() returns any
-   --    variable nodeType as integer
+   --    variable nodeType as Integer
    --    repeat
    --       put LibYAMLParseNextEvent() into nodeType
-   --       if nodeType is kMappingStart then
+   --       if nodeType is kYAML_MAPPING_START_EVENT then
    --          return ParseMap()
-   --       else if nodeType is kSequenceStart then
+   --       else if nodeType is kYAML_SEQUENCE_START_EVENT then
    --          return ParseSequence()
-   --       else if nodeType is kScalar then
+   --       else if nodeType is kYAML_SCALAR_EVENT then
    --          return ParseScalar()
-   --       else if nodeType is kDocumentEnded then
+   --       else if nodeType is kYAML_DOCUMENT_END_EVENT then
    --          return nothing
    --       end if
    --    end repeat
    -- end handler
    --
-   -- private handler ParseMap() returns array
-   --    variable nodeType as integer
-   --    variable theKey as string
-   --    variable theMap as array
-   --    variable isKey as boolean
+   -- private handler ParseMap() returns Array
+   --    variable nodeType as Integer
+   --    variable theKey as String
+   --    variable theMap as Array
+   --    variable isKey as Boolean
    --    put true into isKey
    --    repeat
    --       put LibYAMLParseNextEvent() into nodeType
-   --       if nodeType is kMappingEnd then
+   --       if nodeType is kYAML_MAPPING_END_EVENT then
    --          return theMap
-   --       else if nodeType is kScalar then
+   --       else if nodeType is kYAML_SCALAR_EVENT then
    --          if isKey then
    --             put ParseScalar() into theKey
    --             put false into isKey
@@ -77,33 +161,52 @@ library com.livecode.library.yaml
    --             put ParseScalar() into theMap[theKey]
    --             put true into isKey
    --          end if
-   --       else if nodeType is kMappingStart then
+   --       else if nodeType is kYAML_MAPPING_START_EVENT then
    --          put ParseMap() into theMap[theKey]
-   --       else if nodeType is kSequenceStart then
+   --       else if nodeType is kYAML_SEQUENCE_START_EVENT then
    --          put ParseSequence() into theMap[theKey]
    --       end if
    --    end repeat
    -- end handler
    --
-   -- private handler ParseScalar() returns string
-   --    return DecodeUTF8(YAMLGetScalar())
+   -- private handler ParseScalar() returns String
+   --    return DecodeUTF8(LibYAMLGetScalar())
    -- end handler
    --
-   -- private handler ParseSequence() returns list
-   --    variable nodeType as integer
-   --    variable theKey as string
-   --    variable theSequence as list
+   -- private handler ParseSequence() returns List
+   --    variable nodeType as Integer
+   --    variable theKey as String
+   --    variable theSequence as List
    --    repeat
    --       put LibYAMLParseNextEvent() into nodeType
-   --       if nodeType is kSequenceEnd then
+   --       if nodeType is kYAML_SEQUENCE_END_EVENT then
    --          return theSequence
-   --       else
-   --          push ParseNode() onto theSequence
+   --       else if nodeType is kYAML_SCALAR_EVENT then
+   --          push ParseScalar() onto theSequence
+   --       else if nodeType is kYAML_MAPPING_START_EVENT then
+   --          push ParseMap() onto theSequence
+   --       else if nodeType is kYAML_SEQUENCE_START_EVENT then
+   --          push ParseSequence() onto theSequence
    --       end if
    --    end repeat
    -- end handler
-   --
-   -- public handler ExportYAML(in pValue as optional any, in pFilename as string) returns nothing
+
+
+   /*
+   Summary: EXPORT YAML to a file from an array
+
+   Description:
+   A file at filepath will be created or modified to contain a YAML representation of the value supplied n the following format:
+
+    * YAML Mapping for Array
+    * YAML Sequence for List (in LCS this is an array with keys 1...N)
+    * YAML Scalar for String
+
+   If there was an error starting the parser the function will return nothing.
+
+   Tags: YAML
+   */
+   -- public handler ExportYAML(in pValue as optional any, in pFilename as String) returns nothing
    --    -- create the emitter
    --    LibYAMLStartEmitter(pFilename)
    --    -- emit value
@@ -113,16 +216,16 @@ library com.livecode.library.yaml
    -- end ExportYAML
    --
    -- private handler EmitValue(in pValue as optional any) returns nothing
-   --    if pValue is a list then
+   --    if pValue is a List then
    --       EmitSequence(pValue)
-   --    else if pValue is an array then
+   --    else if pValue is an Array then
    --       EmitArray(pValue)
    --    else
    --       EmitScalar(pValue)
    --    end if
    -- end handler
    --
-   -- private handler EmitSequence(in pValue as list) returns nothing
+   -- private handler EmitSequence(in pValue as List) returns nothing
    --    LibYAMLStartSequence
    --    repeat for each element theElement in pValue
    --       EmitValue(pValue)
@@ -130,16 +233,16 @@ library com.livecode.library.yaml
    --    LibYAMLEndSequence
    -- end handler
    --
-   -- private handler EmitArray(in pValue as array) returns nothing
+   -- private handler EmitArray(in pValue as Array) returns nothing
    --    LibYAMLStartMapping
    --    repeat for each key theKey in pValue
-   --       EmitScalar(EncodeUTF8(theKey))
+   --       EmitScalar(EncodeUTF8(theKey), false)
    --       EmitValue(pValue[theKey])
    --    end repeat
    --    LibYAMLEndMapping
    -- end handler
    --
-   -- private handler EmitScalar(in pValue as any) returns nothing
+   -- private handler EmitScalar(in pValue as Any) returns nothing
    --    variable theScalar as string
    --    if pValue is a string then
    --       put pValue into theScalar
@@ -148,16 +251,16 @@ library com.livecode.library.yaml
    --    else
    --       put "invalid" into theScalar
    --    end if
-   --    LibYAMLEmitScalar(EncodeUTF8(theScalar))
+   --    LibYAMLEmitScalar(EncodeUTF8(theScalar), true)
    -- end handler
 
-   handler EncodeUTF8(in pString as String) returns Data
+   private handler EncodeUTF8(in pString as String) returns Data
       variable tEncoded as Data
       MCStringEncode(pString, 4 /* UTF-8 */, false, tEncoded)
       return tEncoded
    end handler
 
-   handler DecodeUTF8(in pData as Data) returns String
+   private handler DecodeUTF8(in pData as Data) returns String
       variable tDecoded as String
       MCStringDecode(pData, 4 /* UTF-8 */, false, tDecoded)
       return tDecoded

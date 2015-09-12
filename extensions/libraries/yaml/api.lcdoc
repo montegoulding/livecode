@@ -2,8 +2,25 @@ Library: com.livecode.library.yaml
 
 Type: library
 
-Description: This library provides support for generating and parsing YAML files.  See also <http://yaml.org>.
+Description: This library provides support for generating and parsing YAML files.  See also [yaml.org](http://yaml.org).
 
 Tags: YAML, Library
+
+
+Name: 
+
+Type: handler
+
+Syntax: LibYAMLVersion()
+
+Summary: Get the version number of the libyaml that is being used
+
+Returns: A version number
+
+Description:    The YAML extension uses libyaml as it's underlying parser and emitter.
+
+Tags: YAML
+
+
 
 
