@@ -1,0 +1,9 @@
+Library: com.livecode.library.yaml
+
+Type: library
+
+Description: This library provides support for generating and parsing YAML files.  See also <http://yaml.org>.
+
+Tags: YAML, Library
+
+

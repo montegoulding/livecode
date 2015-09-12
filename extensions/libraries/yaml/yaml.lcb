@@ -1,0 +1,166 @@
+/*
+This library provides support for generating and parsing YAML files.  See also <http://yaml.org>.
+
+Tags: YAML, Library
+*/
+
+library com.livecode.library.yaml
+
+   metadata version is "1.0.0"
+   metadata author is "Monte Goulding"
+   metadata title is "YAML Library"
+
+   use com.livecode.foreign
+
+   constant kMappingStart is 0
+   constant kMappingEnd is 1
+   constant kSequenceStart is 2
+   constant kSequenceEnd is 3
+   constant kScalar is 4
+   constant kDocumentEnded is 5
+
+   foreign handler MCStringEncode(in Source as String, \
+         in Encoding as CInt, in IsExternalRep as CBool, \
+         out Encoded as Data) returns CBool binds to "<builtin>"
+
+   foreign handler MCStringDecode(in Source as Data, \
+         in Encoding as CInt, in IsExternalRep as CBool, \
+         out Encoded as String) returns CBool binds to "<builtin>"
+
+   foreign handler yaml_get_version_string() returns ZStringNative binds to "libyaml-0.2>yaml_get_version_string()"
+
+   public handler LibYAMLVersion() returns String
+      return DecodeUTF8(yaml_get_version_string())
+   end handler
+
+   -- public handler ImportYAML(in pFilename as string) returns any
+   --    -- create the parser
+   --    LibYAMLStartParser(pFilename)
+   --    -- parse
+   --    put ParseNode() into pValue
+   --    -- delete the parser
+   --    LibYAMLEndParser()
+   --    return pValue
+   -- end handler
+   --
+   -- private handler ParseNode() returns any
+   --    variable nodeType as integer
+   --    repeat
+   --       put LibYAMLParseNextEvent() into nodeType
+   --       if nodeType is kMappingStart then
+   --          return ParseMap()
+   --       else if nodeType is kSequenceStart then
+   --          return ParseSequence()
+   --       else if nodeType is kScalar then
+   --          return ParseScalar()
+   --       else if nodeType is kDocumentEnded then
+   --          return nothing
+   --       end if
+   --    end repeat
+   -- end handler
+   --
+   -- private handler ParseMap() returns array
+   --    variable nodeType as integer
+   --    variable theKey as string
+   --    variable theMap as array
+   --    variable isKey as boolean
+   --    put true into isKey
+   --    repeat
+   --       put LibYAMLParseNextEvent() into nodeType
+   --       if nodeType is kMappingEnd then
+   --          return theMap
+   --       else if nodeType is kScalar then
+   --          if isKey then
+   --             put ParseScalar() into theKey
+   --             put false into isKey
+   --          else
+   --             put ParseScalar() into theMap[theKey]
+   --             put true into isKey
+   --          end if
+   --       else if nodeType is kMappingStart then
+   --          put ParseMap() into theMap[theKey]
+   --       else if nodeType is kSequenceStart then
+   --          put ParseSequence() into theMap[theKey]
+   --       end if
+   --    end repeat
+   -- end handler
+   --
+   -- private handler ParseScalar() returns string
+   --    return DecodeUTF8(YAMLGetScalar())
+   -- end handler
+   --
+   -- private handler ParseSequence() returns list
+   --    variable nodeType as integer
+   --    variable theKey as string
+   --    variable theSequence as list
+   --    repeat
+   --       put LibYAMLParseNextEvent() into nodeType
+   --       if nodeType is kSequenceEnd then
+   --          return theSequence
+   --       else
+   --          push ParseNode() onto theSequence
+   --       end if
+   --    end repeat
+   -- end handler
+   --
+   -- public handler ExportYAML(in pValue as optional any, in pFilename as string) returns nothing
+   --    -- create the emitter
+   --    LibYAMLStartEmitter(pFilename)
+   --    -- emit value
+   --    EmitValue(pValue)
+   --    -- delete the emitter
+   --    YAMLEndEmitter()
+   -- end ExportYAML
+   --
+   -- private handler EmitValue(in pValue as optional any) returns nothing
+   --    if pValue is a list then
+   --       EmitSequence(pValue)
+   --    else if pValue is an array then
+   --       EmitArray(pValue)
+   --    else
+   --       EmitScalar(pValue)
+   --    end if
+   -- end handler
+   --
+   -- private handler EmitSequence(in pValue as list) returns nothing
+   --    LibYAMLStartSequence
+   --    repeat for each element theElement in pValue
+   --       EmitValue(pValue)
+   --    end repeat
+   --    LibYAMLEndSequence
+   -- end handler
+   --
+   -- private handler EmitArray(in pValue as array) returns nothing
+   --    LibYAMLStartMapping
+   --    repeat for each key theKey in pValue
+   --       EmitScalar(EncodeUTF8(theKey))
+   --       EmitValue(pValue[theKey])
+   --    end repeat
+   --    LibYAMLEndMapping
+   -- end handler
+   --
+   -- private handler EmitScalar(in pValue as any) returns nothing
+   --    variable theScalar as string
+   --    if pValue is a string then
+   --       put pValue into theScalar
+   --    else if pValue is a number or pValue is a boolean then
+   --       put pValue formatted as string into theScalar
+   --    else
+   --       put "invalid" into theScalar
+   --    end if
+   --    LibYAMLEmitScalar(EncodeUTF8(theScalar))
+   -- end handler
+
+   handler EncodeUTF8(in pString as String) returns Data
+      variable tEncoded as Data
+      MCStringEncode(pString, 4 /* UTF-8 */, false, tEncoded)
+      return tEncoded
+   end handler
+
+   handler DecodeUTF8(in pData as Data) returns String
+      variable tDecoded as String
+      MCStringDecode(pData, 4 /* UTF-8 */, false, tDecoded)
+      return tDecoded
+   end handler
+
+end library
