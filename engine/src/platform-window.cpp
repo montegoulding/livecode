@@ -54,7 +54,9 @@ MCPlatformWindow::MCPlatformWindow(void)
     m_hides_on_suspend = false;
     // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Default ignoreMouseEvents to false
     m_ignore_mouse_events = false;
-	
+    // MERG-2015-10-03: [[ Fullscreen ]] Default fullscreenControl to false
+    m_fullscreen_control = false;
+    
     // MW-2014-05-02: [[ Bug 12348 ]] Make sure we initialize this value appropriately.
     m_use_text_input = false;
     
@@ -383,7 +385,13 @@ void MCPlatformWindow::SetProperty(MCPlatformWindowProperty p_property, MCPlatfo
 			m_ignore_mouse_events = *(bool *)p_value;
 			m_changes . ignore_mouse_events_changed = true;
 			break;
-		default:
+        // MERG-2015-10-03: [[ Fullscreen ]] Handle fullscreenControl.
+        case kMCPlatformWindowPropertyFullscreenControl:
+            assert(p_type == kMCPlatformPropertyTypeBool);
+            m_fullscreen_control = *(bool *)p_value;
+            m_changes . fullscreen_control_changed = true;
+            break;
+        default:
 			assert(false);
 			break;
 	}
@@ -454,7 +462,12 @@ void MCPlatformWindow::GetProperty(MCPlatformWindowProperty p_property, MCPlatfo
 		case kMCPlatformWindowPropertyCursor:
 			*(MCPlatformCursorRef *)r_value = m_cursor;
 			break;
-		default:
+        // MERG-2015-10-03: [[ Fullscreen ]] Handle fullscreenControl.
+        case kMCPlatformWindowPropertyFullscreenControl:
+            assert(p_type == kMCPlatformPropertyTypeBool);
+            *(bool *)r_value = m_fullscreen_control;
+            break;
+        default:
 			assert(false);
 			break;
 	}

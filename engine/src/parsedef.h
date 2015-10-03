@@ -1604,6 +1604,9 @@ enum Properties {
     // MW-2014-08-12: [[ EditionType ]] Returns whether the engine is commercial or community
     P_EDITION_TYPE,
     
+    // MERG-2015-10-03: [[ Fullscreen ]] If true on OS X the maximize control will change to the fullscreen
+    P_FULLSCREEN_CONTROL,
+    
 	// ARRAY STYLE PROPERTIES
 	P_FIRST_ARRAY_PROP,
     P_CUSTOM_KEYS = P_FIRST_ARRAY_PROP,

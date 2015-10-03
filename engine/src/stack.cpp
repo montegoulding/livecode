@@ -198,6 +198,10 @@ MCPropertyInfo MCStack::kProperties[] =
     
     // MERG-2015-08-31: [[ ScriptOnly ]] Add stack scriptOnly property
     DEFINE_RW_OBJ_PROPERTY(P_SCRIPT_ONLY, Bool, MCStack, ScriptOnly)
+    
+    // MERG-2015-10-03: [[ Fullscreen ]]Add stack fullscreenControl property
+    DEFINE_RW_OBJ_PROPERTY(P_FULLSCREEN_CONTROL, Bool, MCStack, FullscreenControl)
+    
 };
 
 MCObjectPropertyTable MCStack::kPropertyTable =

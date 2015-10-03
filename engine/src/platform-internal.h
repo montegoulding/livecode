@@ -188,6 +188,9 @@ protected:
         
         // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Changed flag for ignore mouse events.
         bool ignore_mouse_events_changed : 1;
+        
+        // MERG-2015-10-03: [[ Fullscreen ]] Changed flag for fullscreenControl property
+        bool fullscreen_control_changed : 1;
 	} m_changes;
 	MCPlatformWindowStyle m_style;
 	MCStringRef m_title;
@@ -209,6 +212,8 @@ protected:
         bool m_hides_on_suspend : 1;
         // MERG-2014-06-02: [[ IgnoreMouseEvents ]] ignoreMouseEvents property
         bool m_ignore_mouse_events : 1;
+        // MERG-2015-10-03: [[ Fullscreen ]] fullscreenControl property
+        bool m_fullscreen_control : 1;
 	};
 	
 	// Universal state.

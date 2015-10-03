@@ -795,6 +795,8 @@ enum MCPlatformWindowProperty
     kMCPlatformWindowPropertyHideOnSuspend,
     
     kMCPlatformWindowPropertyIgnoreMouseEvents,
+    
+    kMCPlatformWindowPropertyFullscreenControl,
 };
 
 void MCPlatformSetWindowProperty(MCPlatformWindowRef window, MCPlatformWindowProperty property, MCPlatformPropertyType type, const void *value);

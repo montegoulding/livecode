@@ -213,6 +213,9 @@ void MCStack::realize(void)
         // MERG-2014-06-02: [[ IgnoreMouseEvents ]] update the window with the ignore mouse events property
         updateignoremouseevents();
         
+        // MERG-2015-10-03: [[ Fullscreen ]] update the window with the fullscreen colntrol
+        updatefullscreencontrol();
+        
         // MW-2014-06-11: [[ Bug 12467 ]] Make sure we reset the cursor property of the window.
         resetcursor(True);
 	}
@@ -302,6 +305,15 @@ void MCStack::updateignoremouseevents(void)
 		return;
 	
 	MCPlatformSetWindowBoolProperty(window, kMCPlatformWindowPropertyIgnoreMouseEvents, getextendedstate(ECS_IGNORE_MOUSE_EVENTS) == True);
+}
+
+// MERG-2015-10-03: [[ Fullscreen ]] update the window with the fullscreen colntrol
+void MCStack::updatefullscreencontrol(void)
+{
+    if (window == nil)
+        return;
+    
+    MCPlatformSetWindowBoolProperty(window, kMCPlatformWindowPropertyFullscreenControl, getextendedstate(ECS_FULLSCREEN_CONTROL) == True);
 }
 
 // MW-2011-09-11: [[ Redraw ]] Force an immediate update of the window within the given

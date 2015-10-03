@@ -1964,6 +1964,19 @@ void MCMacPlatformWindow::DoSynchronize(void)
     if (m_changes . ignore_mouse_events_changed)
         [m_window_handle setIgnoresMouseEvents: m_ignore_mouse_events];
     
+    // MERG-2015-10-03: [[ Fullscreen ]] Sync fullscreen.
+    if (m_changes . fullscreen_control_changed)
+    {
+        if (m_fullscreen_control)
+        {
+            [m_window_handle setCollectionBehavior: [m_window_handle collectionBehavior] | NSWindowCollectionBehaviorFullScreenPrimary];
+        }
+        else
+        {
+            [m_window_handle setCollectionBehavior: [m_window_handle collectionBehavior] ^ NSWindowCollectionBehaviorFullScreenPrimary];
+        }
+    }
+    
 	m_synchronizing = false;
 }
 

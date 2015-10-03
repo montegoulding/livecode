@@ -971,7 +971,9 @@ LT factor_table[] =
         {"frontscripts", TT_FUNCTION, F_FRONT_SCRIPTS},
         {"ftpproxy", TT_PROPERTY, P_FTP_PROXY},
 		{"fullscreen", TT_PROPERTY, P_FULLSCREEN},
-		// IM-2013-09-23: [[ FullscreenMode ]] New property for 'fullscreenmode'
+        // MERG-2015-10-03: [[ Fullscreen ]] New property for 'fullscreenControl'
+        {"fullscreencontrol", TT_PROPERTY, P_FULLSCREEN_CONTROL},
+        // IM-2013-09-23: [[ FullscreenMode ]] New property for 'fullscreenmode'
 		{"fullscreenmode", TT_PROPERTY, P_FULLSCREENMODE},
         {"functionnames", TT_FUNCTION, F_FUNCTION_NAMES},
 		// JS-2013-06-19: [[ StatsFunctions ]] Token for 'geometricMean'

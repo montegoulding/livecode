@@ -2180,3 +2180,15 @@ void MCStack::SetScriptOnly(MCExecContext& ctxt, bool p_script_only)
 {
     m_is_script_only = p_script_only;
 }
+
+// MERG-2015-10-03: [[ Fullscreen ]] Setter and getter for fullscreenControl
+void MCStack::GetFullscreenControl(MCExecContext& ctxt, bool& r_fullscreen_control)
+{
+    r_fullscreen_control = getextendedstate(ECS_FULLSCREEN_CONTROL);
+}
+
+void MCStack::SetFullscreenControl(MCExecContext& ctxt, bool p_fullscreen_control)
+{
+    if (changeextendedstate(p_fullscreen_control, ECS_FULLSCREEN_CONTROL) && opened)
+        updatefullscreencontrol();
+}
