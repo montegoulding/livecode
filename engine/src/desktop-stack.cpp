@@ -107,7 +107,7 @@ void MCStack::realize(void)
 		else
 			t_window_style = kMCPlatformWindowStyleDocument;
 		
-		bool t_has_titlebox, t_has_closebox, t_has_collapsebox, t_has_zoombox, t_has_sizebox;
+		bool t_has_titlebox, t_has_closebox, t_has_collapsebox, t_has_zoombox, t_has_sizebox, t_has_fullscreenbox;
 		if (getflag(F_DECORATIONS))
 		{
 			t_has_titlebox = (decorations & WD_TITLE) != 0;
@@ -116,10 +116,13 @@ void MCStack::realize(void)
             
             // MW-2014-04-22: [[ Bug 12264 ]] Wrong test for maximize (was == 0!).
 			t_has_zoombox = (decorations & WD_MAXIMIZE) != 0;
+            
+            // MERG-2015-10-03: [[ Fullscreen ]] fullscreen decoration
+            t_has_fullscreenbox = (decorations & WD_FULLSCREEN) != 0;
 		}
 		else
 		{
-			t_has_titlebox = t_has_closebox = t_has_collapsebox = t_has_zoombox = t_has_sizebox = false;
+			t_has_titlebox = t_has_closebox = t_has_collapsebox = t_has_zoombox = t_has_sizebox = t_has_fullscreenbox = false;
 			if (t_window_style == kMCPlatformWindowStyleDocument)
 			{
 				t_has_titlebox = true;
@@ -127,7 +130,7 @@ void MCStack::realize(void)
 				t_has_zoombox = true;
 				t_has_collapsebox = true;
 				t_has_sizebox = true;
-			}
+            }
 			else if (t_window_style == kMCPlatformWindowStylePalette ||
 					 t_window_style == kMCPlatformWindowStyleUtility)
 			{
@@ -143,12 +146,12 @@ void MCStack::realize(void)
         //   switched off for certain window types.
         t_has_sizebox = getflag(F_RESIZABLE);
         
-		if (getflag(F_DECORATIONS) && ((decorations & (WD_TITLE | WD_MENU | WD_CLOSE | WD_MINIMIZE | WD_MAXIMIZE)) == 0))
+		if (getflag(F_DECORATIONS) && ((decorations & (WD_TITLE | WD_MENU | WD_CLOSE | WD_MINIMIZE | WD_MAXIMIZE | WD_FULLSCREEN)) == 0))
 			t_has_sizebox = false;
 		
 		// If the window has a windowshape, we don't have any decorations.
 		if (m_window_shape != nil)
-			t_has_titlebox = t_has_closebox = t_has_collapsebox = t_has_zoombox = t_has_sizebox = false;
+			t_has_titlebox = t_has_closebox = t_has_collapsebox = t_has_zoombox = t_has_sizebox = t_has_fullscreenbox = false;
 		
 		// If the window is not normal, utility or floating we don't have close or zoom boxes.
 		if (t_window_style != kMCPlatformWindowStyleDocument &&
@@ -157,11 +160,14 @@ void MCStack::realize(void)
 		{
 			t_has_closebox = false;
 			t_has_zoombox = false;
-		}
+        }
 		
 		// If the window is not normal level, we don't have a collapse box.
 		if (t_window_style != kMCPlatformWindowStyleDocument)
+        {
 			t_has_collapsebox = false;
+            t_has_fullscreenbox = false;
+        }
 		
 		// If the window is not one that would be expected to be resizable, don't give it
 		// a size box.
@@ -180,6 +186,7 @@ void MCStack::realize(void)
 			t_has_zoombox = false;
 			t_has_collapsebox = false;
 			t_has_sizebox = false;
+            t_has_fullscreenbox = false;
 		}
 		
 		MCPlatformWindowRef t_window;
@@ -204,17 +211,14 @@ void MCStack::realize(void)
         // MW-2014-04-23: [[ Bug 12080 ]] If the window is a palette and hidePalettes is true then HideOnSuspend.
         MCPlatformSetWindowBoolProperty(t_window, kMCPlatformWindowPropertyHideOnSuspend, MChidepalettes && t_window_style == kMCPlatformWindowStylePalette);
 		
-		setopacity(blendlevel * 255 / 100);
+        // MERG-2015-10-03: [[ Fullscreen ]] update the window with the fullscreen control
+        MCPlatformSetWindowBoolProperty(t_window, kMCPlatformWindowPropertyHasFullscreenWidget, t_has_fullscreenbox);
+        
+        setopacity(blendlevel * 255 / 100);
 		
 		// Sort out drawers
 		
 		updatemodifiedmark();
-        
-        // MERG-2014-06-02: [[ IgnoreMouseEvents ]] update the window with the ignore mouse events property
-        updateignoremouseevents();
-        
-        // MERG-2015-10-03: [[ Fullscreen ]] update the window with the fullscreen colntrol
-        updatefullscreencontrol();
         
         // MW-2014-06-11: [[ Bug 12467 ]] Make sure we reset the cursor property of the window.
         resetcursor(True);
@@ -305,15 +309,6 @@ void MCStack::updateignoremouseevents(void)
 		return;
 	
 	MCPlatformSetWindowBoolProperty(window, kMCPlatformWindowPropertyIgnoreMouseEvents, getextendedstate(ECS_IGNORE_MOUSE_EVENTS) == True);
-}
-
-// MERG-2015-10-03: [[ Fullscreen ]] update the window with the fullscreen colntrol
-void MCStack::updatefullscreencontrol(void)
-{
-    if (window == nil)
-        return;
-    
-    MCPlatformSetWindowBoolProperty(window, kMCPlatformWindowPropertyFullscreenControl, getextendedstate(ECS_FULLSCREEN_CONTROL) == True);
 }
 
 // MW-2011-09-11: [[ Redraw ]] Force an immediate update of the window within the given

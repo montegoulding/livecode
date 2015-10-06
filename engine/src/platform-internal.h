@@ -189,8 +189,9 @@ protected:
         // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Changed flag for ignore mouse events.
         bool ignore_mouse_events_changed : 1;
         
-        // MERG-2015-10-03: [[ Fullscreen ]] Changed flag for fullscreenControl property
-        bool fullscreen_control_changed : 1;
+        // MERG-2015-10-03: [[ Fullscreen ]] Changed flag for fullscreen decoration
+        bool has_fullscreen_widget_changed : 1;
+        bool is_fullscreen_changed: 1;
 	} m_changes;
 	MCPlatformWindowStyle m_style;
 	MCStringRef m_title;
@@ -212,8 +213,9 @@ protected:
         bool m_hides_on_suspend : 1;
         // MERG-2014-06-02: [[ IgnoreMouseEvents ]] ignoreMouseEvents property
         bool m_ignore_mouse_events : 1;
-        // MERG-2015-10-03: [[ Fullscreen ]] fullscreenControl property
-        bool m_fullscreen_control : 1;
+        // MERG-2015-10-03: [[ Fullscreen ]] fullscreen decoration
+        bool m_has_fullscreen_widget : 1;
+        bool m_is_fullscreen : 1;
 	};
 	
 	// Universal state.
@@ -323,6 +325,7 @@ void MCPlatformCallbackSendTextInputQueryTextRect(MCPlatformWindowRef window, MC
 void MCPlatformCallbackSendTextInputQueryText(MCPlatformWindowRef window, MCRange range, unichar_t*& r_chars, uindex_t& r_char_count, MCRange& r_actual_range);
 void MCPlatformCallbackSendTextInputInsertText(MCPlatformWindowRef window, unichar_t *chars, uindex_t char_count, MCRange replace_range, MCRange selection_range, bool mark);
 void MCPlatformCallbackSendTextInputAction(MCPlatformWindowRef window, MCPlatformTextInputAction action);
+void MCPlatformCallbackHandleFullscreenChanged(MCPlatformWindowRef window, bool entered);
 
 void MCPlatformCallbackSendMenuUpdate(MCPlatformMenuRef menu);
 void MCPlatformCallbackSendMenuSelect(MCPlatformMenuRef menu, uindex_t item);

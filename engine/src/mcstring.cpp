@@ -138,6 +138,7 @@ const char *MCutilitystring = "system";
 const char *MCnoshadowstring = "noshadow";
 const char *MCbackgroundstring = "background";
 const char *MCforcetaskbarstring = "forcetaskbar";
+const char *MCfullscreenstring = "fullscreen";
 const char *MCunicodestring = "unicode";
 const char *MCnativestring = "native";
 
@@ -506,6 +507,7 @@ MCNameRef MCM_uniconify_stack;
 MCNameRef MCM_unload_url;
 MCNameRef MCM_update_screen;
 MCNameRef MCM_update_var;
+MCNameRef MCM_fullscreen_changed;
 
 #ifdef FEATURE_PLATFORM_URL
 MCNameRef MCM_url_progress;
@@ -948,6 +950,7 @@ void MCU_initialize_names(void)
 	/* UNCHECKED */ MCNameCreateWithCString("unloadURL", MCM_unload_url);
 	/* UNCHECKED */ MCNameCreateWithCString("updateScreen", MCM_update_screen);
 	/* UNCHECKED */ MCNameCreateWithCString("updateVariable", MCM_update_var);
+    /* UNCHECKED */ MCNameCreateWithCString("fullscreenChanged", MCM_fullscreen_changed);
 
 #ifdef FEATURE_PLATFORM_URL
 	/* UNCHECKED */ MCNameCreateWithCString("urlProgress", MCM_url_progress);

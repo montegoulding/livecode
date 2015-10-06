@@ -1298,6 +1298,21 @@ void MCPlatformHandleTextInputAction(MCPlatformWindowRef p_window, MCPlatformTex
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void MCPlatformHandleFullscreenChanged(MCPlatformWindowRef p_window, bool p_entered)
+{
+    MCStack *t_stack;
+    t_stack = MCdispatcher -> findstackd(p_window);
+    
+    if (t_stack != NULL)
+    {
+        t_stack -> setextendedstate(p_entered, ECS_FULLSCREEN);
+        
+        t_stack -> getcurcard() -> message_with_valueref_args(MCM_fullscreen_changed, p_entered ? kMCTrue : kMCFalse);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 typedef bool (*pasteboard_resolve_callback_t)(MCPlatformPasteboardFlavor flavor, void*& r_data, size_t& r_data_size);
 
 void MCPlatformHandlePasteboardResolve(MCPlatformPasteboardRef p_pasteboard, MCPlatformPasteboardFlavor p_flavor, void *p_handle, void *& r_data, size_t& r_data_size)

@@ -499,6 +499,16 @@ static bool s_lock_responder_change = false;
     //MCLog("didChangeBacking %lf", objc_msgSend_fpret(m_window -> GetHandle(), @selector(backingScaleFactor)));
 }
 
+- (void)windowDidEnterFullScreen:(NSNotification *)notification
+{
+    MCPlatformCallbackHandleFullscreenChanged(m_window, true);
+}
+
+- (void)windowDidExitFullScreen:(NSNotification *)notification
+{
+    MCPlatformCallbackHandleFullscreenChanged(m_window, false);
+}
+
 - (void)didEndSheet: (NSWindow *)sheet returnCode: (NSInteger)returnCode contextInfo: (void *)info
 {
 }
@@ -1883,9 +1893,19 @@ void MCMacPlatformWindow::DoRealize(void)
         [m_window_handle setLevel: t_window_level];
 	[m_window_handle setOpaque: m_is_opaque && m_mask == nil];
 	[m_window_handle setHasShadow: m_has_shadow];
-	if (!m_has_zoom_widget)
+	if (!m_has_zoom_widget && !m_has_fullscreen_widget)
 		[[m_window_handle standardWindowButton: NSWindowZoomButton] setEnabled: NO];
-	[m_window_handle setAlphaValue: m_opacity];
+    
+    // MERG-2015-10-03: [[ Fullscreen ]] fullscreen widget
+    NSWindowCollectionBehavior t_behavior = [m_window_handle collectionBehavior];
+    if (m_has_fullscreen_widget)
+        t_behavior |= NSWindowCollectionBehaviorFullScreenPrimary;
+    else
+        t_behavior &= ~(NSUInteger)NSWindowCollectionBehaviorFullScreenPrimary;
+    
+    [m_window_handle setCollectionBehavior:t_behavior];
+    
+    [m_window_handle setAlphaValue: m_opacity];
 	[m_window_handle setDocumentEdited: m_has_modified_mark];
 	[m_window_handle setReleasedWhenClosed: NO];
 	
@@ -1963,19 +1983,6 @@ void MCMacPlatformWindow::DoSynchronize(void)
     // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Sync ignoreMouseEvents.
     if (m_changes . ignore_mouse_events_changed)
         [m_window_handle setIgnoresMouseEvents: m_ignore_mouse_events];
-    
-    // MERG-2015-10-03: [[ Fullscreen ]] Sync fullscreen.
-    if (m_changes . fullscreen_control_changed)
-    {
-        if (m_fullscreen_control)
-        {
-            [m_window_handle setCollectionBehavior: [m_window_handle collectionBehavior] | NSWindowCollectionBehaviorFullScreenPrimary];
-        }
-        else
-        {
-            [m_window_handle setCollectionBehavior: [m_window_handle collectionBehavior] ^ NSWindowCollectionBehaviorFullScreenPrimary];
-        }
-    }
     
 	m_synchronizing = false;
 }

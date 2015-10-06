@@ -504,9 +504,6 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 // MERG-2014-06-02: [[ IgnoreMouseEvents ]] If this is set then the stack is transparent to mouse events
 #define ECS_IGNORE_MOUSE_EVENTS (1UL << 17)
 
-// MERG-2015-10-03: [[ Fullscreen ]] If this is set then the stack has the fullscreen control on OS X
-#define ECS_FULLSCREEN_CONTROL   (1UL << 16)
-
 // Has handlers
 #define HH_IDLE                 (1UL << 0)
 #define HH_MOUSE_WITHIN         (1UL << 1)
@@ -545,6 +542,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define WD_UTILITY            (1UL << 8)
 #define WD_LIVERESIZING        (1UL << 9)
 #define WD_FORCETASKBAR		  (1UL << 10)
+#define WD_FULLSCREEN		  (1UL << 11)
 #define WD_WDEF               (1UL << 15) // use Mac WDEF resource
 
 // Font styles

@@ -36,6 +36,8 @@ void MCPlatformHandleTextInputQueryText(MCPlatformWindowRef window, MCRange rang
 void MCPlatformHandleTextInputInsertText(MCPlatformWindowRef window, unichar_t *chars, uindex_t char_count, MCRange replace_range, MCRange selection_range, bool mark);
 void MCPlatformHandleTextInputAction(MCPlatformWindowRef window, MCPlatformTextInputAction action);
 
+void MCPlatformHandleFullscreenChanged(MCPlatformWindowRef p_window, bool p_entered);
+
 void MCPlatformHandleMouseEnter(MCPlatformWindowRef window);
 void MCPlatformHandleMouseLeave(MCPlatformWindowRef window);
 void MCPlatformHandleMouseDown(MCPlatformWindowRef window, uint32_t button, uint32_t count);
@@ -337,6 +339,14 @@ void MCPlatformCallbackSendTextInputAction(MCPlatformWindowRef p_window, MCPlatf
     //MCLog("Window(%p) -> Action(%d)", p_window, p_action);
 	MCPlatformWindowDeathGrip(p_window);
 	MCPlatformHandleTextInputAction(p_window, p_action);
+}
+
+//////////
+
+void MCPlatformCallbackHandleFullscreenChanged(MCPlatformWindowRef p_window, bool p_entered)
+{
+    MCPlatformWindowDeathGrip(p_window);
+    MCPlatformHandleFullscreenChanged(p_window, p_entered);
 }
 
 //////////

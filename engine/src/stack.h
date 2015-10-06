@@ -626,8 +626,6 @@ public:
     
     void updateignoremouseevents(void);
     
-    void updatefullscreencontrol(void);
-
     // MW-2008-10-28: [[ ParentScripts ]]
 	// This method is used to resolve any
 	// references in this stacks controls, or its substacks controls to
@@ -1214,10 +1212,6 @@ public:
     // MERG-2015-08-31: [[ ScriptOnly ]] Setter and getter added
     void GetScriptOnly(MCExecContext &ctxt, bool &r_script_only);
     void SetScriptOnly(MCExecContext &ctxt, bool p_script_only);
-    
-    // MERG-2015-10-03: [[ Fullscreen ]] Setter and getter for fullscreenControl
-    void GetFullscreenControl(MCExecContext& ctxt, bool& r_fullscreen_control);
-    void SetFullscreenControl(MCExecContext& ctxt, bool p_script_only);
     
     virtual void SetForePixel(MCExecContext& ctxt, uinteger_t* pixel);
 	virtual void SetBackPixel(MCExecContext& ctxt, uinteger_t* pixel);

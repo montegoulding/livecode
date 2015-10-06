@@ -82,6 +82,7 @@ extern const char *MCmetalstring;
 extern const char *MCutilitystring;
 extern const char *MCnoshadowstring;
 extern const char *MCforcetaskbarstring;
+extern const char *MCfullscreenstring;
 extern const char *MCunicodestring;
 extern const char *MCnativestring;
 
@@ -471,6 +472,7 @@ extern MCNameRef MCM_undo_key;
 extern MCNameRef MCM_uniconify_stack;
 extern MCNameRef MCM_unload_url;
 extern MCNameRef MCM_update_var;
+extern MCNameRef MCM_fullscreen_changed;
 
 #ifdef FEATURE_PLATFORM_URL
 extern MCNameRef MCM_url_progress;

@@ -173,6 +173,12 @@ static void MCInterfaceDecorationParse(MCExecContext& ctxt, MCStringRef p_input,
                         decorations |= WD_CLOSE | WD_TITLE;
                         continue;
                     }
+                    // MERG-2015-10-03: [[ Fullscreen ]] Fullscreen widget
+                    if (MCStringSubstringIsEqualTo(p_input, MCRangeMake(t_start_pos, t_end_pos - t_start_pos - 1), MCSTR(MCfullscreenstring), kMCCompareCaseless))
+                    {
+                        decorations |= WD_FULLSCREEN | WD_TITLE;
+                        continue;
+                    }
                     if (MCStringSubstringIsEqualTo(p_input, MCRangeMake(t_start_pos, t_end_pos - t_start_pos - 1), MCSTR(MCmetalstring), kMCCompareCaseless))
                     {
                         decorations |= WD_METAL; //metal can not have title
@@ -243,6 +249,9 @@ static void MCInterfaceDecorationFormat(MCExecContext& ctxt, const MCInterfaceDe
             if (p_input . decorations & WD_FORCETASKBAR)
 				/* UNCHECKED */ MCListAppendCString(t_output, MCforcetaskbarstring);
 				
+            if (p_input . decorations & WD_FULLSCREEN)
+                /* UNCHECKED */ MCListAppendCString(t_output, MCfullscreenstring);
+            
             /* UNCHECKED */ MCListCopyAsStringAndRelease(t_output, r_output);
 			return;
         }
@@ -2179,16 +2188,4 @@ void MCStack::GetScriptOnly(MCExecContext& ctxt, bool& r_script_only)
 void MCStack::SetScriptOnly(MCExecContext& ctxt, bool p_script_only)
 {
     m_is_script_only = p_script_only;
-}
-
-// MERG-2015-10-03: [[ Fullscreen ]] Setter and getter for fullscreenControl
-void MCStack::GetFullscreenControl(MCExecContext& ctxt, bool& r_fullscreen_control)
-{
-    r_fullscreen_control = getextendedstate(ECS_FULLSCREEN_CONTROL);
-}
-
-void MCStack::SetFullscreenControl(MCExecContext& ctxt, bool p_fullscreen_control)
-{
-    if (changeextendedstate(p_fullscreen_control, ECS_FULLSCREEN_CONTROL) && opened)
-        updatefullscreencontrol();
 }

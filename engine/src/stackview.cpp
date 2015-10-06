@@ -156,6 +156,12 @@ void MCStack::view_setfullscreen(bool p_fullscreen)
 	t_ideal_layout = getuseideallayout();
 
 	m_view_fullscreen = p_fullscreen;
+    
+    
+    if ((decorations & WD_FULLSCREEN) != 0)
+    {
+        
+    }
 	
 	// IM-2014-01-16: [[ StackScale ]] Reopen the window after changing fullscreen
 	if (t_fullscreen != view_getfullscreen())

@@ -54,8 +54,8 @@ MCPlatformWindow::MCPlatformWindow(void)
     m_hides_on_suspend = false;
     // MERG-2014-06-02: [[ IgnoreMouseEvents ]] Default ignoreMouseEvents to false
     m_ignore_mouse_events = false;
-    // MERG-2015-10-03: [[ Fullscreen ]] Default fullscreenControl to false
-    m_fullscreen_control = false;
+    // MERG-2015-10-03: [[ Fullscreen ]] Default fullscreen widget to false
+    m_has_fullscreen_widget = false;
     
     // MW-2014-05-02: [[ Bug 12348 ]] Make sure we initialize this value appropriately.
     m_use_text_input = false;
@@ -385,11 +385,16 @@ void MCPlatformWindow::SetProperty(MCPlatformWindowProperty p_property, MCPlatfo
 			m_ignore_mouse_events = *(bool *)p_value;
 			m_changes . ignore_mouse_events_changed = true;
 			break;
-        // MERG-2015-10-03: [[ Fullscreen ]] Handle fullscreenControl.
-        case kMCPlatformWindowPropertyFullscreenControl:
+        // MERG-2015-10-03: [[ Fullscreen ]] Handle fullscreen decoration.
+        case kMCPlatformWindowPropertyHasFullscreenWidget:
             assert(p_type == kMCPlatformPropertyTypeBool);
-            m_fullscreen_control = *(bool *)p_value;
-            m_changes . fullscreen_control_changed = true;
+            m_has_fullscreen_widget = *(bool *)p_value;
+            m_changes . has_fullscreen_widget_changed = true;
+            break;
+        case kMCPlatformWindowPropertyIsFullscreen:
+            assert(p_type == kMCPlatformPropertyTypeBool);
+            m_is_fullscreen = *(bool *)p_value;
+            m_changes . is_fullscreen_changed = true;
             break;
         default:
 			assert(false);
@@ -462,10 +467,12 @@ void MCPlatformWindow::GetProperty(MCPlatformWindowProperty p_property, MCPlatfo
 		case kMCPlatformWindowPropertyCursor:
 			*(MCPlatformCursorRef *)r_value = m_cursor;
 			break;
-        // MERG-2015-10-03: [[ Fullscreen ]] Handle fullscreenControl.
-        case kMCPlatformWindowPropertyFullscreenControl:
+        // MERG-2015-10-03: [[ Fullscreen ]] Handle fullscreen decoration.
+        case kMCPlatformWindowPropertyHasFullscreenWidget:
             assert(p_type == kMCPlatformPropertyTypeBool);
-            *(bool *)r_value = m_fullscreen_control;
+            break;
+        case kMCPlatformWindowPropertyIsFullscreen:
+            assert(p_type == kMCPlatformPropertyTypeBool);
             break;
         default:
 			assert(false);
