@@ -55,6 +55,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "tilecache.h"
 #include "font.h"
 #include "external.h"
+#include "mctheme.h"
 
 #include "exec.h"
 
@@ -849,7 +850,11 @@ void MCStack::kfocus()
 			MCscreen->addtimer(this, MCM_idle, MCidleRate);
 		if (curcard->gethashandlers() & HH_IDLE)
 			MCscreen->addtimer(curcard, MCM_idle, MCidleRate);
-	}
+    
+        if (MCcurtheme != nil && MCcurtheme->getthemepropbool(WTHEME_PROP_WINDOWFOCUS_REDRAW))
+            dirtyall();
+    }
+    
 }
 
 Boolean MCStack::kfocusnext(Boolean top)
@@ -897,6 +902,9 @@ void MCStack::kunfocus()
     
 	state |= CS_SUSPENDED;
 	curcard->kunfocus();
+    
+    if (MCcurtheme != nil && MCcurtheme->getthemepropbool(WTHEME_PROP_WINDOWFOCUS_REDRAW))
+        dirtyall();
 }
 
 Boolean MCStack::kdown(MCStringRef p_string, KeySym key)

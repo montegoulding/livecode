@@ -1978,11 +1978,14 @@ void MCControl::getwidgetthemeinfo(MCWidgetInfo &widgetinfo)
 	uint4 wstate = 0;
 	if (flags & F_DISABLED)
 		wstate |= WTHEME_STATE_DISABLED;
-	else
-		if (state & CS_MFOCUSED && !(state & CS_SELECTED)
+	else if (state & CS_MFOCUSED && !(state & CS_SELECTED)
 		        && MCU_point_in_rect(rect, mx, my))
 			wstate |= WTHEME_STATE_PRESSED;
-	widgetinfo.state = wstate;
+    
+    if (MCfocusedstackptr != this -> getstack())
+        wstate |= WTHEME_STATE_INACTIVE;
+    
+    widgetinfo.state = wstate;
 	widgetinfo.part = WTHEME_PART_UNDEFINED;
 	widgetinfo.attributes = WTHEME_ATT_CLEAR;
 	widgetinfo.datatype = WTHEME_DATA_NONE;

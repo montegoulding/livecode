@@ -550,9 +550,15 @@ void MCButton::draw(MCDC *dc, const MCRectangle& p_dirty, bool p_isolated, bool 
 					setforeground(dc, DI_BOTTOM, False);
 				}
 #ifdef _MACOSX
+                Boolean reversetext;
+                if (MCcurtheme != nil && (MCfocusedstackptr != this -> getstack() && MCcurtheme->getthemepropbool(WTHEME_PROP_WINDOWNONFOCUS_NOSELECTEDREVERSETEXT)))
+                    reversetext = False;
+                else
+                    reversetext = True;
+                
                 // FG-2014-10-29: [[ Bugfix 13842 ]] On Yosemite, glowing buttons
                 // should draw with white text.
-                if (IsMacLFAM() && MCmajorosversion >= 0x10A0 && MCaqua
+                if (reversetext && IsMacLFAM() && MCmajorosversion >= 0x10A0 && MCaqua
                     && !(flags & F_DISABLED) && isstdbtn && getstyleint(flags) == F_STANDARD
                     && ((state & CS_HILITED) || (state & CS_SHOW_DEFAULT))
                     && rect.height <= 24 && MCappisactive)
@@ -1355,9 +1361,15 @@ void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 		if (MCcurtheme && MCcurtheme->iswidgetsupported(WTHEME_TYPE_TABPANE) &&
 		        MCcurtheme->iswidgetsupported(WTHEME_TYPE_TAB))
 		{
+            Boolean focus;
+            focus = MCfocusedstackptr == this -> getstack();
+            
 			textx = curx + tableftmargin;
 			twidth += tableftmargin + tabrightmargin;
 			tabwinfo.state = disabled == True || flags & F_DISABLED? WTHEME_STATE_DISABLED: WTHEME_STATE_CLEAR;
+            if (!focus)
+                tabwinfo.state |= WTHEME_STATE_INACTIVE;
+            
 			tabwinfo.attributes = WTHEME_ATT_CLEAR;
 			if (i == menuhistory)
 				tabwinfo.attributes |= WTHEME_ATT_TABRIGHTEDGE;
@@ -1391,7 +1403,7 @@ void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 			if (i + 1 == menuhistory)
 			{
 				tabwinfo.state |= WTHEME_STATE_HILITED;
-				yoffset = 0;
+                yoffset = MCcurtheme->getmetric(WTHEME_METRIC_TABSELECTEDOFFSET);
 			}
 			else
 			{
@@ -1418,14 +1430,14 @@ void MCButton::drawtabs(MCDC *dc, MCRectangle &srect)
 				MCcurtheme->drawwidget(dc, tabwinfo, tabrect);
 			twidth -= taboverlap;
 
-#ifdef _MACOSX
             // FG-2014-10-24: [[ Bugfix 11912 ]]
             // On OSX, reverse the text colour for selected tab buttons
-            if (i+1 == menuhistory)
+            
+            if (MCcurtheme->getthemepropbool( WTHEME_PROP_SELECTEDREVERSETEXT) && i+1 == menuhistory &&
+                    (focus || !MCcurtheme->getthemepropbool( WTHEME_PROP_WINDOWNONFOCUS_NOSELECTEDREVERSETEXT)))
                 reversetext = True;
             else
                 reversetext = False;
-#endif
 		}
 		else
 			switch (MClook)
@@ -1932,6 +1944,10 @@ void MCButton::getwidgetthemeinfo(MCWidgetInfo &widgetinfo)
 		        (entry == NULL || !MCU_point_in_rect(entry->getrect(), mx, my))
 		        && (widgetinfo.type != WTHEME_TYPE_PUSHBUTTON || state & CS_HILITED))
 			wstate |= WTHEME_STATE_PRESSED;
+    
+    if (MCfocusedstackptr != this -> getstack())
+        wstate |= WTHEME_STATE_INACTIVE;
+    
 	if (state & CS_HILITED)
 		wstate |= WTHEME_STATE_HILITED;
 	if (!(state & CS_SELECTED) && MCU_point_in_rect(rect, mx, my) && ishovering)

@@ -78,6 +78,7 @@ struct MCThemeDrawInfo
 			bool is_pressed;
 			bool is_first;
 			bool is_last;
+            bool is_inactive;
 		} tab;
 		
 		struct

@@ -169,8 +169,9 @@ int4 MCNativeTheme::getmetric(Widget_Metric wmetric)
 	case WTHEME_METRIC_TABLEFTMARGIN:
 		return 12;
 		break;
-	case WTHEME_METRIC_TABNONSELECTEDOFFSET:
-		return 0;
+	case WTHEME_METRIC_TABSELECTEDOFFSET:
+    case WTHEME_METRIC_TABNONSELECTEDOFFSET:
+        return -1;
 		break;
 	case WTHEME_METRIC_COMBOSIZE:
 		return 22;
@@ -193,13 +194,22 @@ int4 MCNativeTheme::getwidgetmetric(const MCWidgetInfo &winfo, Widget_Metric wme
 
 Boolean MCNativeTheme::getthemepropbool(Widget_ThemeProps themeprop)
 {
-	if (themeprop == WTHEME_PROP_DRAWTABPANEFIRST)
-		return true;
-	else if (themeprop == WTHEME_PROP_TABSELECTONMOUSEUP)
-		return true;
-	else if (themeprop == WTHEME_PROP_TABBUTTONSOVERLAPPANE)
-		return true;
-	return False;
+    switch (themeprop)
+    {
+        case WTHEME_PROP_DRAWTABPANEFIRST:
+        case WTHEME_PROP_TABSELECTONMOUSEUP:
+        case WTHEME_PROP_TABBUTTONSOVERLAPPANE:
+        case WTHEME_PROP_SELECTEDREVERSETEXT:
+        case WTHEME_PROP_WINDOWNONFOCUS_NOSELECTEDREVERSETEXT:
+        case WTHEME_PROP_WINDOWFOCUS_REDRAW:
+            return True;
+            break;
+            
+        default:
+            return False;
+            break;
+    }
+	
 }
 
 
@@ -350,8 +360,12 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 			MCThemeDrawInfo t_info;
 			t_info.dest = drect;
 			converttonativerect(MCU_reduce_rect(trect, 1), t_info . frame . bounds);
-			if ((winfo . state & WTHEME_STATE_DISABLED) != 0)
-				t_info . frame . state = kThemeStateInactive;
+            if ((winfo . state & (WTHEME_STATE_DISABLED | WTHEME_STATE_INACTIVE)) != 0)
+                t_info . frame . state = kThemeStateUnavailableInactive;
+            else if ((winfo . state & WTHEME_STATE_INACTIVE) != 0)
+                t_info . frame . state = kThemeStateInactive;
+            else if ((winfo . state & WTHEME_STATE_DISABLED) != 0)
+				t_info . frame . state = kThemeStateUnavailable;
 			else if ((winfo . state & WTHEME_STATE_PRESSED) != 0)
 				t_info . frame . state = kThemeStatePressed;
 			else
@@ -369,9 +383,13 @@ Boolean MCNativeTheme::drawwidget(MCDC *dc, const MCWidgetInfo &winfo, const MCR
 			t_info.dest = drect;
 			converttonativerect(trect, t_info . group . bounds);
 			
-			if ((winfo . state & WTHEME_STATE_DISABLED) != 0)
-				t_info . group . state = kThemeStateInactive;
-			else
+            if ((winfo . state & (WTHEME_STATE_DISABLED | WTHEME_STATE_INACTIVE)) != 0)
+                t_info . frame . state = kThemeStateUnavailableInactive;
+            else if ((winfo . state & WTHEME_STATE_INACTIVE) != 0)
+                t_info . frame . state = kThemeStateInactive;
+            else if ((winfo . state & WTHEME_STATE_DISABLED) != 0)
+                t_info . frame . state = kThemeStateUnavailable;
+            else
 				t_info . group . state = kThemeStateActive;
 				
 			if (winfo . datatype == WTHEME_DATA_RECT)
@@ -442,22 +460,24 @@ static void getthemebuttonpartandstate(const MCWidgetInfo &widgetinfo, HIThemeBu
     // Version number is always zero
     bNewInfo.version = 0;
     
-	if (widgetinfo.state & WTHEME_STATE_DISABLED)
-		bNewInfo.state = kThemeStateInactive;
-	else
-	{
-		if (widgetinfo.state & WTHEME_STATE_PRESSED)
-			bNewInfo.state = kThemeStatePressed;
-		else
-			bNewInfo.state = kThemeStateActive;
-	}
-	if (widgetinfo.state & WTHEME_STATE_HILITED)
+    if (widgetinfo.state & (WTHEME_STATE_DISABLED | WTHEME_STATE_INACTIVE))
+        bNewInfo.state = kThemeStateUnavailableInactive;
+    if (widgetinfo.state & WTHEME_STATE_DISABLED)
+		bNewInfo.state = kThemeStateUnavailable;
+    else if (widgetinfo.state & WTHEME_STATE_INACTIVE)
+        bNewInfo.state = kThemeStateInactive;
+    else if (widgetinfo.state & WTHEME_STATE_PRESSED)
+        bNewInfo.state = kThemeStatePressed;
+    else
+        bNewInfo.state = kThemeStateActive;
+    
+    if (widgetinfo.state & WTHEME_STATE_HILITED)
 		bNewInfo.value = kThemeButtonOn;
 	else
 		bNewInfo.value = kThemeButtonOff;
 	//set adornment
 	bNewInfo.adornment = kThemeAdornmentNone;
-	if (themebuttonkind == kThemeCheckBox)
+    if (themebuttonkind == kThemeCheckBox)
 		bNewInfo.adornment = kThemeAdornmentDrawIndicatorOnly;
 	else if (themebuttonkind == kThemeArrowButton)
 		bNewInfo.adornment = kThemeAdornmentArrowDownArrow;
@@ -535,9 +555,16 @@ static void drawthemetabs(MCDC *dc, const MCWidgetInfo &widgetinfo, const MCRect
 		
 		converttonativerect(drect, t_info . tab_pane . bounds);
 		
-		t_info . tab_pane . state = (widgetinfo.state & WTHEME_STATE_DISABLED) != 0 ? kThemeStateInactive: kThemeStateActive;
-		
-		dc -> drawtheme(THEME_DRAW_TYPE_TAB_PANE, &t_info);
+        if (widgetinfo.state & (WTHEME_STATE_DISABLED | WTHEME_STATE_INACTIVE))
+            t_info . tab_pane . state = kThemeStateUnavailableInactive;
+        if (widgetinfo.state & WTHEME_STATE_DISABLED)
+            t_info . tab_pane . state = kThemeStateUnavailable;
+        else if (widgetinfo.state & WTHEME_STATE_INACTIVE)
+            t_info . tab_pane . state = kThemeStateInactive;
+        else
+            t_info . tab_pane . state = kThemeStateActive;
+        
+        dc -> drawtheme(THEME_DRAW_TYPE_TAB_PANE, &t_info);
 	}
 	else
 	{
@@ -552,9 +579,10 @@ static void drawthemetabs(MCDC *dc, const MCWidgetInfo &widgetinfo, const MCRect
 		t_info . tab . is_hilited = (widgetinfo . state & WTHEME_STATE_HILITED) != 0;
 		t_info . tab . is_disabled = (widgetinfo . state & WTHEME_STATE_DISABLED) != 0;
 		t_info . tab . is_pressed = (widgetinfo . state & WTHEME_STATE_PRESSED) != 0;
-		t_info . tab . is_first = (widgetinfo . attributes & WTHEME_ATT_FIRSTTAB) != 0;
+        t_info . tab . is_inactive = (widgetinfo . state & WTHEME_STATE_INACTIVE) != 0;
+        t_info . tab . is_first = (widgetinfo . attributes & WTHEME_ATT_FIRSTTAB) != 0;
 		t_info . tab . is_last = (widgetinfo . attributes & WTHEME_ATT_LASTTAB) != 0;
-		dc -> drawtheme(THEME_DRAW_TYPE_TAB, &t_info);
+        dc -> drawtheme(THEME_DRAW_TYPE_TAB, &t_info);
 	}
 }
 
@@ -648,16 +676,22 @@ static void DrawMacAMScrollControls(MCDC *dc, const MCWidgetInfo &winfo, const M
 			t_info . button . bounds . origin . x++;
             t_info . button . bounds . size . width--;
 				
-			if (winfo.state & WTHEME_STATE_DISABLED)
-				t_info . button . info . state = kThemeStateInactive;
-			else
-				if (winfo.state & WTHEME_STATE_PRESSED)
+            if (winfo.state & (WTHEME_STATE_DISABLED | WTHEME_STATE_INACTIVE))
+                t_info . button . info . state = kThemeStateUnavailableInactive;
+            if (winfo.state & WTHEME_STATE_DISABLED)
+                t_info . button . info . state = kThemeStateUnavailable;
+            else if (winfo.state & WTHEME_STATE_INACTIVE)
+                t_info . tab_pane . state = kThemeStateInactive;
+            else if (winfo.state & WTHEME_STATE_PRESSED)
+            {
 					if (winfo.part == WTHEME_PART_ARROW_DEC)
 						t_info . button . info . state = kThemeStatePressedUp;
 					else
 						t_info . button . info . state = kThemeStatePressedDown;
-				else
-					t_info . button . info . state = kThemeStateActive;
+            }
+            else
+                t_info . button . info . state = kThemeStateActive;
+            
 			t_info . button . info . adornment = kThemeAdornmentNone;
 			t_info . button . info . value = kThemeButtonOff;
 			t_info . button . info . kind = kThemeIncDecButton;
@@ -998,12 +1032,21 @@ void MCMacDrawTheme(MCThemeDrawType p_type, MCThemeDrawInfo& p_info, CGContextRe
 			t_info . direction = kThemeTabNorth;
 			t_info . size = kHIThemeTabSizeNormal;
 			if (p_info . tab . is_hilited)
-				t_info . style = (p_info . tab . is_disabled ? kThemeTabFrontInactive : kThemeTabFront);
-			else if (p_info . tab . is_disabled)
-				t_info . style = kThemeTabNonFrontInactive;
+                if (p_info . tab . is_disabled)
+                    t_info . style = kThemeTabFrontUnavailable;
+                else if (p_info . tab . is_inactive)
+                    t_info . style = kThemeTabFrontInactive;
+                else
+                    t_info . style = kThemeTabFront;
+            else if (p_info . tab . is_disabled)
+                if (p_info . tab . is_inactive)
+                    t_info . style = kThemeTabNonFrontInactive;
+                else
+                    t_info . style = kThemeTabNonFrontUnavailable;
 			else
 				t_info . style = (p_info . tab . is_pressed ? kThemeTabNonFrontPressed : kThemeTabNonFront);
-			t_info . adornment = kHIThemeTabAdornmentNone;
+            
+            t_info . adornment = kHIThemeTabAdornmentNone;
 			t_info . kind = kHIThemeTabKindNormal;
 			if (p_info . tab . is_first && p_info . tab . is_last)
 				t_info . position = kHIThemeTabPositionOnly;

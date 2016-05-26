@@ -121,6 +121,7 @@ enum Widget_Metric {
 	WTHEME_METRIC_CHECKBUTTON_INDICATORSIZE,
 	WTHEME_METRIC_CHECKBUTTON_INDICATORSPACING,
     WTHEME_METRIC_TABBUTTON_HEIGHT,             // Height of tab buttons, if fixed
+    WTHEME_METRIC_TABSELECTEDOFFSET,
 };
 
 enum Widget_Part {
@@ -154,8 +155,10 @@ enum Widget_ThemeProps {
     WTHEME_PROP_DRAWTABPANEFIRST,
     WTHEME_PROP_TABBUTTONSOVERLAPPANE,
     //theme controls should redraw when mouse is over objects
+    WTHEME_PROP_SELECTEDREVERSETEXT,
+    WTHEME_PROP_WINDOWNONFOCUS_NOSELECTEDREVERSETEXT,
+    WTHEME_PROP_WINDOWFOCUS_REDRAW,
 };
-
 
 
 //basic state stuff
@@ -169,6 +172,7 @@ enum Widget_ThemeProps {
 #define WTHEME_STATE_READONLY (1UL << 6)
 #define WTHEME_STATE_CONTROL_HOVER (1UL << 6)
 #define WTHEME_STATE_SUPPRESSDEFAULT (1UL << 7)
+#define WTHEME_STATE_INACTIVE (1UL << 8)
 
 
 //attributes start at 13
