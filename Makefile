@@ -45,6 +45,13 @@ else
 endif
 
 include Makefile.common
+# Prettifying output for CI builds
+ifeq ($(TRAVIS),true)
+  XCODEBUILD := set -o pipefail && $(XCODEBUILD)
+  XCODEBUILD_FILTER := | xcpretty
+else
+  XCODEBUILD_FILTER :=
+endif 
 
 ################################################################
 
@@ -110,10 +117,11 @@ config-mac:
 
 compile-mac:
 	$(XCODEBUILD) -project "build-mac$(BUILD_SUBDIR)/$(BUILD_PROJECT).xcodeproj" -configuration $(BUILDTYPE) -target default \
-	  | egrep '^(/.+:[0-9+:[0-9]+:.(error|warning):|fatal|===)'
+	  $(XCODEBUILD_FILTER)
 
 check-mac:
-	$(XCODEBUILD) -project "build-mac$(BUILD_SUBDIR)/$(BUILD_PROJECT).xcodeproj" -configuration $(BUILDTYPE) -target check
+	$(XCODEBUILD) -project "build-mac$(BUILD_SUBDIR)/$(BUILD_PROJECT).xcodeproj" -configuration $(BUILDTYPE) -target check \
+	  $(XCODEBUILD_FILTER)
 	$(MAKE) check-common-mac
 
 
