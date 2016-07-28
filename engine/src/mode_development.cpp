@@ -306,7 +306,9 @@ IO_stat MCDispatch::startup(void)
     {
         if (MCdispatcher -> loadfile(MCstacknames[0], sptr) != IO_NORMAL)
         {
-            MCresult -> setvalueref(MCSTR("failed to read stackfile"));
+            MCAutoStringRefAsSysString t_stack;
+            /* UNCHECKED */ t_stack.Lock(MCstacknames[0]);
+            fprintf(stderr, "failed to read stackfile %s\n", *t_stack);
             return IO_ERROR;
         }
         
