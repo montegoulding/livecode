@@ -145,6 +145,52 @@ metadata graphYLines.default is "true"
 metadata graphYLines.label is "Vertical grid lines"
 
 /**
+Summary: The angle of the Y axis labels
+
+Syntax:
+set the graphYLabelAngle of <widget> to 90
+get the graphYLabelAngle of <widget>
+
+Value (real): The angle in degrees to rotate the label text
+
+Description:
+Set the angle of the labels to fit longer labels on the char. The
+default angle of 0 is horizontal text.
+
+Related: graphYLabelAngle (property)
+*/
+property graphYLabelAngle get mYLabelAngle set SetYLabelAngle
+metadata graphYLabelAngle.default is "0"
+metadata graphYLabelAngle.label is "Y axis label angle"
+metadata markerScale.editor is "com.livecode.pi.number"
+metadata markerScale.step is "1"
+metadata markerScale.min is "0"
+metadata markerScale.max is "360"
+
+/**
+Summary: The angle of the X axis labels
+
+Syntax:
+set the graphXLabelAngle of <widget> to 90
+get the graphXLabelAngle of <widget>
+
+Value (real): The angle in degrees to rotate the label text
+
+Description:
+Set the angle of the labels to fit longer labels on the char. The
+default angle of 0 is horizontal text.
+
+Related: graphXLabelAngle (property)
+*/
+property graphXLabelAngle get mXLabelAngle set SetXLabelAngle
+metadata graphXLabelAngle.default is "0"
+metadata graphXLabelAngle.label is "Y axis label angle"
+metadata graphXLabelAngle.editor is "com.livecode.pi.number"
+metadata graphXLabelAngle.step is "1"
+metadata graphXLabelAngle.min is "0"
+metadata graphXLabelAngle.max is "360"
+
+/**
 Summary: Whether chart lines are displayed
 
 Syntax:
@@ -257,6 +303,8 @@ private variable mMarkerStyles as List
 
 private variable mYMax as Number
 private variable mYMin as Number
+private variable mYLabelAngle as Number
+private variable mXLabelAngle as Number
 
 private variable mXMax as optional Number
 private variable mXMin as optional Number
@@ -482,6 +530,16 @@ end handler
 
 public handler setYLinesVisibility(in pShowYGridLines as Boolean) returns nothing
 	put pShowYGridLines into mGridVShow
+	redraw all
+end handler
+
+public handler SetYLabelAngle(in pYLabelAngle as Number) returns nothing
+	put pYLabelAngle into mYLabelAngle
+	redraw all
+end handler
+
+public handler SetXLabelAngle(in pXLabelAngle as Number) returns nothing
+	put pXLabelAngle into mXLabelAngle
 	redraw all
 end handler
 
@@ -958,40 +1016,92 @@ private handler drawXLabels() returns nothing
    variable tXLabels as List
    put mData[1] into tXLabels
 
-   variable tString as String
-   variable tThisRect as Rectangle
+	variable tString as String
    variable tLabel
 
    variable tCount as Number
    put 0 into tCount
 
-   variable tLeft as Real
-   variable tRight as Real
-   variable tBottom as Real
-   variable tTop as Real
-
-   repeat for each element tLabel in tXLabels
-      add 1 to tCount
-      if tLabel is a string then
+   save state of this canvas
+	rotate this canvas by mXLabelAngle
+	
+	-- Find the maximum string size
+	variable tRect as Rectangle
+	variable tMaxRect as Rectangle
+	put rectangle [0,0,0,0] into tMaxRect
+	variable tStrings as List
+	repeat for each element tLabel in tXLabels
+		if tLabel is a string then
          put tLabel into tString
       else
          put tLabel formatted as string into tString
       end if
+		push tString onto front of tStrings
+		
+		put the image bounds of text tString on this canvas into tRect
+		if the width of tRect > the width of tMaxRect then
+			set the width of tMaxRect to the width of tRect
+		end if
+		if the height of tRect > the height of tMaxRect then
+			set the height of tMaxRect to the height of tRect
+		end if
+	end repeat
+	
+	variable tPathOffsetX as Number
+	variable tPathOffsetY as Number
 
-      if tCount is 1 then
-         put gridLeft() - mGridHWidth / 2 into tLeft
-         put gridLeft() + mGridHWidth / 2 into tRight
-      else
-         put tRight into tLeft
-         add mGridHWidth to tRight
-      end if
+   put the width of tMaxRect * 0.5 into tPathOffsetX
+
+  --put 0.5 + ((180 - mXLabelAngle mod 180) / 180) * the height of tMaxRect into tPathOffsetY
+
+    --put the width of tMaxRect * (45 - mXLabelAngle mod 45) / 90 into tPathOffsetY
+
+	variable tTop as Real
+	put mHeight - (mMaxXLabelHeight + gridPadding() + tPathOffsetY) into tTop
+	
+	variable tLeft as Real
+	put gridLeft() - tPathOffsetX into tLeft
+   
+	repeat for each element tLabel in tXLabels
+      add 1 to tCount
+		
+		pop back of tStrings into tString
       
-		put mHeight into tBottom
-      put mHeight - ((tCount mod mXLabelRows) + 1) * (mMaxXLabelHeight + gridPadding()) into tTop
-      
-      put rectangle [tLeft, tTop, tRight, tBottom] into tThisRect
-      fill text tLabel at center of tThisRect on this canvas
+		-- rotate the path around the origin 0,0
+		variable tPath as Path
+		put rectangle path of tMaxRect into tPath
+		
+		variable tPathOffsetX as Number
+		variable tPathOffsetY as Number
+
+     /*put mXLabelAngle mod 180 / 180 * the width of tMaxRect into tPathOffsetX
+     put (180 - mXLabelAngle mod 180) / 180 * the height of tMaxRect into tPathOffsetY*/
+
+		translate tPath by [tLeft, tTop]
+      rotate tPath by (mXLabelAngle * -1)
+		
+		put the bounding box of tPath into tRect
+
+		/*if mXLabelAngle mod 180 is 0 then
+			fill text tString at left of tRect on this canvas
+		else if mXLabelAngle mod 360 < 90 then
+			fill text tString at bottom left of tRect on this canvas
+		else if mXLabelAngle mod 360 < 180 then
+			fill text tString at bottom left of tRect on this canvas
+		else if mXLabelAngle mod 360 < 270 then
+			fill text tString at top right of tRect on this canvas
+		else
+			fill text tString at top right of tRect on this canvas
+		end if*/
+		
+		variable tTempPath as Path
+		put rectangle path of tRect into tTempPath
+		stroke tTempPath on this canvas
+		
+		add mGridHWidth to tLeft
    end repeat
+	
+	restore state of this canvas
 end handler
 
 private handler drawYLabels() returns nothing
