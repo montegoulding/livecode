@@ -293,6 +293,9 @@ private variable mRecalculateGrid as Boolean
 private variable mHilitedCoordinates as List
 private variable mHilitedCoordinatesColor as String
 
+private variable mMouseMarker as List
+private variable mMouseDownMarker as List
+
 -- this handler is called when the widget is created
 public handler OnCreate() returns nothing
 	put [["mon","tue","wed","thu","fri","sat","sun"],[1000,720,889,800,1000,964,1000],[300,340,400,360,301,400,nothing],[0,123,80,10,234,200,0]] into mData
@@ -391,7 +394,168 @@ public handler OnLoad(in pProperties as Array)
 	EnsureMarkerStyles()
 end handler
 
+/**
+Name: markerMouseEnter
+Type: message
+Syntax: markerMouseEnter pX, pY
+
+Summary: Sent when the mouse moves over a marker.
+
+Parameters:
+pX: The marker X value.
+pY: The marker Y value.
+
+Description:
+The <markerMouseEnter> message is sent to the widget's script object
+when the mouse enters the area of the marker on the graph.
+
+Name: markerMouseLeave
+Type: message
+Syntax: markerMouseLeave pX, pY
+
+Summary: Sent when the mouse moves away from a marker.
+
+Parameters:
+pX: The marker X value.
+pY: The marker Y value.
+
+Description:
+The <markerMouseLeave> message is sent to the widget's script object
+when the mouse leaves the area of the marker on the graph.
+*/
+
+public handler OnMouseMove() returns nothing
+	variable tMouseMarker as List
+	put mMouseMarker into tMouseMarker
+	UpdateMouseMarker()
+	if mMouseMarker is not tMouseMarker then
+		if tMouseMarker is not [] then
+			post "markerMouseLeave" with tMouseMarker
+		end if
+		if mMouseMarker is not [] then
+			post "markerMouseEnter" with mMouseMarker
+		end if
+	end if
+end handler
+
+/**
+
+Name: markerMouseDown
+Type: message
+Syntax: markerMouseDown pX, pY
+
+Summary: Sent when the mouse is down on a marker.
+
+Parameters:
+pX: The marker X value.
+pY: The marker Y value.
+
+Description:
+The <markerMouseDown> message is sent to the widget's script object
+when the mouse is pressed down on a marker.
+
+*/
+
+public handler OnMouseDown() returns nothing
+	UpdateMouseMarker()
+	if mMouseMarker is not [] then
+		put mMouseMarker into mMouseDownMarker
+		post "markerMouseDown" with mMouseDownMarker
+	end if
+end handler
+
+/**
+
+Name: markerMouseUp
+Type: message
+Syntax: markerMouseUp pX, pY
+
+Summary: Sent when the mouse is clicked on a marker.
+
+Parameters:
+pX: The marker X value.
+pY: The marker Y value.
+
+Description:
+The <markerMouseUp> message is sent to the widget's script object
+when the mouse is clicked on a marker.
+
+Name: markerMouseRelease
+Type: message
+Syntax: markerMouseRelease pX, pY
+
+Summary: Sent when the mouse is released away from a marker after being
+pressed on a marker.
+
+Parameters:
+pX: The marker X value.
+pY: The marker Y value.
+
+Description:
+The <markerMouseUp> message is sent to the widget's script object
+when the mouse is released away from the marker it was pressed down on.
+
+*/
+
+public handler OnMouseUp() returns nothing
+	UpdateMouseMarker()
+	if mMouseDownMarker is not [] then
+		if mMouseMarker is mMouseDownMarker then
+			post "markerMouseUp" with mMouseDownMarker
+		else
+			post "markerMouseRelease" with mMouseDownMarker
+		end if
+	end if
+	put [] into mMouseDownMarker
+end handler
+
+public handler OnMouseCancel() returns nothing
+	if mMouseDownMarker is not [] then
+		post "markerMouseRelease" with mMouseDownMarker
+		put [] into mMouseDownMarker
+	end if
+end handler
+
 ----------
+constant kHitTestFudgeFactor is 5
+
+private handler UpdateMouseMarker() returns nothing
+   variable tMouseMarker as List
+	
+	variable tMouseLoc as Point
+	put the mouse position into tMouseLoc
+	
+	if tMouseLoc is within mGridRect then
+		variable tGraphLine as Integer
+		repeat with tGraphLine from 2 up to the number of elements in mData
+			variable tDataPoints as List
+			put element tGraphLine of mData into tDataPoints
+			
+			variable tPointIndex as Integer
+			repeat with tPointIndex from 1 up to the number of elements in tDataPoints
+				if tDataPoints[tPointIndex] is not nothing then
+					variable tPointX as Real
+					variable tPointY as Real
+					put the left of mGridRect + ((tPointIndex - 1) * mGridHWidth) into tPointX
+					
+					variable tHeightRatio as Real
+					put (tDataPoints[tPointIndex] - mYMin) / (mYMax - mYMin) into tHeightRatio
+					put the bottom of mGridRect - the height of mGridRect * tHeightRatio into tPointY
+					
+					variable tRect as Rectangle
+					put rectangle [tPointX - kHitTestFudgeFactor, tPointY - kHitTestFudgeFactor, \
+							tPointX + kHitTestFudgeFactor, tPointY + kHitTestFudgeFactor] into tRect
+					
+					if tMouseLoc is within tRect then
+						put [mData[1][tPointIndex], tDataPoints[tPointIndex]] into tMouseMarker
+					end if
+				end if
+			end repeat
+		end repeat
+	end if
+	
+	put tMouseMarker into mMouseMarker
+end handler
 
 ----------
 -- this handler sets the graphData property
