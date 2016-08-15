@@ -1,0 +1,459 @@
+/*
+Copyright (C) 2016 LiveCode Ltd.
+
+This file is part of LiveCode.
+
+LiveCode is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License v3 as published by the Free
+Software Foundation.
+
+LiveCode is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or
+FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+for more details.
+
+You should have received a copy of the GNU General Public License
+along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
+
+widget com.livecode.widget.breadcrumb
+
+use com.livecode.canvas
+use com.livecode.library.widgetutils
+
+metadata title is "Breadcrumb"
+metadata author is "LiveCode"
+metadata version is "1.0.0"
+
+private variable mRoundRadius as Number
+property cornerRadius get mRoundRadius set SetRoundRadius
+metadata cornerRadius.default is "5"
+metadata cornerRadius.editor is "com.livecode.pi.number"
+metadata cornerRadius.step is "1"
+metadata cornerRadius.min is "0"
+metadata cornerRadius.max is "30"
+metadata cornerRadius.label is "Round radius"
+
+private variable mLineWidth as Number
+property lineWidth get mLineWidth set SetLineWidth
+metadata lineWidth.default is "1"
+metadata lineWidth.editor is "com.livecode.pi.number"
+metadata lineWidth.step is "1"
+metadata lineWidth.min is "0"
+metadata lineWidth.max is "30"
+metadata lineWidth.label is "Round radius"
+
+private variable mFormattedWidth as Number
+property formattedWidth get mFormattedWidth
+
+private variable mArrowSize as Number
+property arrowSize get mArrowSize set SetArrowSize
+metadata arrowSize.default is "8"
+metadata arrowSize.editor is "com.livecode.pi.number"
+metadata arrowSize.step is "1"
+metadata arrowSize.min is "0"
+metadata arrowSize.max is "30"
+metadata arrowSize.label is "Arrow size"
+
+private variable mMargins as Number
+property margins get mMargins set SetMargins
+metadata margins.default is "8"
+metadata margins.editor is "com.livecode.pi.number"
+metadata margins.step is "1"
+metadata margins.min is "0"
+metadata margins.max is "30"
+metadata margins.label is "Margins"
+
+property pointStyle get mStyle set SetStyle
+metadata pointStyle.editor is "com.livecode.pi.enum"
+metadata pointStyle.options is "Arrow,Plug"
+metadata pointStyle.default is "Arrow"
+metadata pointStyle.label is "Point Style"
+
+private variable mBreadcrumbs as List
+
+private variable mPaths as List
+private variable mMouseIndex as Number
+private variable mMouseDownIndex as Number
+private variable mShowLabelsFromIndex as Number
+
+handler type DrawPoint(in pRect as Rectangle, in pLeftSide as Boolean, inout pPath as Path) returns nothing
+private variable mPointHandler as DrawPoint   
+private variable mStyle as String
+
+public handler OnCreate() 
+   put 1 into mLineWidth
+	put 5 into mRoundRadius
+   put 8 into mMargins
+   put 8 into mArrowSize
+   put -1 into mMouseIndex
+   put __DrawArrow into mPointHandler
+   put "Arrow" into mStyle
+   
+   variable tArray1 as Array
+   put "95" into tArray1["label"]
+   put "225,100,0" into tArray1["background color"]
+   put "225,255,255" into tArray1["foreground color"]
+   variable tArray2 as Array
+   put "10" into tArray2["label"]
+   variable tArray3 as Array
+   put "954" into tArray3["label"]
+   put "0,100,225" into tArray3["background color"]
+   put [tArray1, tArray2, tArray3] into mBreadcrumbs
+   __CachePaths()
+end handler
+
+public handler OnMouseMove()
+   variable tMouseIndex as Number
+   put mMouseIndex into tMouseIndex
+   __FindMouseIndex()
+   if tMouseIndex is not mMouseIndex then
+      if tMouseIndex is not -1 then
+         post "crumbLeave" with [tMouseIndex, mBreadcrumbs[tMouseIndex]["label"]]
+      end if
+      if mMouseIndex is not -1 then
+         post "crumbEnter" with [mMouseIndex, mBreadcrumbs[mMouseIndex]["label"]]
+      end if
+      redraw all
+   end if
+end handler
+
+public handler OnMouseDown()
+   __FindMouseIndex()
+   if mMouseIndex is not -1 then
+      put mMouseIndex into mMouseDownIndex
+      post "crumbDown" with [mMouseDownIndex, mBreadcrumbs[mMouseDownIndex]["label"]]
+   end if
+end handler
+
+public handler OnMouseUp()
+   __FindMouseIndex()
+   if mMouseDownIndex is not -1 then
+      if mMouseDownIndex is mMouseIndex then
+         post "crumbUp" with [mMouseDownIndex, mBreadcrumbs[mMouseDownIndex]["label"]]
+      else
+         post "crumbRelease" with [mMouseDownIndex, mBreadcrumbs[mMouseDownIndex]["label"]]
+      end if
+   end if
+   put -1 into mMouseDownIndex
+end handler
+
+public handler OnMouseCancel()
+   __FindMouseIndex()
+   if mMouseDownIndex is not -1 then
+      post "crumbRelease" with [mMouseDownIndex, mBreadcrumbs[mMouseIndex]["label"]]
+   end if
+   put -1 into mMouseDownIndex
+end handler
+
+public handler OnMouseLeave()
+   if mMouseIndex is not -1 then
+      put -1 into mMouseIndex
+      redraw all
+   end if
+end handler
+
+private handler __FindMouseIndex() returns nothing
+   variable tCrumb as Number
+   variable tPaths as List
+   put mPaths into tPaths
+   repeat with tCrumb from 1 up to the number of elements in mPaths
+      variable tPath as Path
+      pop back of tPaths into tPath
+      if hitTestPath(the mouse position, tPath, mLineWidth, true) then
+         put tCrumb into mMouseIndex
+         return
+      end if
+   end repeat
+   put -1 into mMouseIndex
+end handler
+
+private handler __DrawArrow(in pRect as Rectangle, in pLeftSide as Boolean, inout pPath as Path) returns nothing
+   line to point [the left of pRect + mArrowSize, the top of pRect + the height of pRect / 2] on pPath
+   if pLeftSide then
+      line to point [the left of pRect, the top of pRect + the height of pRect] on pPath
+   else
+      line to point [the left of pRect, the top of pRect] on pPath
+   end if
+end handler
+
+private handler __DrawPlug(in pRect as Rectangle, in pLeftSide as Boolean, inout pPath as Path) returns nothing
+   variable tY as Number
+   variable tYOffset as Number
+   
+   if pLeftSide then
+      put the top of pRect into tY
+      put the height of pRect / 3 into tYOffset
+   else
+      put the bottom of pRect into tY
+      put -(the height of pRect / 3) into tYOffset
+   end if
+   
+   add tYOffset to tY
+   line to point [the left of pRect, tY] on pPath
+   line to point [the right of pRect, tY] on pPath
+   add tYOffset to tY
+   line to point [the right of pRect, tY] on pPath
+   line to point [the left of pRect, tY] on pPath
+   add tYOffset to tY
+   line to point [the left of pRect, tY] on pPath
+end handler
+
+private handler __LeftEndPath(in pRect as Rectangle) returns Path
+   variable tPath as Path
+   put the empty path into tPath
+   move to point [the left of pRect + mRoundRadius, the top of pRect] on tPath
+   -- top left corner
+   arc to point [the left of pRect, the top of pRect + mRoundRadius] \
+         with radii [mRoundRadius, mRoundRadius] rotated by 0 taking smallest anticlockwise route on tPath
+   -- left side
+   line to point [the left of pRect, the bottom of pRect - mRoundRadius] on tPath
+   -- bottom left corner
+   arc to point [the left of pRect + mRoundRadius, the bottom of pRect] \
+         with radii [mRoundRadius, mRoundRadius] rotated by 0 taking smallest anticlockwise route on tPath
+   -- bottom side
+   line to point [the right of pRect - mArrowSize, the bottom of pRect] on tPath
+   
+   variable tRect as Rectangle
+   put rectangle [the right of pRect - mArrowSize, the top of pRect, the right of pRect, the bottom of pRect] into tRect
+   mPointHandler(tRect, false, tPath)
+   
+   -- close path
+   close path on tPath
+   return tPath
+end handler
+
+private handler __MiddlePath(in pRect as Rectangle) returns Path
+   variable tPath as Path
+   put the empty path into tPath
+   move to point [the left of pRect, the top of pRect] on tPath
+   
+   variable tRect as Rectangle
+   put rectangle [the left of pRect, the top of pRect, the left of pRect + mArrowSize, the bottom of pRect] into tRect
+   mPointHandler(tRect, true, tPath)
+   
+   -- bottom side
+   line to point [the right of pRect - mArrowSize, the bottom of pRect] on tPath
+   
+   put rectangle [the right of pRect - mArrowSize, the top of pRect, the right of pRect, the bottom of pRect] into tRect
+   mPointHandler(tRect, false, tPath)
+   
+   -- close path
+   close path on tPath
+   return tPath
+end handler
+
+private handler __RightEndPath(in pRect as Rectangle) returns Path
+   variable tPath as Path
+   put the empty path into tPath
+   move to point [the left of pRect, the top of pRect] on tPath
+   
+   variable tRect as Rectangle
+   put rectangle [the left of pRect, the top of pRect, the left of pRect + mArrowSize, the bottom of pRect] into tRect
+   mPointHandler(tRect, true, tPath)
+   
+   -- bottom side
+   line to point [the right of pRect - mRoundRadius, the bottom of pRect] on tPath
+   -- bottom right corner
+   arc to point [the right of pRect, the bottom of pRect - mRoundRadius] \
+         with radii [mRoundRadius, mRoundRadius] rotated by 0 taking smallest anticlockwise route on tPath
+   -- right side
+   line to point [the right of pRect, the top of pRect + mRoundRadius] on tPath
+   -- top right corner
+   arc to point [the right of pRect - mRoundRadius, the top of pRect] \
+         with radii [mRoundRadius, mRoundRadius] rotated by 0 taking smallest anticlockwise route on tPath
+   -- close path
+   close path on tPath
+   return tPath
+end handler
+
+private handler __CachePaths() returns nothing
+   variable tPaths as List
+   
+   variable tRect as Rectangle
+   put my bounds into tRect
+   subtract mLineWidth from the width of tRect
+   subtract mLineWidth from the height of tRect
+   add mLineWidth / 2 to the left of tRect
+   add mLineWidth / 2 to the top of tRect
+   
+   variable tLeft as Number
+   put the left of tRect into tLeft
+   
+   variable tCrumb as Number
+   variable tCrumbRects as List
+   variable tCrumbRect as Rectangle
+   repeat with tCrumb from 1 up to the number of elements in mBreadcrumbs
+      put the bounds of text mBreadcrumbs[tCrumb]["label"] with my font into tCrumbRect
+      -- add space for icon here at some point
+      if tCrumb is the number of elements in mBreadcrumbs then
+         add mArrowSize * 1.5 to the width of tCrumbRect
+      else if tCrumb is not 1 then
+         add mArrowSize * 2 to the width of tCrumbRect
+      else
+         add mArrowSize to the width of tCrumbRect
+      end if
+      
+      -- add margin around content
+      add mMargins to the width of tCrumbRect
+      set the height of tCrumbRect to the height of tRect
+      
+      set the left of tCrumbRect to tLeft
+      set the top of tCrumbRect to the top of tRect
+      
+      push tCrumbRect onto back of tCrumbRects
+      
+      put the right of tCrumbRect-mArrowSize into tLeft
+   end repeat
+   
+   put 1 into mShowLabelsFromIndex
+   
+   add mArrowSize to tLeft
+   put tLeft + mLineWidth into mFormattedWidth
+   round mFormattedWidth
+   
+   if tLeft > the right of tRect then
+      -- concetena down oldest breadcrumbs
+      variable tRemove as Number
+      put tLeft - the right of tRect into tRemove
+      -- concetina back until more than tRemove removed
+      put the left of tRect into tLeft
+      variable tMinWidth as Number
+      repeat with tCrumb from 1 up to the number of elements in tCrumbRects
+         if tRemove > 0 then
+            put mArrowSize + mMargins into tMinWidth
+            if tCrumb > 1 then
+               add mArrowSize to tMinWidth
+            end if
+            subtract the width of tCrumbRects[tCrumb] - tMinWidth from tRemove
+            set the width of tCrumbRects[tCrumb] to tMinWidth
+            put tCrumb + 1 into mShowLabelsFromIndex
+         end if
+         set the left of tCrumbRects[tCrumb] to tLeft
+         put the right of tCrumbRects[tCrumb]-mArrowSize into tLeft
+      end repeat
+      add mArrowSize to tLeft
+   end if
+   
+   if tLeft < the right of tRect then
+      -- divide extra by number of elements and add to each
+      variable tAdd as Number
+      put (the right of tRect - tLeft) / (the number of elements in mBreadcrumbs - mShowLabelsFromIndex + 1) into tAdd   
+      put the left of tRect into tLeft
+      repeat with tCrumb from 1 up to the number of elements in tCrumbRects
+         if tCrumb >= mShowLabelsFromIndex then
+            add tAdd to the width of tCrumbRects[tCrumb]
+            set the left of tCrumbRects[tCrumb] to tLeft
+         end if
+         put the right of tCrumbRects[tCrumb]-mArrowSize into tLeft
+      end repeat
+   end if
+   
+   repeat with tCrumb from the number of elements in mBreadcrumbs down to 1
+      variable tPath as Path
+      if tCrumb is the number of elements in mBreadcrumbs then
+         put __RightEndPath(tCrumbRects[tCrumb]) into tPath
+      else if tCrumb is not 1 then
+         put __MiddlePath(tCrumbRects[tCrumb]) into tPath
+      else
+         put __LeftEndPath(tCrumbRects[tCrumb]) into tPath
+      end if
+      
+      push tPath onto back of tPaths
+   end repeat
+   
+   put tPaths into mPaths
+end handler
+
+public handler OnPaint()
+   __CachePaths()
+   variable tCrumb as Number
+   variable tPaths as List
+   put mPaths into tPaths
+   repeat with tCrumb from the number of elements in mBreadcrumbs down to 1
+      variable tPaint as Paint
+      if tCrumb is mMouseIndex then
+         put my highlight paint into tPaint
+      else if "background color" is among the keys of mBreadcrumbs[tCrumb] then
+         variable tColor as Color
+         put stringToColor(mBreadcrumbs[tCrumb]["background color"]) into tColor
+         put solid paint with tColor into tPaint
+      else
+         put my background paint into tPaint
+      end if
+      set the paint of this canvas to tPaint
+      
+      variable tPath as Path
+      pop front of tPaths into tPath
+      fill tPath on this canvas
+      
+      set the paint of this canvas to my foreground paint
+      if mLineWidth > 0 then
+         set the stroke width of this canvas to mLineWidth
+         stroke tPath on this canvas
+      end if
+      
+      if "foreground color" is among the keys of mBreadcrumbs[tCrumb] then
+         variable tColor as Color
+         put stringToColor(mBreadcrumbs[tCrumb]["foreground color"]) into tColor
+         put solid paint with tColor into tPaint
+      else
+         put my foreground paint into tPaint
+      end if
+      set the paint of this canvas to tPaint
+      
+      if tCrumb >= mShowLabelsFromIndex then
+         variable tRect as Rectangle
+         put the bounding box of tPath into tRect
+         fill text mBreadcrumbs[tCrumb]["label"] at center of tRect on this canvas
+      end if
+   end repeat
+end handler
+
+public handler SetBreadcrumbs(in pBreadcrumbs as List) returns nothing
+   if mBreadcrumbs is not pBreadcrumbs then
+      put pBreadcrumbs into mBreadcrumbs
+   	redraw all
+   end if
+end handler
+
+public handler SetRoundRadius(in pRoundRadius as Number) returns nothing
+   if mRoundRadius is not pRoundRadius then
+      put pRoundRadius into mRoundRadius
+   	redraw all
+   end if
+end handler
+
+public handler SetLineWidth(in pLineWidth as Number) returns nothing
+   if mLineWidth is not pLineWidth then
+      put pLineWidth into mLineWidth
+   	redraw all
+   end if
+end handler
+
+public handler SetMargins(in pMargins as Number) returns nothing
+   if mMargins is not pMargins then
+      put pMargins into mMargins
+   	redraw all
+   end if
+end handler
+
+public handler SetArrowSize(in pArrowSize as Number) returns nothing
+   if mArrowSize is not pArrowSize then
+   	put pArrowSize into mArrowSize
+   	redraw all
+   end if
+end handler
+
+public handler SetStyle(in pStyle as String) returns nothing
+   if mStyle is not pStyle then
+      put pStyle into mStyle
+      if pStyle is "Arrow" then
+         put __DrawArrow into mPointHandler
+      else
+         put __DrawPlug into mPointHandler
+      end if
+      redraw all
+   end if
+end handler
+	
+end widget
