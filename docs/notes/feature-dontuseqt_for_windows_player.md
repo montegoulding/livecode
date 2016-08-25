@@ -3,7 +3,7 @@
 It is now possible to set the **dontUseQT** property for a player object. 
 
 On Windows, the default value of the global **dontUseQt** and
-**dontUseQtEffects** properties has changed from true to false. This
+**dontUseQtEffects** properties has changed from false to true. This
 means that by default players created on Windows will use the
 DirectShow API for multimedia playback.
 
