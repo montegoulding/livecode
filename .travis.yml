@@ -4,20 +4,14 @@
 # We currently support running LiveCode on Ubuntu 14.04 and 16.04
 # See https://docs.travis-ci.com/user/ci-environment/
 dist: trusty
+# Use container-based infrastructure
+sudo: false
 
 language: c++
 # Build on both Linux and OSX
 os:
   - linux
   - osx
-
-matrix:
-  # Treat the OSX build as experimental for now
-  allow_failures:
-    - os: osx
-
-# Use container-based infrastructure
-sudo: false
 
 # Skip vulcan CI branches
 branches:
