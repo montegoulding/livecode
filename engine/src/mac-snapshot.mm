@@ -331,8 +331,8 @@ void MCPlatformScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitma
 	//  6.1 behaviour was to default to snapshot of the whole screen.
 	if (t_screen_rect . width == 0 || t_screen_rect . height == 0)
 	{
-		const MCDisplay *t_displays;
-		MCscreen -> getdisplays(t_displays, false);
+        const MCDisplay *t_displays = nullptr;
+		/*REMOVEDTEMP*/; //MCscreen -> getdisplays(t_displays, false);
 		
 		t_screen_rect = t_displays[0] . viewport;
 	}

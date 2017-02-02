@@ -2004,6 +2004,7 @@ static void display_reconfiguration_callback(CGDirectDisplayID display, CGDispla
 extern "C" bool MCModulesInitialize(void);
 extern "C" void MCModulesFinalize(void);
 
+MC_DLLEXPORT_DEF
 int platform_main(int argc, char *argv[], char *envp[])
 {
 	extern bool MCS_mac_elevation_bootstrap_main(int argc, char* argv[]);
@@ -2085,7 +2086,7 @@ int platform_main(int argc, char *argv[], char *envp[])
 ////////////////////////////////////////////////////////////////////////////////
 
 // MM-2014-07-31: [[ ThreadedRendering ]] Helper functions used to create an auto-release pool for each new thread.
-void *MCMacPlatfromCreateAutoReleasePool()
+void *MCMacPlatformCreateAutoReleasePool()
 {
     NSAutoreleasePool *t_pool;
     t_pool = [[NSAutoreleasePool alloc] init];
@@ -2098,4 +2099,20 @@ void MCMacPlatformReleaseAutoReleasePool(void *p_pool)
     t_pool = (NSAutoreleasePool *) p_pool;
     [t_pool release];
 }
+
+////////////////////////////////////////////////////////////////////////////////
+
+#ifdef MACPLATFORM_STUBS
+extern "C" bool MCPlatformCreate(void*&) __attribute__((visibility("default")));
+bool MCPlatformCreate(void*&) __attribute__((visibility("default")))
+{
+    return false;
+}
+
+extern "C" void MCPlatformDestroy(void) __attribute__((visibility("default")));
+void MCPlatformDestroy(void)
+{
+}
+#endif MACPLATFORM_STUBS
+
 ////////////////////////////////////////////////////////////////////////////////

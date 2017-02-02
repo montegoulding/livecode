@@ -53,6 +53,7 @@ void X_main_loop(void)
 extern "C" bool MCModulesInitialize();
 extern "C" void MCModulesFinalize();
 
+MC_DLLEXPORT_DEF
 int platform_main(int argc, char *argv[], char *envp[])
 {
 	// On Linux, the argv and envp could be in pretty much any format. The

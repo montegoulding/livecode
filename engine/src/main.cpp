@@ -18,8 +18,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 MC_DLLEXPORT int platform_main(int argc, char *argv[], char *envp[]);
 
+extern "C" bool MCPlatformCreate(void *);
 
 MC_DLLEXPORT_DEF int main(int argc, char *argv[], char *envp[])
 {
-	return platform_main(argc, argv, envp);
+    return platform_main(argc, argv, envp);
 }
