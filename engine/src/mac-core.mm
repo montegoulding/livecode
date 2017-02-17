@@ -20,6 +20,7 @@
 #include "typedefs.h"
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -180,7 +181,7 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
 
 //////////
 
-- (id)initWithArgc:(int)argc argv:(MCStringRef *)argv envp:(MCStringRef*)envp
+- (id)initWithPlatform:(MCMacPlatform*)platform argc:(int)argc argv:(MCStringRef *)argv envp:(MCStringRef*)envp
 {
 	self = [super init];
 	if (self == nil)
@@ -195,6 +196,8 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
     m_running = false;
     
     m_pending_apple_events = [[NSMutableArray alloc] initWithCapacity: 0];
+	
+	m_platform = platform;
     
 	return self;
 }
@@ -204,14 +207,14 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
 - (void)initializeModules
 {
 	MCPlatformInitializeColorTransform();
-	MCPlatformInitializeAbortKey();
+	m_platform->InitializeAbortKey();
     MCPlatformInitializeMenu();
 }
 
 - (void)finalizeModules
 {
     MCPlatformFinalizeMenu();
-	MCPlatformFinalizeAbortKey();
+	m_platform->FinalizeAbortKey();
 	MCPlatformFinalizeColorTransform();
 }
 
@@ -308,7 +311,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
     
 	// Dispatch the startup callback.
 	int t_error_code;
-	MCAutoStringRef t_error_message;
+	MCMacPlatformAutoStringRef t_error_message(m_platform);
 	MCPlatformCallbackSendApplicationStartup(m_argc, m_argv, m_envp, t_error_code, &t_error_message);
 	
 	[t_pool release];
@@ -319,7 +322,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 		// If the error message is non-nil, report it in a suitable way.
 		if (*t_error_message != nil)
         {
-            MCAutoStringRefAsUTF8String t_utf8_message;
+            MCMacPlatformAutoStringRefAsUTF8String t_utf8_message(m_platform);
             t_utf8_message . Lock(*t_error_message);
 			fprintf(stderr, "Startup error - %s\n", *t_utf8_message);
         }
@@ -563,7 +566,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
+void MCMacPlatform::GetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
 {
 	switch(p_property)
 	{
@@ -620,7 +623,7 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 	}
 }
 
-void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value)
+void MCMacPlatform::SetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value)
 {
     switch(p_property)
     {
@@ -661,7 +664,7 @@ struct MCCallback
 static MCCallback *s_callbacks = nil;
 static uindex_t s_callback_count;
 
-void MCPlatformBreakWait(void)
+void MCMacPlatform::BreakWait(void)
 {
     [s_callback_lock lock];
 	if (s_wait_broken)
@@ -715,7 +718,7 @@ bool MCMacPlatformIsEventCheckingEnabled(void)
 	return s_event_checking_enabled == 0;
 }
 
-bool MCPlatformWaitForEvent(double p_duration, bool p_blocking)
+bool MCMacPlatform::WaitForEvent(double p_duration, bool p_blocking)
 {
 	if (!MCMacPlatformIsEventCheckingEnabled())
 		return false;
@@ -908,7 +911,7 @@ void MCPlatformWindowDeathGrip(MCPlatformWindowRef p_window)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool MCPlatformGetMouseButtonState(uindex_t p_button)
+bool MCMacPlatform::GetMouseButtonState(uindex_t p_button)
 {
 	NSUInteger t_buttons;
 	t_buttons = [NSEvent pressedMouseButtons];
@@ -923,12 +926,12 @@ bool MCPlatformGetMouseButtonState(uindex_t p_button)
 	return (t_buttons & (1 << (p_button - 1))) != 0;
 }
 
-MCPlatformModifiers MCPlatformGetModifiersState(void)
+MCPlatformModifiers MCMacPlatform::GetModifiersState(void)
 {
 	return MCMacPlatformMapNSModifiersToModifiers([NSEvent modifierFlags]);
 }
 
-bool MCPlatformGetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
+bool MCMacPlatform::GetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
 {
 	MCPlatformKeyCode *t_codes;
 	if (!MCMemoryNewArray(128, t_codes))
@@ -955,7 +958,7 @@ bool MCPlatformGetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
 	return true;
 }
 
-bool MCPlatformGetMouseClick(uindex_t p_button, MCPoint& r_location)
+bool MCMacPlatform::GetMouseClick(uindex_t p_button, MCPoint& r_location)
 {
 	// We want to try and remove a whole click from the queue. Which button
 	// is determined by p_button and if zero means any button. So, first
@@ -1045,12 +1048,12 @@ bool MCPlatformGetMouseClick(uindex_t p_button, MCPoint& r_location)
 	return true;
 }
 
-void MCPlatformGetMousePosition(MCPoint& r_location)
+void MCMacPlatform::GetMousePosition(MCPoint& r_location)
 {
 	MCMacPlatformMapScreenNSPointToMCPoint([NSEvent mouseLocation], r_location);
 }
 
-void MCPlatformSetMousePosition(MCPoint p_location)
+void MCMacPlatform::SetMousePosition(MCPoint p_location)
 {
 	CGPoint t_point;
 	t_point . x = p_location . x;
@@ -1058,7 +1061,7 @@ void MCPlatformSetMousePosition(MCPoint p_location)
 	CGWarpMouseCursorPosition(t_point);
 }
 
-void MCPlatformGetWindowAtPoint(MCPoint p_loc, MCPlatformWindowRef& r_window)
+void MCMacPlatform::GetWindowAtPoint(MCPoint p_loc, MCPlatformWindowRef& r_window)
 {
 	NSPoint t_loc_cocoa;
 	MCMacPlatformMapScreenMCPointToNSPoint(p_loc, t_loc_cocoa);
@@ -1091,7 +1094,7 @@ void MCPlatformGetWindowAtPoint(MCPoint p_loc, MCPlatformWindowRef& r_window)
 }
 
 // MW-2014-07-15: [[ Bug 12800 ]] Map a window number to a platform window - if there is one.
-bool MCPlatformGetWindowWithId(uint32_t p_id, MCPlatformWindowRef& r_window)
+bool MCMacPlatform::GetWindowWithId(uint32_t p_id, MCPlatformWindowRef& r_window)
 {
     NSWindow *t_ns_window;
     t_ns_window = [NSApp windowWithWindowNumber: p_id];
@@ -1111,7 +1114,7 @@ bool MCPlatformGetWindowWithId(uint32_t p_id, MCPlatformWindowRef& r_window)
     return true;
 }
 
-uint32_t MCPlatformGetEventTime(void)
+uint32_t MCMacPlatform::GetEventTime(void)
 {
 	return [[NSApp currentEvent] timestamp] * 1000.0;
 }
@@ -1121,7 +1124,7 @@ NSEvent *MCMacPlatformGetLastMouseEvent(void)
 	return s_last_mouse_event;
 }
 
-void MCPlatformFlushEvents(MCPlatformEventMask p_mask)
+void MCMacPlatform::FlushEvents(MCPlatformEventMask p_mask)
 {
 	NSUInteger t_ns_mask;
 	t_ns_mask = 0;
@@ -1147,7 +1150,7 @@ void MCPlatformFlushEvents(MCPlatformEventMask p_mask)
 	}
 }
 
-void MCPlatformBeep(void)
+void MCMacPlatform::Beep(void)
 {
     NSBeep();
 }
@@ -2004,7 +2007,7 @@ static void display_reconfiguration_callback(CGDirectDisplayID display, CGDispla
 extern "C" bool MCModulesInitialize(void);
 extern "C" void MCModulesFinalize(void);
 
-int platform_main(int argc, char *argv[], char *envp[])
+int MCMacPlatform::platform_main(int argc, char *argv[], char *envp[])
 {
 	extern bool MCS_mac_elevation_bootstrap_main(int argc, char* argv[]);
 	if (argc == 2 && strcmp(argv[1], "-elevated-slave") == 0)

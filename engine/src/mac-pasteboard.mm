@@ -22,6 +22,8 @@
 #include "platform.h"
 #include "platform-internal.h"
 
+#include "mac-platform.h"
+
 #include "mac-internal.h"
 
 #include <QuickTime/QuickTime.h>
@@ -30,7 +32,7 @@
 
 extern bool MCImageBitmapToCGImage(MCImageBitmap *p_bitmap, bool p_copy, bool p_invert, CGImageRef &r_image);
 
-void MCPlatformDoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOperations p_allowed_operations, MCImageBitmap *p_image, const MCPoint *p_image_loc, MCPlatformDragOperation& r_operation)
+void MCMacPlatform::DoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOperations p_allowed_operations, MCImageBitmap *p_image, const MCPoint *p_image_loc, MCPlatformDragOperation& r_operation)
 {
 	CGImageRef t_cg_image;
 	t_cg_image = nil;
@@ -108,7 +110,7 @@ void MCPlatformDoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOpe
 	r_operation = MCMacPlatformMapNSDragOperationToDragOperation(t_op);
 }
 
-bool MCMacPasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data)
+bool MCMacPlatform::PasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data)
 {
 	// Check the data is actually TIFF, it is actually a PNG then do nothing
 	// (some versions of SnagIt! put PNG data masquerading as TIFF).

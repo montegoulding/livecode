@@ -3,6 +3,8 @@
 
 #import <AppKit/NSColorPanel.h>
 
+#include "mac-platform.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class MCMacPlatformWindow;
@@ -34,6 +36,8 @@ class MCMacPlatformSurface;
     bool m_running : 1;
     
     NSMutableArray *m_pending_apple_events;
+	
+	MCMacPlatform *m_platform;
 }
 
 // Platform init / finit.
@@ -427,7 +431,7 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 ////////////////////////////////////////////////////////////////////////////////
 
 // MM-2014-07-31: [[ ThreadedRendering ]] Updated to use the new platform surface API.
-class MCMacPlatformSurface: public MCPlatformSurface
+class MCMacPlatformSurface: public MCPlatformSurface, public MCMacPlatformStubs
 {
 public:
 	MCMacPlatformSurface(MCMacPlatformWindow *window, CGContextRef cg_context, MCGRegionRef update_rgn);
@@ -445,8 +449,19 @@ public:
 	virtual bool Composite(MCGRectangle dst_rect, MCGImageRef src_image, MCGRectangle src_rect, MCGFloat opacity, MCGBlendMode blend);
 	
 	virtual MCGFloat GetBackingScaleFactor(void);
-	   
+	
+	MCMacPlatformCallbacks *GetCallbacks();
+	
 private:
+	
+	// Surface - internal
+	CGBlendMode MCGBlendModeToCGBlendMode(MCGBlendMode p_blend);
+	bool MCGRegionConvertToCGRects(MCGRegionRef self, CGRect *&r_cgrects, uint32_t& r_cgrect_count);
+	void ClipCGContextToRegion(CGContextRef p_context, MCGRegionRef p_region, uint32_t p_surface_height);
+	void RenderCGImage(CGContextRef p_target, CGRect p_dst_rect, CGImageRef p_src, MCGFloat p_alpha, MCGBlendMode p_blend);
+	void RenderImageToCG(CGContextRef p_target, CGRect p_dst_rect, MCGImageRef &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend);
+	void RenderRasterToCG(CGContextRef p_target, CGRect p_dst_rect, const MCGRaster &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend);
+	
     void Lock(void);
 	void Unlock(void);
 	
@@ -466,10 +481,10 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class MCMacPlatformWindow: public MCPlatformWindow
+class MCMacPlatformWindow: public MCPlatformWindow, public MCMacPlatformStubs
 {
 public:
-	MCMacPlatformWindow(void);
+	MCMacPlatformWindow(MCMacPlatform *p_platform);
 	virtual ~MCMacPlatformWindow(void);
 
 	MCWindowView *GetView(void);
@@ -505,6 +520,8 @@ public:
 	
 	// IM-2015-01-30: [[ Bug 14140 ]] Locking the frame will prevent the window from being moved or resized
 	void SetFrameLocked(bool p_locked);
+	
+	MCMacPlatformCallbacks *GetCallbacks();
 	
 protected:
 	virtual void DoRealize(void);
@@ -573,6 +590,8 @@ private:
 	
 	// The parent pointer for sheets and drawers.
 	MCPlatformWindowRef m_parent;
+	
+	MCMacPlatform *m_platform;
 	
 	friend class MCMacPlatformSurface;
 };
@@ -647,9 +666,6 @@ void MCMacPlatformPasteboardCreate(NSPasteboard *pasteboard, MCPlatformPasteboar
 
 bool MCPlatformInitializeMenu(void);
 void MCPlatformFinalizeMenu(void);
-
-bool MCPlatformInitializeAbortKey(void);
-void MCPlatformFinalizeAbortKey(void);
 
 bool MCPlatformInitializeColorTransform(void);
 void MCPlatformFinalizeColorTransform(void);

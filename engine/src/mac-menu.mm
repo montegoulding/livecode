@@ -22,6 +22,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -373,7 +374,11 @@ enum MCShadowedItemTags
 // message which the engine handles.
 
 @interface com_runrev_livecode_MCMenuHandlingKeys: NSMenu
+{
+	MCMacPlatform *m_platform;
+}
 
+- (id)initWithPlatform: (MCMacPlatform*)platform title:(NSString*)title;
 - (BOOL)performKeyEquivalent: (NSEvent *)event;
 
 @end
@@ -384,7 +389,7 @@ enum MCShadowedItemTags
 uint32_t s_quitting_state_count = 0;
 uint8_t *s_quitting_states;
 
-void MCMacPlatformSaveQuittingState()
+void MCMacPlatform::SaveQuittingState()
 {
     MCMemoryReallocate(s_quitting_states, s_quitting_state_count + 1, s_quitting_states);
     s_quitting_states[s_quitting_state_count] = s_quit_selected;
@@ -393,7 +398,7 @@ void MCMacPlatformSaveQuittingState()
     s_quit_selected = false;
 }
 
-void MCMacPlatformPopQuittingState()
+void MCMacPlatform::PopQuittingState()
 {
     s_quit_selected = s_quitting_states[s_quitting_state_count - 1];
     
@@ -404,7 +409,7 @@ void MCMacPlatformPopQuittingState()
 // SN-2014-11-06: [[ Bug 13836 ]] Returns whether the last item clicked was a shadowed item.
 // SN-2014-12-16: [[ Bug 14185 ]] Name changed as it only returns whether a 'Quit' item
 // has been selected.
-bool MCMacPlatformIsInQuittingState(void)
+bool MCMacPlatform::IsInQuittingState(void)
 {
 	bool t_occured;
 	t_occured = s_quit_selected;
@@ -424,6 +429,16 @@ void MCMacPlatformUnlockMenuSelect(void)
 
 @implementation com_runrev_livecode_MCMenuHandlingKeys
 
+- (id) initWithPlatform:(MCMacPlatform *)platform title:(NSString *)title
+{
+	self = [self initWithTitle:title];
+	if (self == nil)
+		return self;
+	
+	m_platform = platform;
+	return self;
+}
+
 - (BOOL)performKeyEquivalent: (NSEvent *)event
 {
     // SN-2014-12-05: [[ Bug 14019 ]] Forbid any Cmd-key reaction when the target is the colour picker
@@ -438,7 +453,7 @@ void MCMacPlatformUnlockMenuSelect(void)
     
     // SN-2014-12-16; [[ Bug 14185 ]] We want to store the previous state, as when using answer
     //  for example, we still want the key event to be processed.
-    MCMacPlatformSaveQuittingState();
+    m_platform->SaveQuittingState();
     
 	// Otherwise, we lock menuSelect firing, and propagate a keydown/keyup.
 	BOOL t_key_equiv;
@@ -462,14 +477,14 @@ void MCMacPlatformUnlockMenuSelect(void)
     //  and that Cocoa will stop looking for key equivalent amongst the application's menus
     //  Calling MCMacPlatformWasShadowItemSelected here ensure that the state is reset for each event.
     // SN-2014-12-16; [[ Bug 14185 ]] Name changed as we only check whether a 'Quit' item was selected.
-    if (MCMacPlatformIsInQuittingState())
+    if (m_platform->IsInQuittingState())
     {
-        MCMacPlatformPopQuittingState();
+        m_platform->PopQuittingState();
         return YES;
     }
     
     // SN-2014-12-16: [[ Bug 14185 ]] Pop the last state saved.
-    MCMacPlatformPopQuittingState();
+    m_platform->PopQuittingState();
     
     // MW-2014-04-10: [[ Bug 12047 ]] If it was found as a key equivalent dispatch
     //   a keypress so the engine can handle it. Otherwise we return NO and the
@@ -551,7 +566,7 @@ static void MCPlatformClampMenuItemIndex(MCPlatformMenuRef p_menu, uindex_t& x_i
 	x_index = MCMin((unsigned)[p_menu -> menu numberOfItems], x_index);
 }
 
-void MCPlatformCreateMenu(MCPlatformMenuRef& r_menu)
+void MCMacPlatform::CreateMenu(MCPlatformMenuRef& r_menu)
 {
 	MCPlatformMenuRef t_menu;
 	/* UNCHECKED */ MCMemoryNew(t_menu);
@@ -575,12 +590,12 @@ void MCPlatformCreateMenu(MCPlatformMenuRef& r_menu)
 	r_menu = t_menu;
 }
 
-void MCPlatformRetainMenu(MCPlatformMenuRef p_menu)
+void MCMacPlatform::RetainMenu(MCPlatformMenuRef p_menu)
 {
 	p_menu -> references += 1;
 }
 
-void MCPlatformReleaseMenu(MCPlatformMenuRef p_menu)
+void MCMacPlatform::ReleaseMenu(MCPlatformMenuRef p_menu)
 {
 	p_menu -> references -= 1;
 	if (p_menu -> references != 0)
@@ -598,14 +613,14 @@ void MCPlatformReleaseMenu(MCPlatformMenuRef p_menu)
 	MCMemoryDelete(p_menu);
 }
 
-void MCPlatformSetMenuTitle(MCPlatformMenuRef p_menu, MCStringRef p_title)
+void MCMacPlatform::SetMenuTitle(MCPlatformMenuRef p_menu, MCStringRef p_title)
 {
-    MCAutoStringRefAsCFString t_cf_string;
+    MCMacPlatformAutoStringRefAsCFString t_cf_string(this);
     /* UNCHECKED */ t_cf_string . Lock(p_title);
     [p_menu -> menu setTitle: (NSString*)*t_cf_string];
 }
 
-void MCPlatformCountMenuItems(MCPlatformMenuRef p_menu, uindex_t& r_count)
+void MCMacPlatform::CountMenuItems(MCPlatformMenuRef p_menu, uindex_t& r_count)
 {
 	r_count = [p_menu -> menu numberOfItems];
 	
@@ -614,7 +629,7 @@ void MCPlatformCountMenuItems(MCPlatformMenuRef p_menu, uindex_t& r_count)
 		r_count -= 1;
 }
 
-void MCPlatformAddMenuItem(MCPlatformMenuRef p_menu, uindex_t p_where)
+void MCMacPlatform::AddMenuItem(MCPlatformMenuRef p_menu, uindex_t p_where)
 {
 	MCPlatformClampMenuItemIndex(p_menu, p_where);
 	
@@ -630,14 +645,14 @@ void MCPlatformAddMenuItem(MCPlatformMenuRef p_menu, uindex_t p_where)
 	[t_item release];
 }
 
-void MCPlatformAddMenuSeparatorItem(MCPlatformMenuRef p_menu, uindex_t p_where)
+void MCMacPlatform::AddMenuSeparatorItem(MCPlatformMenuRef p_menu, uindex_t p_where)
 {
 	MCPlatformClampMenuItemIndex(p_menu, p_where);
 	
     [p_menu -> menu insertItem: [NSMenuItem separatorItem] atIndex: p_where];
 }
  
-void MCPlatformRemoveMenuItem(MCPlatformMenuRef p_menu, uindex_t p_where)
+void MCMacPlatform::RemoveMenuItem(MCPlatformMenuRef p_menu, uindex_t p_where)
 {
 	MCPlatformMapMenuItemIndex(p_menu, p_where);
 	
@@ -645,14 +660,14 @@ void MCPlatformRemoveMenuItem(MCPlatformMenuRef p_menu, uindex_t p_where)
 	[p_menu -> menu removeItemAtIndex: p_where];
 }
 
-void MCPlatformRemoveAllMenuItems(MCPlatformMenuRef p_menu)
+void MCMacPlatform::RemoveAllMenuItems(MCPlatformMenuRef p_menu)
 {
 	for(uindex_t i = 0; i < [p_menu -> menu numberOfItems]; i++)
 		MCPlatformDestroyMenuItem(p_menu, i);
 	[p_menu -> menu removeAllItems];
 }
 
-void MCPlatformGetMenuParent(MCPlatformMenuRef p_menu, MCPlatformMenuRef& r_parent, uindex_t& r_index)
+void MCMacPlatform::GetMenuParent(MCPlatformMenuRef p_menu, MCPlatformMenuRef& r_parent, uindex_t& r_index)
 {
 	NSMenu *t_parent;
 	t_parent = [p_menu -> menu supermenu];
@@ -669,7 +684,7 @@ void MCPlatformGetMenuParent(MCPlatformMenuRef p_menu, MCPlatformMenuRef& r_pare
 		r_index -= 1;
 }
 
-void MCPlatformGetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, MCPlatformMenuItemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
+void MCMacPlatform::GetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, MCPlatformMenuItemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
 {
 	MCPlatformMapMenuItemIndex(p_menu, p_index);
 	
@@ -703,14 +718,14 @@ void MCPlatformGetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, M
 	}
 }
 
-void MCPlatformSetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, MCPlatformMenuItemProperty p_property, MCPlatformPropertyType p_type, const void *p_value)
+void MCMacPlatform::SetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, MCPlatformMenuItemProperty p_property, MCPlatformPropertyType p_type, const void *p_value)
 {
 	MCPlatformMapMenuItemIndex(p_menu, p_index);
 	
 	NSMenuItem *t_item;
     t_item = [p_menu -> menu itemAtIndex: p_index];
     
-    MCAutoStringRefAsCFString t_cf_string;
+    MCMacPlatformAutoStringRefAsCFString t_cf_string(this);
 	
 	switch(p_property)
 	{
@@ -863,7 +878,7 @@ void MCPlatformSetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_index, M
 
 //////////
 
-bool MCPlatformPopUpMenu(MCPlatformMenuRef p_menu, MCPlatformWindowRef p_window, MCPoint p_location, uindex_t p_item)
+bool MCMacPlatform::PopUpMenu(MCPlatformMenuRef p_menu, MCPlatformWindowRef p_window, MCPoint p_location, uindex_t p_item)
 {
 	NSMenu *t_menu;
 	t_menu = p_menu -> menu;
@@ -1025,17 +1040,17 @@ static void MCPlatformStopUsingMenuAsMenubar(MCPlatformMenuRef p_menu)
 	p_menu -> is_menubar = false;
 }
 
-void MCPlatformShowMenubar(void)
+void MCMacPlatform::ShowMenubar(void)
 {
     [NSMenu setMenuBarVisible:YES];
 }
 
-void MCPlatformHideMenubar(void)
+void MCMacPlatform::HideMenubar(void)
 {
     [NSMenu setMenuBarVisible:NO];
 }
 
-void MCPlatformSetMenubar(MCPlatformMenuRef p_menu)
+void MCMacPlatform::SetMenubar(MCPlatformMenuRef p_menu)
 {
 	if (p_menu == s_menubar)
 		return;
@@ -1061,7 +1076,7 @@ void MCPlatformSetMenubar(MCPlatformMenuRef p_menu)
 	}
 }
 
-void MCPlatformGetMenubar(MCPlatformMenuRef& r_menu)
+void MCMacPlatform::GetMenubar(MCPlatformMenuRef &r_menu)
 {
 	r_menu = s_menubar;
 }
@@ -1081,7 +1096,7 @@ NSMenu *MCMacPlatformGetIconMenu(void)
 	return nil;
 }
 
-void MCPlatformSetIconMenu(MCPlatformMenuRef p_menu)
+void MCMacPlatform::SetIconMenu(MCPlatformMenuRef p_menu)
 {
 	if (s_icon_menu != nil)
 		MCPlatformReleaseMenu(s_icon_menu);

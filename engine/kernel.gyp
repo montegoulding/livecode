@@ -8,6 +8,68 @@
 	'targets':
 	[
 		{
+			'target_name': 'macplatform',
+			'type': 'shared_library',
+			
+			'include_dirs':
+			[
+				'../libfoundation/include',
+				'../libgraphics/include',
+				'../libscript/include',
+			],
+			
+			'sources':
+			[
+				'src/mac-platform.mm',
+				'src/mac-platform.h',
+				
+				'src/mac-internal.h',
+				'src/mac-abort.mm',
+				'src/mac-av-player.mm',
+				'src/mac-color.mm',
+				'src/mac-core.mm',
+				'src/mac-cursor.mm',
+				'src/mac-dialog.mm',
+				'src/mac-font.mm',
+				'src/mac-menu.mm',
+				'src/mac-pasteboard.mm',
+				'src/mac-player.mm',
+				'src/mac-printer.mm',
+				'src/mac-qt-player.mm',
+				'src/mac-qt-recorder.mm',
+				'src/mac-scripting.mm',
+				'src/mac-snapshot.mm',
+				'src/mac-sound.mm',
+				'src/mac-surface.mm',
+				'src/mac-window.mm',
+			],
+			
+			'libraries':
+			[
+				'$(SDKROOT)/System/Library/Frameworks/AVFoundation.framework',
+				'$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
+				'$(SDKROOT)/System/Library/Frameworks/CoreFoundation.framework',
+				'$(SDKROOT)/System/Library/Frameworks/CoreMedia.framework',
+				'$(SDKROOT)/System/Library/Frameworks/IOKit.framework',
+				'$(SDKROOT)/System/Library/Frameworks/Security.framework',
+				'$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
+				'$(SDKROOT)/usr/lib/libcups.dylib',
+				'$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework',
+				'$(SDKROOT)/System/Library/Frameworks/Carbon.framework',
+				'$(SDKROOT)/System/Library/Frameworks/Cocoa.framework',
+				'$(SDKROOT)/System/Library/Frameworks/Quartz.framework',
+			],
+			
+			'defines':
+			[
+				# We want to use the new prototypes for the Objective-C
+				# dispatch methods as it helps catch certain errors at
+				# compile time rather than run time.
+				'OBJC_OLD_DISPATCH_PROTOTYPES=0',
+			],
+		},
+		
+		{
 			'target_name': 'kernel',
 			'type': 'static_library',
 			
@@ -109,12 +171,9 @@
 				[
 					'OS == "mac"',
 					{
-						'defines':
+						'dependencies':
 						[
-							# We want to use the new prototypes for the Objective-C
-							# dispatch methods as it helps catch certain errors at
-							# compile time rather than run time.
-							'OBJC_OLD_DISPATCH_PROTOTYPES=0',
+							'macplatform',
 						],
 					},
 				],
@@ -125,76 +184,30 @@
 				'conditions':
 				[
 					[
-						'OS == "mac" or OS == "ios"',
-						{
-							'libraries':
-							[
-								'$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
-								'$(SDKROOT)/System/Library/Frameworks/CoreFoundation.framework',
-								'$(SDKROOT)/System/Library/Frameworks/CoreMedia.framework',
-								'$(SDKROOT)/System/Library/Frameworks/IOKit.framework',
-								'$(SDKROOT)/System/Library/Frameworks/Security.framework',
-								'$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
-							],
-						},
-					],
-					[
-						'OS == "mac"',
-						{
-							'libraries':
-							[
-								'$(SDKROOT)/usr/lib/libcups.dylib',
-								'$(SDKROOT)/System/Library/Frameworks/ApplicationServices.framework',
-								'$(SDKROOT)/System/Library/Frameworks/Carbon.framework',
-								'$(SDKROOT)/System/Library/Frameworks/Cocoa.framework',
-								'$(SDKROOT)/System/Library/Frameworks/Quartz.framework',
-							],
-						},
-					],
-					[
-						'OS == "mac" and target_sdk != "macosx10.6"',
-                        {
-							# Adding AVFoundation in the list of libraries does not allow
-							# us to weak link it. Only adding the linking flag does the job
-							'xcode_settings':
-							{
-								'OTHER_LDFLAGS':
-								[
-                                    '-weak_framework AVFoundation',
-								]
-							},
-                        },
-                    ],
-                    [
-                        'OS == "mac" and target_sdk == "macosx10.6"',
-                        {
-                            'libraries!':
-                            [
-                                '$(SDKROOT)/System/Library/Frameworks/AVFoundation.framework',
-                                '$(SDKROOT)/System/Library/Frameworks/CoreMedia.framework',
-                            ],
-                        },
-                    ],
-					[
 						'OS == "ios"',
 						{
 							'libraries':
 							[
 								'$(SDKROOT)/System/Library/Frameworks/AddressBook.framework',
 								'$(SDKROOT)/System/Library/Frameworks/AddressBookUI.framework',
+								'$(SDKROOT)/System/Library/Frameworks/AudioToolbox.framework',
 								'$(SDKROOT)/System/Library/Frameworks/AVFoundation.framework',
 								'$(SDKROOT)/System/Library/Frameworks/CFNetwork.framework',
+								'$(SDKROOT)/System/Library/Frameworks/CoreFoundation.framework',
 								'$(SDKROOT)/System/Library/Frameworks/CoreLocation.framework',
 								'$(SDKROOT)/System/Library/Frameworks/CoreMedia.framework',
 								'$(SDKROOT)/System/Library/Frameworks/CoreMotion.framework',
 								'$(SDKROOT)/System/Library/Frameworks/EventKit.framework',
 								'$(SDKROOT)/System/Library/Frameworks/EventKitUI.framework',
 								'$(SDKROOT)/System/Library/Frameworks/Foundation.framework',
+								'$(SDKROOT)/System/Library/Frameworks/IOKit.framework',
 								'$(SDKROOT)/System/Library/Frameworks/MediaPlayer.framework',
 								'$(SDKROOT)/System/Library/Frameworks/MessageUI.framework',
 								'$(SDKROOT)/System/Library/Frameworks/OpenGLES.framework',
 								'$(SDKROOT)/System/Library/Frameworks/QuartzCore.framework',
+								'$(SDKROOT)/System/Library/Frameworks/Security.framework',
 								'$(SDKROOT)/System/Library/Frameworks/StoreKit.framework',
+								'$(SDKROOT)/System/Library/Frameworks/SystemConfiguration.framework',
 								'$(SDKROOT)/System/Library/Frameworks/UIKit.framework',
 							],	
 						},

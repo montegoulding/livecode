@@ -22,6 +22,8 @@
 #include "platform.h"
 #include "platform-internal.h"
 
+#include "mac-platform.h"
+
 #include "color.h"
 
 // IM-2014-09-24: [[ Bug 13208 ]] Update color transform to use CoreGraphics API
@@ -55,7 +57,7 @@ inline void MCColorMatrix3x3GetElements(const MCColorMatrix3x3 &p_matrix, CGFloa
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCPlatformCreateColorTransform(const MCColorSpaceInfo& p_info, MCPlatformColorTransformRef& r_transform)
+void MCMacPlatform::CreateColorTransform(const MCColorSpaceInfo& p_info, MCPlatformColorTransformRef& r_transform)
 {
 	bool t_success;
 	t_success = true;
@@ -136,7 +138,7 @@ void MCPlatformCreateColorTransform(const MCColorSpaceInfo& p_info, MCPlatformCo
 	r_transform = t_colorxform;
 }
 
-void MCPlatformRetainColorTransform(MCPlatformColorTransformRef p_transform)
+void MCMacPlatform::RetainColorTransform(MCPlatformColorTransformRef p_transform)
 {
 	if (p_transform == nil)
 		return;
@@ -144,7 +146,7 @@ void MCPlatformRetainColorTransform(MCPlatformColorTransformRef p_transform)
 	p_transform -> references += 1;
 }
 
-void MCPlatformReleaseColorTransform(MCPlatformColorTransformRef p_transform)
+void MCMacPlatform::ReleaseColorTransform(MCPlatformColorTransformRef p_transform)
 {
 	if (p_transform == nil)
 		return;
@@ -159,7 +161,7 @@ void MCPlatformReleaseColorTransform(MCPlatformColorTransformRef p_transform)
 	}
 }
 
-bool MCPlatformApplyColorTransform(MCPlatformColorTransformRef p_transform, MCImageBitmap *p_image)
+bool MCMacPlatform::ApplyColorTransform(MCPlatformColorTransformRef p_transform, MCImageBitmap *p_image)
 {
 	if (p_transform == nil)
 		return false;

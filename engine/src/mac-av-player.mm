@@ -24,6 +24,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -58,10 +59,10 @@ class MCAVFoundationPlayer;
 
 @end
 
-class MCAVFoundationPlayer: public MCPlatformPlayer
+class MCAVFoundationPlayer: public MCPlatformPlayer, public MCMacPlatformStubs
 {
 public:
-	MCAVFoundationPlayer(void);
+	MCAVFoundationPlayer(MCMacPlatform *p_platform);
 	virtual ~MCAVFoundationPlayer(void);
     
 	virtual bool GetNativeView(void *&r_view);
@@ -94,6 +95,8 @@ public:
 protected:
 	virtual void Realize(void);
 	virtual void Unrealize(void);
+	
+	MCMacPlatformCallbacks* GetCallbacks(void);
     
 private:
 	void Load(MCStringRef filename, bool is_url);
@@ -150,6 +153,8 @@ private:
 	MCPlatformPlayerDuration *m_markers;
     uindex_t m_marker_count;
     uint32_t m_last_marker;
+	
+	MCMacPlatform *m_platform;
     
 	MCRectangle m_rect;
 	bool m_visible : 1;
@@ -249,7 +254,7 @@ private:
 ////////////////////////////////////////////////////////
 
 
-MCAVFoundationPlayer::MCAVFoundationPlayer(void)
+MCAVFoundationPlayer::MCAVFoundationPlayer(MCMacPlatform *p_platform)
 {
     // COMMENT: We can follow the same pattern as QTKitPlayer here - however we won't have
     //   an AVPlayer until we load, so that starts off as nil and we create a PlayerView
@@ -296,6 +301,8 @@ MCAVFoundationPlayer::MCAVFoundationPlayer(void)
     m_endtime_observer_token = nil;
 
     m_mirrored = false;
+	
+	m_platform = p_platform;
 }
 
 MCAVFoundationPlayer::~MCAVFoundationPlayer(void)
@@ -336,6 +343,11 @@ MCAVFoundationPlayer::~MCAVFoundationPlayer(void)
     MCMemoryDeleteArray(m_markers);
     
     [m_lock release];
+}
+
+MCMacPlatformCallbacks *MCAVFoundationPlayer::GetCallbacks()
+{
+	return m_platform->GetCallbacks();
 }
 
 bool MCAVFoundationPlayer::GetNativeView(void *& r_view)
@@ -1369,9 +1381,9 @@ void MCAVFoundationPlayer::GetTrackProperty(uindex_t p_index, MCPlatformPlayerTr
 
 ////////////////////////////////////////////////////////
 
-MCAVFoundationPlayer *MCAVFoundationPlayerCreate(void)
+MCAVFoundationPlayer *MCAVFoundationPlayerCreate(MCMacPlatform *p_platform)
 {
-    return new MCAVFoundationPlayer;
+    return new MCAVFoundationPlayer(p_platform);
 }
 
 ////////////////////////////////////////////////////////

@@ -25,6 +25,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-clipboard.h"
 #include "mac-internal.h"
@@ -1573,9 +1574,9 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 	MCGRegionRef t_update_region;
 	t_update_region = nil;
 	
-	/* UNCHECKED */ MCGRegionCreate(t_update_region);
+	/* UNCHECKED */ m_window->MCGRegionCreate(t_update_region);
 	for(NSInteger i = 0; i < t_update_rect_count; i++)
-		/* UNCHECKED */ MCGRegionAddRect(t_update_region, MCRectangleToMCGIntegerRectangle([self mapNSRectToMCRectangle: t_update_rects[i]]));
+		/* UNCHECKED */ m_window->MCGRegionAddRect(t_update_region, MCRectangleToMCGIntegerRectangle([self mapNSRectToMCRectangle: t_update_rects[i]]));
 
 	//////////
     
@@ -1595,7 +1596,7 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 
 	//////////
 	
-	MCGRegionDestroy(t_update_region);
+	m_window->MCGRegionDestroy(t_update_region);
 }
 
 //////////
@@ -1668,7 +1669,7 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 
 ////////////////////////////////////////////////////////////////////////////////
 
-MCMacPlatformWindow::MCMacPlatformWindow(void)
+MCMacPlatformWindow::MCMacPlatformWindow(MCMacPlatform *p_platform)
 {
 	m_delegate = nil;
 	m_view = nil;
@@ -1681,6 +1682,8 @@ MCMacPlatformWindow::MCMacPlatformWindow(void)
 	m_frame_locked = false;
 	
 	m_parent = nil;
+	
+	m_platform = p_platform;
 }
 
 MCMacPlatformWindow::~MCMacPlatformWindow(void)
@@ -1694,6 +1697,13 @@ MCMacPlatformWindow::~MCMacPlatformWindow(void)
     [m_view release];
 	[m_container_view release];
 	[m_delegate release];
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+MCMacPlatformCallbacks *MCMacPlatformWindow::GetCallbacks()
+{
+	return m_platform->GetCallbacks();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2304,7 +2314,7 @@ static bool MCAlphaToCGImageNoCopy(const MCGRaster &p_alpha, CGImageRef &r_image
 	return t_success;
 }
 
-void MCPlatformWindowMaskCreateWithAlphaAndRelease(int32_t p_width, int32_t p_height, int32_t p_stride, void *p_bits, MCPlatformWindowMaskRef& r_mask)
+void MCMacPlatform::WindowMaskCreateWithAlphaAndRelease(int32_t p_width, int32_t p_height, int32_t p_stride, void *p_bits, MCPlatformWindowMaskRef& r_mask)
 {
 	MCMacPlatformWindowMask *t_mask;
 	t_mask = nil;
@@ -2334,7 +2344,7 @@ void MCPlatformWindowMaskCreateWithAlphaAndRelease(int32_t p_width, int32_t p_he
 	}
 }
 
-void MCPlatformWindowMaskRetain(MCPlatformWindowMaskRef p_mask)
+void MCMacPlatform::WindowMaskRetain(MCPlatformWindowMaskRef p_mask)
 {
 	if (p_mask == nil)
 		return;
@@ -2345,7 +2355,7 @@ void MCPlatformWindowMaskRetain(MCPlatformWindowMaskRef p_mask)
 	t_mask->references++;
 }
 
-void MCPlatformWindowMaskRelease(MCPlatformWindowMaskRef p_mask)
+void MCMacPlatform::WindowMaskRelease(MCPlatformWindowMaskRef p_mask)
 {
 	if (p_mask == nil)
 		return;
@@ -2569,9 +2579,9 @@ bool MCMacMapSelectorToTextInputAction(SEL p_selector, MCPlatformTextInputAction
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCMacPlatformCreateWindow(MCPlatformWindowRef& r_window)
+void MCMacPlatform::CreateWindow(MCPlatformWindowRef& r_window)
 {
-	r_window = new MCMacPlatformWindow;
+	r_window = new MCMacPlatformWindow(this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

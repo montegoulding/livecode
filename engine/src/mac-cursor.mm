@@ -24,6 +24,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -119,7 +120,7 @@ static NSImage *CreateNSImageFromCGImage(CGImageRef p_image)
     return t_new_image;
 }
 
-void MCPlatformCreateStandardCursor(MCPlatformStandardCursor p_standard_cursor, MCPlatformCursorRef& r_cursor)
+void MCMacPlatform::CreateStandardCursor(MCPlatformStandardCursor p_standard_cursor, MCPlatformCursorRef& r_cursor)
 {
 	MCPlatformCursorRef t_cursor;
 	/* UNCHECKED */ MCMemoryNew(t_cursor);
@@ -129,7 +130,7 @@ void MCPlatformCreateStandardCursor(MCPlatformStandardCursor p_standard_cursor, 
 	r_cursor = t_cursor;
 }
 
-void MCPlatformCreateCustomCursor(MCImageBitmap *p_image, MCPoint p_hotspot, MCPlatformCursorRef& r_cursor)
+void MCMacPlatform::CreateCustomCursor(MCImageBitmap *p_image, MCPoint p_hotspot, MCPlatformCursorRef& r_cursor)
 {
 	MCPlatformCursorRef t_cursor;
 	/* UNCHECKED */ MCMemoryNew(t_cursor);
@@ -163,12 +164,12 @@ void MCPlatformCreateCustomCursor(MCImageBitmap *p_image, MCPoint p_hotspot, MCP
 	r_cursor = t_cursor;
 }
 
-void MCPlatformRetainCursor(MCPlatformCursorRef p_cursor)
+void MCMacPlatform::RetainCursor(MCPlatformCursorRef p_cursor)
 {
 	p_cursor -> references += 1;
 }
 
-void MCPlatformReleaseCursor(MCPlatformCursorRef p_cursor)
+void MCMacPlatform::ReleaseCursor(MCPlatformCursorRef p_cursor)
 {
 	p_cursor -> references -= 1;
 	if (p_cursor -> references > 0)
@@ -180,7 +181,7 @@ void MCPlatformReleaseCursor(MCPlatformCursorRef p_cursor)
 	MCMemoryDelete(p_cursor);
 }
 
-void MCPlatformSetCursor(MCPlatformCursorRef p_cursor)
+void MCMacPlatform::SetCursor(MCPlatformCursorRef p_cursor)
 {
 	if (p_cursor -> is_standard)
     {
@@ -225,7 +226,7 @@ void MCPlatformSetCursor(MCPlatformCursorRef p_cursor)
 		[p_cursor -> custom set];
 }
 
-void MCPlatformHideCursorUntilMouseMoves(void)
+void MCMacPlatform::HideCursorUntilMouseMoves(void)
 {
     [NSCursor setHiddenUntilMouseMoves: YES];
 }

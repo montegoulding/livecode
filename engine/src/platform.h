@@ -57,59 +57,6 @@ inline bool MCPlatformArrayCopy(const array_t<T> &p_src, array_t<T> &p_dst)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum MCPlatformCallbackType
-{
-	kMCPlatformCallbackApplicationStartup,
-	kMCPlatformCallbackApplicationShutdown,
-	kMCPlatformCallbackApplicationShutdownRequest,
-	kMCPlatformCallbackApplicationSuspend,
-	kMCPlatformCallbackApplicationResume,
-	kMCPlatformCallbackApplicationRun,
-};
-
-struct MCPlatformCallback
-{
-	MCPlatformCallbackType type;
-	union
-	{
-		union
-		{
-			struct
-			{
-				// Incoming fields
-				uindex_t argc;
-				char **argv;
-				char **envp;
-				
-				// Outgoing fields
-				int error_code;
-				char *error_message;
-			} startup;
-			
-			struct
-			{
-				// Incoming fields
-				
-				// Outgoing fields
-				int exit_code;
-			} shutdown;
-			
-			struct
-			{
-				// Incoming fields
-				
-				// Outgoing fields
-				bool terminate;
-			} shutdown_request;
-			
-		} application;
-	};
-};
-
-void MCPlatformProcess(MCPlatformCallback& event);
-
-////////////////////////////////////////////////////////////////////////////////
-
 enum MCPlatformPropertyType
 {
 	kMCPlatformPropertyTypeUnknown,
@@ -1303,6 +1250,193 @@ bool MCPlatformGetControlThemePropInteger(MCPlatformControlType, MCPlatformContr
 bool MCPlatformGetControlThemePropColor(MCPlatformControlType, MCPlatformControlPart, MCPlatformControlState, MCPlatformThemeProperty, MCColor&);
 bool MCPlatformGetControlThemePropFont(MCPlatformControlType, MCPlatformControlPart, MCPlatformControlState, MCPlatformThemeProperty, MCFontRef&);
 bool MCPlatformGetControlThemePropString(MCPlatformControlType, MCPlatformControlPart, MCPlatformControlState, MCPlatformThemeProperty, MCStringRef&);
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Callbacks for platform instance
+class MCPlatformCallbacks
+{
+public:
+	// Engine functions
+	virtual Boolean MCS_exists(MCStringRef p_path, bool p_is_file) = 0;
+	virtual bool MCS_resolvepath(MCStringRef p_path, MCStringRef& r_resolved) = 0;
+	virtual bool MCStringsSplit(MCStringRef p_string, codepoint_t p_separator, MCStringRef*&r_strings, uindex_t& r_count) = 0;
+
+	// module functions
+	virtual bool MCModulesInitialize(void) = 0;
+	virtual void MCModulesFinalize(void) = 0;
+	
+	// libscript functions
+	virtual bool MCScriptInitialize(void) = 0;
+	virtual void MCScriptFinalize(void) = 0;
+	
+	// libfoundation functions
+	virtual bool MCInitialize(void) = 0;
+	virtual void MCFinalize(void) = 0;
+	virtual bool MCSInitialize(void) = 0;
+	virtual void MCSFinalize(void) = 0;
+	virtual bool MCMemoryAllocate(size_t size, void*& r_block) = 0;
+	virtual bool MCMemoryAllocateCopy(const void *block, size_t size, void*& r_new_block) = 0;
+	virtual bool MCMemoryReallocate(void *block, size_t new_size, void*& r_new_block) = 0;
+	virtual void MCMemoryDeallocate(void *block) = 0;
+	virtual bool MCMemoryNew(size_t size, void*& r_record) = 0;
+	virtual void MCMemoryDelete(void *p_record) = 0;
+	virtual bool MCMemoryNewArray(uindex_t count, size_t size, void*& r_array) = 0;
+	virtual bool MCMemoryResizeArray(uindex_t new_count, size_t size, void*& x_array, uindex_t& x_count) = 0;
+	virtual void MCMemoryDeleteArray(void *p_array) = 0;
+
+	virtual MCValueRef MCValueRetain(MCValueRef p_value) = 0;
+	virtual void MCValueRelease(MCValueRef p_value) = 0;
+	
+	virtual uindex_t MCDataGetLength(MCDataRef p_data) = 0;
+	virtual const byte_t *MCDataGetBytePtr(MCDataRef p_data) = 0;
+	virtual bool MCDataCreateWithBytes(const byte_t *p_bytes, uindex_t p_byte_count, MCDataRef& r_data) = 0;
+	
+	virtual MCStringRef MCSTR(const char *p_cstring) = 0;
+	virtual bool MCStringAppendFormat(MCStringRef string, const char *format, ...) = 0;
+	virtual bool MCStringAppendFormatV(MCStringRef string, const char *format, va_list args) = 0;
+	virtual bool MCStringConvertToUTF8(MCStringRef p_string, char*& r_utf8string, uindex_t& r_utf8_chars) = 0;
+	virtual bool MCStringCopy(MCStringRef self, MCStringRef& r_new_string) = 0;
+	virtual bool MCStringCopySubstring(MCStringRef self, MCRange p_range, MCStringRef& r_substring) = 0;
+	virtual bool MCStringCreateMutable(uindex_t p_initial_capacity, MCStringRef &r_string) = 0;
+	virtual bool MCStringCreateWithBytes(const byte_t *p_bytes, uindex_t p_byte_count, MCStringEncoding p_encoding, bool p_is_external_rep, MCStringRef& r_string) = 0;
+	virtual bool MCStringFirstIndexOfChar(MCStringRef self, codepoint_t p_needle, uindex_t p_after, MCStringOptions p_options, uindex_t& r_offset) = 0;
+	virtual uindex_t MCStringGetLength(MCStringRef self) = 0;
+	virtual bool MCStringIsEmpty(MCStringRef string) = 0;
+	virtual bool MCStringIsEqualToCString(MCStringRef p_string, const char *p_cstring, MCStringOptions p_options) = 0;
+	virtual bool MCStringLastIndexOfChar(MCStringRef self, codepoint_t p_needle, uindex_t p_before, MCStringOptions p_options, uindex_t& r_offset) = 0;
+	virtual bool MCStringSubstringIsEqualTo(MCStringRef self, MCRange p_sub, MCStringRef p_other, MCStringOptions p_options) = 0;
+	
+	// Legacy
+	virtual void MCListPushBack(void*& x_list, void *p_element) = 0;
+	virtual void *MCListPopFront(void*& x_list) = 0;
+	
+#if defined(DEBUG_LOG)
+	virtual void __MCAssert(const char *file, uint32_t line, const char *message) = 0;
+	virtual void __MCUnreachable(void) = 0;
+#endif
+	
+	// libgraphics
+	virtual int32_t MCGImageGetWidth(MCGImageRef image) = 0;
+	virtual int32_t MCGImageGetHeight(MCGImageRef image) = 0;
+	
+	virtual bool MCGRegionCreate(MCGRegionRef &r_region) = 0;
+	virtual void MCGRegionDestroy(MCGRegionRef p_region) = 0;
+	virtual MCGIntegerRectangle MCGRegionGetBounds(MCGRegionRef p_region) = 0;
+	virtual bool MCGRegionAddRect(MCGRegionRef p_region, const MCGIntegerRectangle &p_rect) = 0;
+	virtual bool MCGRegionIterate(MCGRegionRef p_region, MCGRegionIterateCallback p_callback, void *p_context) = 0;
+	
+	virtual bool MCGContextCreateWithRaster(const MCGRaster& raster, MCGContextRef& r_context) = 0;
+	virtual void MCGContextRelease(MCGContextRef context) = 0;
+	virtual void MCGContextClipToRect(MCGContextRef context, MCGRectangle rect) = 0;
+	virtual void MCGContextClipToRegion(MCGContextRef self, MCGRegionRef p_region) = 0;
+	virtual void MCGContextTranslateCTM(MCGContextRef context, MCGFloat xoffset, MCGFloat yoffset) = 0;
+	virtual void MCGContextScaleCTM(MCGContextRef context, MCGFloat xscale, MCGFloat yscale) = 0;
+};
+
+// MCPlatform interface class
+class MCPlatformInterface
+{
+public:
+	// Main
+	virtual int platform_main(int argc, char *argv[], char *envp[]) = 0;
+	
+	// System
+	virtual void BreakWait(void) = 0;
+	virtual bool WaitForEvent(double duration, bool blocking) = 0;
+	virtual bool GetAbortKeyPressed(void) = 0;
+	virtual bool GetMouseButtonState(uindex_t button) = 0;
+	virtual bool GetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count) = 0;
+	virtual MCPlatformModifiers GetModifiersState(void) = 0;
+	virtual bool GetMouseClick(uindex_t button, MCPoint& r_location) = 0;
+	virtual void GetMousePosition(MCPoint& r_location) = 0;
+	virtual void SetMousePosition(MCPoint location) = 0;
+	virtual void GrabPointer(MCPlatformWindowRef window) = 0;
+	virtual void UngrabPointer(void) = 0;
+	virtual void GetWindowAtPoint(MCPoint location, MCPlatformWindowRef& r_window) = 0;
+	virtual bool GetWindowWithId(uint32_t p_window_id, MCPlatformWindowRef& r_window) = 0;
+	virtual uint32_t GetEventTime(void) = 0;
+	virtual void FlushEvents(MCPlatformEventMask mask) = 0;
+	virtual void Beep(void) = 0;
+	virtual void GetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value);
+	virtual void SetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value);
+	
+	// Colorspace
+	virtual void CreateColorTransform(const MCColorSpaceInfo& info, MCPlatformColorTransformRef& r_transform) = 0;
+	virtual void RetainColorTransform(MCPlatformColorTransformRef transform) = 0;
+	virtual void ReleaseColorTransform(MCPlatformColorTransformRef transform) = 0;
+	virtual bool ApplyColorTransform(MCPlatformColorTransformRef transform, MCImageBitmap *image) = 0;
+
+	// Pasteboard
+	virtual void DoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOperations p_allowed_operations, MCImageBitmap *p_image, const MCPoint *p_image_loc, MCPlatformDragOperation& r_operation) = 0;
+	// Only used on mac desktop
+	virtual bool PasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data) = 0;
+	
+	// Window
+	virtual void CreateWindow(MCPlatformWindowRef &r_window) = 0;
+
+	// WindowMask
+	//void WindowMaskCreate(int32_t width, int32_t height, int32_t stride, void *bits, MCPlatformWindowMaskRef& r_mask) = 0;
+	virtual void WindowMaskCreateWithAlphaAndRelease(int32_t width, int32_t height, int32_t stride, void *bits, MCPlatformWindowMaskRef& r_mask) = 0;
+	virtual void WindowMaskRetain(MCPlatformWindowMaskRef mask) = 0;
+	virtual void WindowMaskRelease(MCPlatformWindowMaskRef mask) = 0;
+	
+	// Dialog
+	virtual void BeginFolderDialog(MCPlatformWindowRef owner, MCStringRef p_title, MCStringRef p_message, MCStringRef p_initial) = 0;
+	virtual MCPlatformDialogResult EndFolderDialog(MCStringRef & r_selected_folder) = 0;
+	virtual void BeginFileDialog(MCPlatformFileDialogKind p_kind, MCPlatformWindowRef p_owner, MCStringRef p_title, MCStringRef p_prompt,  MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial) = 0;
+	virtual MCPlatformDialogResult EndFileDialog(MCPlatformFileDialogKind p_kind, MCStringRef& r_paths, MCStringRef& r_type) = 0;
+	virtual void BeginColorDialog(MCStringRef p_title, const MCColor& p_color) = 0;
+	virtual MCPlatformDialogResult EndColorDialog(MCColor& r_new_color) = 0;
+	
+	// Menu
+	virtual void CreateMenu(MCPlatformMenuRef& r_menu) = 0;
+	virtual void RetainMenu(MCPlatformMenuRef menu) = 0;
+	virtual void ReleaseMenu(MCPlatformMenuRef menu) = 0;
+	virtual void SetMenuTitle(MCPlatformMenuRef menu, MCStringRef title) = 0;
+	virtual void CountMenuItems(MCPlatformMenuRef menu, uindex_t& r_count) = 0;
+	virtual void AddMenuItem(MCPlatformMenuRef menu, uindex_t where) = 0;
+	virtual void AddMenuSeparatorItem(MCPlatformMenuRef menu, uindex_t where) = 0;
+	virtual void RemoveMenuItem(MCPlatformMenuRef menu, uindex_t where) = 0;
+	virtual void RemoveAllMenuItems(MCPlatformMenuRef menu) = 0;
+	virtual void GetMenuParent(MCPlatformMenuRef menu, MCPlatformMenuRef& r_parent, uindex_t& r_index) = 0;
+	virtual void GetMenuItemProperty(MCPlatformMenuRef menu, uindex_t index, MCPlatformMenuItemProperty property, MCPlatformPropertyType type, void *r_value) = 0;
+	virtual void SetMenuItemProperty(MCPlatformMenuRef menu, uindex_t index, MCPlatformMenuItemProperty property, MCPlatformPropertyType type, const void *value) = 0;
+	virtual bool PopUpMenu(MCPlatformMenuRef menu, MCPlatformWindowRef window, MCPoint location, uindex_t item) = 0;
+	virtual void SetIconMenu(MCPlatformMenuRef menu) = 0;
+	virtual void ShowMenubar(void) = 0;
+	virtual void HideMenubar(void) = 0;
+	virtual void SetMenubar(MCPlatformMenuRef menu) = 0;
+	virtual void GetMenubar(MCPlatformMenuRef &r_menu) = 0;
+	
+	// Cursor
+	virtual void CreateStandardCursor(MCPlatformStandardCursor standard_cusor, MCPlatformCursorRef& r_cursor) = 0;
+	virtual void CreateCustomCursor(MCImageBitmap *image, MCPoint hot_spot, MCPlatformCursorRef& r_cursor) = 0;
+	virtual void RetainCursor(MCPlatformCursorRef cursor) = 0;
+	virtual void ReleaseCursor(MCPlatformCursorRef cursor) = 0;
+	virtual void SetCursor(MCPlatformCursorRef cursor) = 0;
+	virtual void HideCursorUntilMouseMoves(void) = 0;
+	
+	// Print
+	virtual void BeginPrintSettingsDialog(MCPlatformWindowRef owner, void *session, void *settings, void *page_format) = 0;
+	virtual void BeginPageSetupDialog(MCPlatformWindowRef owner, void *session, void *settings, void *page_format) = 0;
+	virtual MCPlatformPrintDialogResult EndPrintDialog(void) = 0;
+	
+	// Player
+	virtual void CreatePlayer(bool p_dont_use_qt, MCPlatformPlayerRef &r_player) = 0;
+	
+	// Script Environment
+	virtual void ScriptEnvironmentCreate(MCStringRef p_language, MCPlatformScriptEnvironmentRef &r_script_environment) = 0;
+	virtual void ScriptEnvironmentRetain(MCPlatformScriptEnvironmentRef env) = 0;
+	virtual void ScriptEnvironmentRelease(MCPlatformScriptEnvironmentRef env) = 0;
+	virtual bool ScriptEnvironmentDefine(MCPlatformScriptEnvironmentRef env, const char *function, MCPlatformScriptEnvironmentCallback callback) = 0;
+	virtual void ScriptEnvironmentRun(MCPlatformScriptEnvironmentRef env, MCStringRef script, MCStringRef& r_result) = 0;
+	virtual void ScriptEnvironmentCall(MCPlatformScriptEnvironmentRef env, const char *method, const char **arguments, uindex_t argument_count, char*& r_result) = 0;
+	
+};
+
+MCPlatformInterface *MCPlatformCreate(MCPlatformCallbacks *p_callbacks);
+void MCPlatformDestroy(MCPlatformInterface *p_platform);
 
 ////////////////////////////////////////////////////////////////////////////////
 

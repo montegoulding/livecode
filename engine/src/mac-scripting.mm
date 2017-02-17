@@ -21,6 +21,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -166,11 +167,11 @@ static JSObjectCallAsFunctionPtr JSObjectCallAsFunction;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class MCPlatformScriptEnvironment
+class MCPlatformScriptEnvironment : public MCMacPlatformStubs
 {
 public:
-	MCPlatformScriptEnvironment(void);
-	~MCPlatformScriptEnvironment(void);
+	MCPlatformScriptEnvironment(MCMacPlatform *p_platform);
+	virtual ~MCPlatformScriptEnvironment(void);
 	
 	void Retain(void);
 	void Release(void);
@@ -180,6 +181,12 @@ public:
 	void Run(MCStringRef p_script, MCStringRef &r_result);
 	
 	char *Call(const char *p_method, const char **p_arguments, unsigned int p_argument_count);
+	
+	//////////
+	
+	bool ConvertMCStringToJSString(MCStringRef p_string, JSStringRef &r_js_string);
+	
+	MCMacPlatformCallbacks *GetCallbacks();
 	
 private:
 	struct Function
@@ -194,6 +201,8 @@ private:
 	
 	Function *m_functions;
 	uint4 m_function_count;
+	
+	MCMacPlatform *m_platform;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -357,12 +366,14 @@ static JSValueRef InvokeHostFunction(JSContextRef p_context, JSObjectRef p_funct
 
 ///////////////////////////////////////////////////////////////////////////////
 
-MCPlatformScriptEnvironment::MCPlatformScriptEnvironment(void)
+MCPlatformScriptEnvironment::MCPlatformScriptEnvironment(MCMacPlatform *p_platform)
 {
 	m_references = 1;
 	m_runtime = NULL;
 	m_functions = NULL;
 	m_function_count = 0;
+	
+	m_platform = p_platform;
 }
 
 MCPlatformScriptEnvironment::~MCPlatformScriptEnvironment(void)
@@ -374,6 +385,11 @@ MCPlatformScriptEnvironment::~MCPlatformScriptEnvironment(void)
 	
 	if (m_runtime != NULL)
 		JSGlobalContextRelease(m_runtime);
+}
+
+MCMacPlatformCallbacks *MCPlatformScriptEnvironment::GetCallbacks()
+{
+	return m_platform->GetCallbacks();
 }
 
 void MCPlatformScriptEnvironment::Retain(void)
@@ -571,7 +587,7 @@ char *MCPlatformScriptEnvironment::Call(const char *p_method, const char **p_arg
 
 // SN-2014-07-23: [[ Bug 12907 ]]
 //  Update as well MCSreenDC::createscriptenvironment (and callees)
-void MCPlatformScriptEnvironmentCreate(MCStringRef language, MCPlatformScriptEnvironmentRef& r_env)
+void MCMacPlatform::ScriptEnvironmentCreate(MCStringRef language, MCPlatformScriptEnvironmentRef& r_env)
 {
 	if (JavaScriptCoreLibrary == NULL)
 	{
@@ -598,30 +614,30 @@ void MCPlatformScriptEnvironmentCreate(MCStringRef language, MCPlatformScriptEnv
 		GET_JSC_SYMBOL(JSObjectCallAsFunction);
 	}
 	
-	r_env = new MCPlatformScriptEnvironment();
+	r_env = new MCPlatformScriptEnvironment(this);
 }
 
-void MCPlatformScriptEnvironmentRetain(MCPlatformScriptEnvironmentRef env)
+void MCMacPlatform::ScriptEnvironmentRetain(MCPlatformScriptEnvironmentRef env)
 {
 	env -> Retain();
 }
 
-void MCPlatformScriptEnvironmentRelease(MCPlatformScriptEnvironmentRef env)
+void MCMacPlatform::ScriptEnvironmentRelease(MCPlatformScriptEnvironmentRef env)
 {
 	env -> Release();
 }
 
-bool MCPlatformScriptEnvironmentDefine(MCPlatformScriptEnvironmentRef env, const char *function, MCPlatformScriptEnvironmentCallback callback)
+bool MCMacPlatform::ScriptEnvironmentDefine(MCPlatformScriptEnvironmentRef env, const char *function, MCPlatformScriptEnvironmentCallback callback)
 {
 	return env -> Define(function, callback);
 }
 
-void MCPlatformScriptEnvironmentRun(MCPlatformScriptEnvironmentRef env, MCStringRef script, MCStringRef& r_result)
+void MCMacPlatform::ScriptEnvironmentRun(MCPlatformScriptEnvironmentRef env, MCStringRef script, MCStringRef& r_result)
 {
     env -> Run(script, r_result);
 }
 
-void MCPlatformScriptEnvironmentCall(MCPlatformScriptEnvironmentRef env, const char *method, const char **arguments, uindex_t argument_count, char*& r_result)
+void MCMacPlatform::ScriptEnvironmentCall(MCPlatformScriptEnvironmentRef env, const char *method, const char **arguments, uindex_t argument_count, char*& r_result)
 {
 	r_result = env -> Call(method, arguments, argument_count);
 }
