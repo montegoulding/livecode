@@ -51,7 +51,7 @@ CGRect MCMacFlipCGRect(const CGRect &p_rect, uint32_t p_surface_height)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-MCMacPlatformSurface::MCMacPlatformSurface(MCMacPlatformWindow *p_window, CGContextRef p_cg_context, MCGRegionRef p_update_rgn)
+MCMacPlatformSurface::MCMacPlatformSurface(MCMacPlatformWindow *p_window, CGContextRef p_cg_context, MCGRegionRef p_update_rgn, MCMacPlatform *p_platform)
 {
 	// Retain the window to ensure it doesn't vanish whilst the surface is alive.
 	m_window = p_window;
@@ -68,8 +68,10 @@ MCMacPlatformSurface::MCMacPlatformSurface(MCMacPlatformWindow *p_window, CGCont
     
     m_raster . pixels = nil;
     
+    m_platform = p_platform;
+    
 	// Setup everything so that its ready for use.
-	Lock();
+    Lock();
 }
 
 MCMacPlatformSurface::~MCMacPlatformSurface(void)
@@ -82,7 +84,7 @@ MCMacPlatformSurface::~MCMacPlatformSurface(void)
 
 MCMacPlatformCallbacks *MCMacPlatformSurface::GetCallbacks()
 {
-	return m_window->GetCallbacks();
+	return m_platform->GetCallbacks();
 }
 
 // MM-2014-07-31: [[ ThreadedRendering ]] Updated to use the new platform surface API.
@@ -428,7 +430,7 @@ void MCMacPlatformSurface::RenderImageToCG(CGContextRef p_target, CGRect p_dst_r
 void MCMacPlatformSurface::RenderRasterToCG(CGContextRef p_target, CGRect p_dst_rect, const MCGRaster &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend)
 {
 	CGColorSpaceRef t_colorspace;
-	if (MCMacPlatformGetImageColorSpace(t_colorspace))
+	if (m_platform->GetImageColorSpace(t_colorspace))
 	{
 		CGImageRef t_image;
 		t_image = nil;
@@ -502,7 +504,7 @@ void MCMacPlatformSurface::ClipCGContextToRegion(CGContextRef p_context, MCGRegi
 ////////////////////////////////////////////////////////////////////////////////
 
 extern bool MCImageGetCGColorSpace(CGColorSpaceRef &r_colorspace);
-bool MCMacPlatformGetImageColorSpace(CGColorSpaceRef &r_colorspace)
+bool MCMacPlatform::GetImageColorSpace(CGColorSpaceRef &r_colorspace)
 {
 	return MCImageGetCGColorSpace(r_colorspace);
 }

@@ -469,7 +469,7 @@ void MCMacPlatformUnlockMenuSelect(void)
     if (!t_key_equiv)
     {
         MCPlatformKeyCode t_keycode;
-        MCMacPlatformMapKeyCode([event keyCode], [event modifierFlags], t_keycode);
+        m_platform->MapKeyCode([event keyCode], [event modifierFlags], t_keycode);
         t_force_keypress = t_keycode == kMCPlatformKeyCodeTab || t_keycode == kMCPlatformKeyCodeEscape;
     }
     
@@ -497,7 +497,7 @@ void MCMacPlatformUnlockMenuSelect(void)
         //   an 'external' view and thus the event will not have gone through any
         //   of our view code - so make sure modifiers are up to date (otherwise command
         //   key shortcuts don't work!).
-        MCMacPlatformHandleModifiersChanged(MCMacPlatformMapNSModifiersToModifiers([event modifierFlags]));
+        m_platform->HandleModifiersChanged(m_platform->MapNSModifiersToModifiers([event modifierFlags]));
         
         // SN-2014-11-06: [[ Bug 13836 ]] We don't want to recreate every menu existing for each keyEvent
         // MW-2014-10-29: [[ Bug 13847 ]] Make sure we only update menus once per accelerator.
@@ -776,7 +776,7 @@ void MCMacPlatform::SetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_ind
                 }
                 
 				SEL t_selector;
-				if (MCMacPlatformMapMenuItemActionToSelector(t_action, t_selector))
+				if (MapMenuItemActionToSelector(t_action, t_selector))
 				{
 					[t_item setAction: t_selector];
 					[t_item setTarget: nil];
@@ -804,7 +804,7 @@ void MCMacPlatform::SetMenuItemProperty(MCPlatformMenuRef p_menu, uindex_t p_ind
 					t_modifiers |= NSCommandKeyMask;
 				
 				NSString *t_char;
-				if (MCMacMapCodepointToNSString(t_accelerator & kMCPlatformAcceleratorKeyMask, t_char))
+				if (MapCodepointToNSString(t_accelerator & kMCPlatformAcceleratorKeyMask, t_char))
 				{
 					[t_item setKeyEquivalent: t_char];
 					[t_item setKeyEquivalentModifierMask: t_modifiers];
@@ -896,7 +896,7 @@ bool MCMacPlatform::PopUpMenu(MCPlatformMenuRef p_menu, MCPlatformWindowRef p_wi
 		((MCMacPlatformWindow *)p_window) -> MapMCPointToNSPoint(p_location, t_location);
 	}
 	else
-		MCMacPlatformMapScreenMCPointToNSPoint(p_location, t_location);
+		MapScreenMCPointToNSPoint(p_location, t_location);
     
     // MW-2014-07-29: [[ Bug 12990 ]] If item is UINDEX_MAX then don't specify an item, thus preventing
     //   one from being highlighted.
@@ -908,7 +908,7 @@ bool MCMacPlatform::PopUpMenu(MCPlatformMenuRef p_menu, MCPlatformWindowRef p_wi
     s_menu_item_selected = false;
 	[t_menu popUpMenuPositioningItem: p_item == UINDEX_MAX ? nil : [t_menu itemAtIndex: p_item] atLocation: t_location inView: t_view];
 	
-	MCMacPlatformSyncMouseAfterTracking();
+	SyncMouseAfterTracking();
 	
 	return s_menu_item_selected;
 }
@@ -1085,7 +1085,7 @@ void MCMacPlatform::GetMenubar(MCPlatformMenuRef &r_menu)
 
 static MCPlatformMenuRef s_icon_menu = nil;
 
-NSMenu *MCMacPlatformGetIconMenu(void)
+NSMenu *MCMacPlatform::GetIconMenu(void)
 {
 	if (s_icon_menu != nil)
 		MCPlatformCallbackSendMenuUpdate(s_icon_menu);
@@ -1119,7 +1119,7 @@ static struct { MCPlatformMenuItemAction action; SEL selector; } s_menu_item_act
 	{ kMCPlatformMenuItemActionSelectAll, @selector(selectAll:) },
 };
 
-bool MCMacPlatformMapMenuItemActionToSelector(MCPlatformMenuItemAction action, SEL& r_selector)
+bool MCMacPlatform::MapMenuItemActionToSelector(MCPlatformMenuItemAction action, SEL& r_selector)
 {
 	for(uindex_t i = 0; i < sizeof(s_menu_item_action_map) / sizeof(s_menu_item_action_map[0]); i++)
 		if (action == s_menu_item_action_map[i] . action)

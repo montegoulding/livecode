@@ -506,7 +506,7 @@ void MCPlatformScriptEnvironment::Run(MCStringRef p_script, MCStringRef &r_resul
 	if (t_success)
 	{
 		m_runtime = t_runtime;
-		r_result = MCValueRetain(kMCEmptyString);
+		r_result = MCValueRetain(MCSTR(""));
 	}
 	else
 	{

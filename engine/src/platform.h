@@ -25,6 +25,10 @@
 #include "graphics.h"
 #endif
 
+#ifndef __MC_GLOBALS__
+//#include "globals.h"
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 
 // COCOA-TODO: Remove external declaration.
@@ -1261,7 +1265,8 @@ public:
 	virtual Boolean MCS_exists(MCStringRef p_path, bool p_is_file) = 0;
 	virtual bool MCS_resolvepath(MCStringRef p_path, MCStringRef& r_resolved) = 0;
 	virtual bool MCStringsSplit(MCStringRef p_string, codepoint_t p_separator, MCStringRef*&r_strings, uindex_t& r_count) = 0;
-
+    virtual bool MCS_pathtonative(MCStringRef p_livecode_path, MCStringRef& r_native_path) = 0;
+    
 	// module functions
 	virtual bool MCModulesInitialize(void) = 0;
 	virtual void MCModulesFinalize(void) = 0;
@@ -1332,6 +1337,13 @@ public:
 	virtual void MCGContextClipToRegion(MCGContextRef self, MCGRegionRef p_region) = 0;
 	virtual void MCGContextTranslateCTM(MCGContextRef context, MCGFloat xoffset, MCGFloat yoffset) = 0;
 	virtual void MCGContextScaleCTM(MCGContextRef context, MCGFloat xscale, MCGFloat yscale) = 0;
+    
+    virtual void MCImageFreeBitmap(MCImageBitmap *p_bitmap);
+    
+    // globals
+//    uint16_t GetDoubleDelta() { return MCdoubledelta; }
+//    uint16_t GetDoubleTime() { return MCdoubletime; }
+//    uint16_t GetDragDelta() { return MCdragdelta; }
 };
 
 // MCPlatform interface class

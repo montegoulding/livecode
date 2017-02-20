@@ -83,7 +83,7 @@ void MCMacPlatform::DoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDr
 	if ((p_allowed_operations & kMCPlatformDragOperationLink) != 0)
 		t_allowed_operations |= NSDragOperationLink;
 	
-	MCMacPlatformSyncMouseBeforeDragging();
+	SyncMouseBeforeDragging();
 	
 	// We create a private pasteboard here if the main one contains no items.
     // This is required as the OSX drag-and-drop loop requires a pasteboard to
@@ -107,7 +107,7 @@ void MCMacPlatform::DoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDr
 	
 	//MCMacPlatformSyncMouseAfterTracking();
 	
-	r_operation = MCMacPlatformMapNSDragOperationToDragOperation(t_op);
+	r_operation = MapNSDragOperationToDragOperation(t_op);
 }
 
 bool MCMacPlatform::PasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data)
@@ -145,7 +145,7 @@ bool MCMacPlatform::PasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r
 
 ////////////////////////////////////////////////////////////////////////////////
 
-NSDragOperation MCMacPlatformMapDragOperationToNSDragOperation(MCPlatformDragOperation p_operation)
+NSDragOperation MCMacPlatform::MapDragOperationToNSDragOperation(MCPlatformDragOperation p_operation)
 {
 	switch(p_operation)
 	{
@@ -165,7 +165,7 @@ NSDragOperation MCMacPlatformMapDragOperationToNSDragOperation(MCPlatformDragOpe
 	return NSDragOperationNone;
 }
 
-MCPlatformDragOperation MCMacPlatformMapNSDragOperationToDragOperation(NSDragOperation p_operation)
+MCPlatformDragOperation MCMacPlatform::MapNSDragOperationToDragOperation(NSDragOperation p_operation)
 {
 	switch(p_operation)
 	{

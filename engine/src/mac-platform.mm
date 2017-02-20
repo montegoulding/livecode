@@ -34,6 +34,11 @@ bool MCMacPlatformStubs::MCStringsSplit(MCStringRef p_string, codepoint_t p_sepa
 	return GetCallbacks()->MCStringsSplit(p_string, p_separator, r_strings, r_count);
 }
 
+bool MCMacPlatformStubs::MCS_pathtonative(MCStringRef p_livecode_path, MCStringRef& r_native_path)
+{
+    return GetCallbacks()->MCS_pathtonative(p_livecode_path, r_native_path);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // module stubs
 
@@ -339,6 +344,11 @@ void MCMacPlatformStubs::MCGContextTranslateCTM(MCGContextRef context, MCGFloat 
 void MCMacPlatformStubs::MCGContextScaleCTM(MCGContextRef context, MCGFloat xscale, MCGFloat yscale)
 {
 	GetCallbacks()->MCGContextScaleCTM(context, xscale, yscale);
+}
+
+void MCMacPlatformStubs::MCImageFreeBitmap(MCImageBitmap *p_bitmap)
+{
+    GetCallbacks()->MCImageFreeBitmap(p_bitmap);
 }
 
 #endif

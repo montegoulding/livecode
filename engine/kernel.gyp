@@ -67,6 +67,13 @@
 				# compile time rather than run time.
 				'OBJC_OLD_DISPATCH_PROTOTYPES=0',
 			],
+			
+			'dependencies':
+			[
+				'../libfoundation/libfoundation.gyp:libFoundation',
+				'../libgraphics/libgraphics.gyp:libGraphics',
+				'../libscript/libscript.gyp:libScript',
+			],
 		},
 		
 		{

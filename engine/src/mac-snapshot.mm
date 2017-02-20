@@ -113,9 +113,10 @@ static MCRectangle mcrect_from_points(CGPoint x, CGPoint y)
 @interface MCSnapshotWindow : NSWindow
 {
 	NSBox *m_region;
+    MCMacPlatform *m_platform;
 }
 
-- (id)init;
+- (id)initWithPlatform:(MCMacPlatform *)p_platform;
 - (void)dealloc;
 
 - (void)mouseDown: (NSEvent *)event;
@@ -125,8 +126,10 @@ static MCRectangle mcrect_from_points(CGPoint x, CGPoint y)
 
 @implementation MCSnapshotWindow
 
-- (id)init
+- (id)initWithPlatform:(MCMacPlatform *)p_platform
 {
+    
+    m_platform = p_platform;
 	// Compute the desktop bounds.
 	NSRect t_bounds;
 	t_bounds = NSZeroRect;
@@ -190,7 +193,7 @@ static MCRectangle mcrect_from_points(CGPoint x, CGPoint y)
 	[self displayIfNeeded];
     
 	// MW-2014-03-11: [[ Bug 11654 ]] Make sure we force the wait to finish.
-	MCPlatformBreakWait();
+	m_platform->BreakWait();
 }
 
 - (void)mouseDragged: (NSEvent *)event
@@ -216,7 +219,7 @@ static MCRectangle mcrect_from_points(CGPoint x, CGPoint y)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static void MCMacPlatformCGImageToMCImageBitmap(CGImageRef p_image, MCPoint p_size, MCImageBitmap*& r_bitmap)
+void MCMacPlatform::CGImageToMCImageBitmap(CGImageRef p_image, MCPoint p_size, MCImageBitmap*& r_bitmap)
 {
 	if (p_image != nil)
 	{
@@ -260,17 +263,17 @@ static bool s_display_link_fired;
 static CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const CVTimeStamp* outputTime, CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* displayLinkContext)
 {
     s_display_link_fired = true;
-    MCPlatformBreakWait();
+    static_cast<MCMacPlatform*>(displayLinkContext)->BreakWait();
     return kCVReturnSuccess;
 }
 
-static void wait_for_refresh(void)
+void MCMacPlatform::wait_for_refresh(void)
 {
     CVDisplayLinkRef t_link;
     // Create a display link capable of being used with all active displays
     CVDisplayLinkCreateWithActiveCGDisplays(&t_link);
     // Set the renderer output callback function
-    CVDisplayLinkSetOutputCallback(t_link, &MyDisplayLinkCallback, nil);
+    CVDisplayLinkSetOutputCallback(t_link, &MyDisplayLinkCallback, this);
     
     CVDisplayLinkStart(t_link);
     
@@ -281,12 +284,12 @@ static void wait_for_refresh(void)
     s_display_link_fired = false;
     
     while(!s_display_link_fired)
-		MCPlatformWaitForEvent(60.0, true);
+		WaitForEvent(60.0, true);
     
     s_display_link_fired = false;
     
     while(!s_display_link_fired)
-		MCPlatformWaitForEvent(60.0, true);
+		WaitForEvent(60.0, true);
     
     CVDisplayLinkStop(t_link);
     
@@ -295,7 +298,7 @@ static void wait_for_refresh(void)
 
 //////////
 
-void MCPlatformScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitmap)
+void MCMacPlatform::ScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitmap)
 {
 	// Compute the rectangle to grab in screen co-ords.
 	MCRectangle t_screen_rect;
@@ -305,7 +308,7 @@ void MCPlatformScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitma
 	t_window = [[MCSnapshotWindow alloc] init];
 	[t_window orderFront: nil];
 	
-    MCMacPlatformLockCursor();
+    LockCursor();
     
 	// Set the cursor to cross.
 	[[NSCursor crosshairCursor] push];
@@ -322,7 +325,7 @@ void MCPlatformScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitma
 	// Return the cursor to arrow.
 	[NSCursor pop];
     
-    MCMacPlatformUnlockCursor();
+    UnlockCursor();
     
 	// Compute the selected rectangle.
 	t_screen_rect = mcrect_from_points(s_snapshot_start_point, s_snapshot_end_point);
@@ -340,7 +343,7 @@ void MCPlatformScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitma
 	MCPlatformScreenSnapshot(t_screen_rect, p_size, r_bitmap);
 }
 
-void MCMacPlatformScreenSnapshotOfWindowWithinBounds(uint32_t p_window_id, MCRectangle p_bounds, MCPoint *p_size, MCImageBitmap *&r_bitmap)
+void MCMacPlatform::ScreenSnapshotOfWindowWithinBounds(uint32_t p_window_id, MCRectangle p_bounds, MCPoint *p_size, MCImageBitmap *&r_bitmap)
 {
     // MW-2014-06-11: [[ Bug 12436 ]] Wait for the screen to be up to date.
     wait_for_refresh();
@@ -354,11 +357,11 @@ void MCMacPlatformScreenSnapshotOfWindowWithinBounds(uint32_t p_window_id, MCRec
 	else
 		t_size = *p_size;
 	
-	MCMacPlatformCGImageToMCImageBitmap(t_image, t_size, r_bitmap);
+	CGImageToMCImageBitmap(t_image, t_size, r_bitmap);
 	CGImageRelease(t_image);
 }
 
-void MCPlatformScreenSnapshotOfWindow(uint32_t p_window_id, MCPoint *p_size, MCImageBitmap*& r_bitmap)
+void MCMacPlatform::ScreenSnapshotOfWindow(uint32_t p_window_id, MCPoint *p_size, MCImageBitmap*& r_bitmap)
 {
 	// IM-2014-04-03: [[ Bug 12085 ]] Update to use Cocoa API to get window bounds
 	NSWindow *t_window;
@@ -372,11 +375,11 @@ void MCPlatformScreenSnapshotOfWindow(uint32_t p_window_id, MCPoint *p_size, MCI
 	
 	NSRect t_rect = NSOffsetRect(t_content_rect, t_frame_rect.origin.x, t_frame_rect.origin.y);
 	
-	MCMacPlatformScreenSnapshotOfWindowWithinBounds(p_window_id, mcrect_from_cocoa(t_rect), p_size, r_bitmap);
+	ScreenSnapshotOfWindowWithinBounds(p_window_id, mcrect_from_cocoa(t_rect), p_size, r_bitmap);
 }
 
 // IM-2014-04-03: [[ Bug 12115 ]] Implement snapshot of rect of window
-void MCPlatformScreenSnapshotOfWindowArea(uint32_t p_window_id, MCRectangle p_area, MCPoint *p_size, MCImageBitmap*& r_bitmap)
+void MCMacPlatform::ScreenSnapshotOfWindowArea(uint32_t p_window_id, MCRectangle p_area, MCPoint *p_size, MCImageBitmap*& r_bitmap)
 {
 	NSWindow *t_window;
 	t_window = [NSApp windowWithWindowNumber: p_window_id];
@@ -394,10 +397,10 @@ void MCPlatformScreenSnapshotOfWindowArea(uint32_t p_window_id, MCRectangle p_ar
 	MCRectangle t_rect;
 	t_rect = MCRectangleMake(p_area.x + t_content_left, p_area.y + t_content_top, p_area.width, p_area.height);
 	
-	MCMacPlatformScreenSnapshotOfWindowWithinBounds(p_window_id, t_rect, p_size, r_bitmap);
+	ScreenSnapshotOfWindowWithinBounds(p_window_id, t_rect, p_size, r_bitmap);
 }
 
-void MCPlatformScreenSnapshot(MCRectangle p_screen_rect, MCPoint *p_size, MCImageBitmap*& r_bitmap)
+void MCMacPlatform::ScreenSnapshot(MCRectangle p_screen_rect, MCPoint *p_size, MCImageBitmap*& r_bitmap)
 {
     // MW-2014-06-11: [[ Bug 12436 ]] Wait for the screen to be up to date.
     wait_for_refresh();
@@ -414,7 +417,7 @@ void MCPlatformScreenSnapshot(MCRectangle p_screen_rect, MCPoint *p_size, MCImag
 	else
 		t_size = *p_size;
 	
-	MCMacPlatformCGImageToMCImageBitmap(t_image, t_size, r_bitmap);
+	CGImageToMCImageBitmap(t_image, t_size, r_bitmap);
 	CGImageRelease(t_image);
 }
 

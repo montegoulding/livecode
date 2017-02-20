@@ -19,7 +19,7 @@
 
 #include "platform.h"
 
-#include <AppKit/NSSavePanel.h>
+#include <AppKit/AppKit.h>
 
 class MCMacPlatformCallbacks : public MCPlatformCallbacks
 {
@@ -38,7 +38,8 @@ public:
 	Boolean MCS_exists(MCStringRef p_path, bool p_is_file);
 	bool MCS_resolvepath(MCStringRef p_path, MCStringRef& r_resolved);
 	bool MCStringsSplit(MCStringRef p_string, codepoint_t p_separator, MCStringRef*&r_strings, uindex_t& r_count);
-	
+	bool MCS_pathtonative(MCStringRef p_livecode_path, MCStringRef& r_native_path);
+    
 	// module stubs
 	bool MCModulesInitialize(void);
 	void MCModulesFinalize(void);
@@ -191,6 +192,8 @@ public:
 	void MCGContextTranslateCTM(MCGContextRef context, MCGFloat xoffset, MCGFloat yoffset);
 	void MCGContextScaleCTM(MCGContextRef context, MCGFloat xscale, MCGFloat yscale);
 
+    void MCImageFreeBitmap(MCImageBitmap *p_bitmap);
+    
 	// TODO - handle platform-specific callback functions
 	NSString *MCStringConvertToAutoreleasedNSString(MCStringRef p_string_ref);
 	bool MCStringConvertToCFStringRef(MCStringRef p_string, CFStringRef& r_cfstring);
@@ -207,8 +210,57 @@ class MCMacPlatform : public MCPlatformInterface, public MCMacPlatformStubs
 {
 public:
 	int platform_main(int argc, char *argv[], char *envp[]);
-	
-	// System
+    
+    bool ApplicationSendEvent(NSEvent *p_event);
+    bool ApplicationWindowIsMoving(MCPlatformWindowRef p_window);
+    void ApplicationWindowStartedMoving(MCPlatformWindowRef p_window);
+    void ApplicationWindowStoppedMoving(MCPlatformWindowRef p_window);
+    void ApplicationBecomePseudoModalFor(NSWindow *p_window);
+    void EnableEventChecking(void);
+    void DisableEventChecking(void);
+    bool IsEventCheckingEnabled(void);
+    void BeginModalSession(MCPlatformWindow *p_window);
+    void EndModalSession(MCPlatformWindow *p_window);
+    void ScheduleCallback(void (*p_callback)(void *), void *p_context);
+    NSEvent *GetLastMouseEvent(void);
+    NSWindow *ApplicationPseudoModalFor(void);
+    void LockCursor(void);
+    void UnlockCursor(void);
+    void ResetCursor(void);
+    void HandleMousePress(uint32_t p_button, bool p_new_state);
+    void HandleMouseCursorChange(MCPlatformWindowRef p_window);
+    void HandleMouseAfterWindowHidden(void);
+    void HandleMouseForResizeStart(void);
+    void HandleMouseForResizeEnd(void);
+    void HandleMouseMove(MCPoint p_screen_loc);
+    void HandleMouseScroll(CGFloat dx, CGFloat dy);
+    void HandleMouseSync(void);
+    void SyncMouseBeforeDragging(void);
+    void SyncMouseAfterTracking(void);
+    void HandleModifiersChanged(MCPlatformModifiers p_modifiers);
+    MCPlatformModifiers MapNSModifiersToModifiers(NSUInteger p_modifiers);
+    void MapScreenMCPointToNSPoint(MCPoint p, NSPoint& r_point);
+    void MapScreenNSPointToMCPoint(NSPoint p, MCPoint& r_point);
+    void MapScreenMCRectangleToNSRect(MCRectangle r, NSRect& r_rect);
+    void MapScreenNSRectToMCRectangle(NSRect r, MCRectangle& r_rect);
+    void ShowMessageDialog(MCStringRef p_title, MCStringRef p_message);
+    bool MapKeyCode(uint32_t p_mac_keycode, uint32_t p_modifier_flags, MCPlatformKeyCode& r_keycode);
+    NSDragOperation MapDragOperationToNSDragOperation(MCPlatformDragOperation p_operation);
+    MCPlatformDragOperation MapNSDragOperationToDragOperation(NSDragOperation p_operation);
+    void GetGlobalVolume(double& r_volume);
+    void SetGlobalVolume(double p_volume);
+    void *CreateAutoReleasePool();
+    void ReleaseAutoReleasePool(void *p_pool);
+    void GetScreenCount(uindex_t& r_count);
+    void GetScreenViewport(uindex_t p_index, MCRectangle& r_viewport);
+    void GetScreenWorkarea(uindex_t p_index, MCRectangle& r_workarea);
+    void GetScreenPixelScale(uindex_t p_index, MCGFloat& r_scale);
+    
+    // Backdrop
+    void SyncBackdrop(void);
+    void ConfigureBackdrop(MCPlatformWindowRef p_backdrop_window);
+    
+    // System
 	void BreakWait(void);
 	bool WaitForEvent(double duration, bool blocking);
 	bool GetAbortKeyPressed(void);
@@ -227,13 +279,14 @@ public:
 	void Beep(void);
 	void GetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value);
 	void SetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value);
-	
-	// Colorspace
+    
+    // Colorspace
 	void CreateColorTransform(const MCColorSpaceInfo& info, MCPlatformColorTransformRef& r_transform);
 	void RetainColorTransform(MCPlatformColorTransformRef transform);
 	void ReleaseColorTransform(MCPlatformColorTransformRef transform);
 	bool ApplyColorTransform(MCPlatformColorTransformRef transform, MCImageBitmap *image);
-	
+    bool GetImageColorSpace(CGColorSpaceRef &r_colorspace);
+    
 	// Pasteboard
 	void DoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOperations p_allowed_operations, MCImageBitmap *p_image, const MCPoint *p_image_loc, MCPlatformDragOperation& r_operation);
 	// Only used on mac desktop
@@ -271,11 +324,25 @@ public:
 	void SetMenuItemProperty(MCPlatformMenuRef menu, uindex_t index, MCPlatformMenuItemProperty property, MCPlatformPropertyType type, const void *value);
 	bool PopUpMenu(MCPlatformMenuRef menu, MCPlatformWindowRef window, MCPoint location, uindex_t item);
 	void SetIconMenu(MCPlatformMenuRef menu);
-	void ShowMenubar(void);
+    NSMenu *GetIconMenu(void);
+    void ShowMenubar(void);
 	void HideMenubar(void);
 	void SetMenubar(MCPlatformMenuRef menu);
 	void GetMenubar(MCPlatformMenuRef &r_menu);
-	
+    bool MapMenuItemActionToSelector(MCPlatformMenuItemAction action, SEL& r_selector);
+    bool MapNSStringToCodepoint(NSString *p_string, codepoint_t& r_codepoint);
+    bool MapCodepointToNSString(codepoint_t p_codepoint, NSString*& r_string);
+    
+    // Snapshot
+    void CGImageToMCImageBitmap(CGImageRef p_image, MCPoint p_size, MCImageBitmap*& r_bitmap);
+    //CVReturn MyDisplayLinkCallback(CVDisplayLinkRef displayLink, const CVTimeStamp* now, const CVTimeStamp* outputTime, CVOptionFlags flagsIn, CVOptionFlags* flagsOut, void* displayLinkContext);
+    void wait_for_refresh(void);
+    void ScreenSnapshotOfUserArea(MCPoint *p_size, MCImageBitmap*& r_bitmap);
+    void ScreenSnapshotOfWindowWithinBounds(uint32_t p_window_id, MCRectangle p_bounds, MCPoint *p_size, MCImageBitmap *&r_bitmap);
+    void ScreenSnapshotOfWindow(uint32_t p_window_id, MCPoint *p_size, MCImageBitmap*& r_bitmap);
+    void ScreenSnapshotOfWindowArea(uint32_t p_window_id, MCRectangle p_area, MCPoint *p_size, MCImageBitmap*& r_bitmap);
+    void ScreenSnapshot(MCRectangle p_screen_rect, MCPoint *p_size, MCImageBitmap*& r_bitmap);
+    
 	// Cursor
 	void CreateStandardCursor(MCPlatformStandardCursor standard_cusor, MCPlatformCursorRef& r_cursor);
 	void CreateCustomCursor(MCImageBitmap *image, MCPoint hot_spot, MCPlatformCursorRef& r_cursor);

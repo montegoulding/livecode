@@ -20,6 +20,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -171,7 +172,7 @@ static bool get_device_mute(AudioDeviceID p_device, bool& r_mute)
     return true;
 }
 
-void MCMacPlatformGetGlobalVolume(double& r_volume)
+void MCMacPlatform::GetGlobalVolume(double& r_volume)
 {
     AudioObjectPropertyAddress t_addr;
     t_addr . mElement = kAudioObjectPropertyElementMaster;
@@ -251,7 +252,7 @@ static bool set_device_volume(AudioDeviceID p_device, double p_volume)
     return true;
 }
 
-void MCMacPlatformSetGlobalVolume(double p_volume)
+void MCMacPlatform::SetGlobalVolume(double p_volume)
 {
     p_volume = fmin(fmax(p_volume, 0.0), 1.0);
     

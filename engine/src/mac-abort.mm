@@ -295,7 +295,7 @@ bool MCMacPlatform::GetAbortKeyPressed(void)
 {
     // MW-2014-04-23: [[ Bug 12163 ]] If the abortKey hasn't been checked
     //   recently, then tickle the event queue so that we suppress the SPOD.
-	if (!s_abort_key_checked && MCMacPlatformIsEventCheckingEnabled())
+	if (!s_abort_key_checked && IsEventCheckingEnabled())
 	{
 		NSDisableScreenUpdates();
 		[NSApp nextEventMatchingMask: 0

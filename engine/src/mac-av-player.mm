@@ -37,9 +37,10 @@ class MCAVFoundationPlayer;
 @interface com_runrev_livecode_MCAVFoundationPlayerObserver: NSObject
 {
     MCAVFoundationPlayer *m_av_player;
+    MCMacPlatform *m_platform;
 }
 
-- (id)initWithPlayer: (MCAVFoundationPlayer *)player;
+- (id)initWithPlatform: (MCMacPlatform *)p_platform player: (MCAVFoundationPlayer *)player;
 
 - (void)movieFinished: (id)object;
 
@@ -167,6 +168,8 @@ private:
     bool m_finished : 1;
     bool m_has_invalid_filename : 1;
     bool m_mirrored : 1;
+    
+    bool SnapshotCVImageBuffer(CVImageBufferRef p_imagebuffer, uint32_t p_width, uint32_t p_height, bool p_mirror, MCImageBitmap *&r_bitmap);
 
 };
 
@@ -174,13 +177,14 @@ private:
 
 @implementation com_runrev_livecode_MCAVFoundationPlayerObserver
 
-- (id)initWithPlayer: (MCAVFoundationPlayer *)player
+- (id)initWithPlatform:(MCMacPlatform *) p_platform player: (MCAVFoundationPlayer *)player
 {
     self = [super init];
     if (self == nil)
         return nil;
     
     m_av_player = player;
+    m_platform = p_platform;
     
     return self;
 }
@@ -199,7 +203,7 @@ private:
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
     if ([keyPath isEqualToString: @"status"])
-        MCPlatformBreakWait();
+        m_platform->BreakWait();
     else if([keyPath isEqualToString: @"currentItem.loadedTimeRanges"])
     {
         // PM-2014-10-14: [[ Bug 13650 ]] Do this check to prevent a crash
@@ -261,7 +265,7 @@ MCAVFoundationPlayer::MCAVFoundationPlayer(MCMacPlatform *p_platform)
     //   with zero frame.
     m_player = nil;
     m_view = [[com_runrev_livecode_MCAVFoundationPlayerView alloc] initWithFrame: NSZeroRect];
-	m_observer = [[com_runrev_livecode_MCAVFoundationPlayerObserver alloc] initWithPlayer: this];
+    m_observer = [[com_runrev_livecode_MCAVFoundationPlayerObserver alloc] initWithPlatform: p_platform player: this];
     
     m_lock = [[NSLock alloc] init];
     
@@ -523,7 +527,7 @@ void MCAVFoundationPlayer::Switch(bool p_new_offscreen)
 		return;
     
 	Retain();
-	MCMacPlatformScheduleCallback(DoSwitch, this);
+	m_platform->ScheduleCallback(DoSwitch, this);
     
 	m_switch_scheduled = true;
 }
@@ -537,10 +541,10 @@ void MCAVFoundationPlayer::SeekToTimeAndWait(uint32_t p_time)
     __block bool t_is_finished = false;
     [[m_player currentItem] seekToTime:CMTimeFromLCTime(p_time) toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
         t_is_finished = true;
-        MCPlatformBreakWait();
+        m_platform->BreakWait();
     }];
     while(!t_is_finished)
-        MCPlatformWaitForEvent(60.0, true);
+        m_platform->WaitForEvent(60.0, true);
 }
 
 CVReturn MCAVFoundationPlayer::MyDisplayLinkCallback (CVDisplayLinkRef displayLink,
@@ -714,7 +718,7 @@ void MCAVFoundationPlayer::Load(MCStringRef p_filename_or_url, bool p_is_url)
     // Block-wait until the status becomes something.
     [t_player addObserver: m_observer forKeyPath: @"status" options: 0 context: nil];
     while([t_player status] == AVPlayerStatusUnknown)
-        MCPlatformWaitForEvent(60.0, true);
+        m_platform->WaitForEvent(60.0, true);
 
     [t_player removeObserver: m_observer forKeyPath: @"status"];
 
@@ -915,7 +919,7 @@ void MCAVFoundationPlayer::Start(double rate)
                                                                            [m_player seekToTime: t_original_end_time toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
                                                                            // PM-2014-11-10: [[ Bug 13968 ]] Make sure we loop within start and finish time when playSelection is true
                                                                            MovieFinished();
-                                                                           MCPlatformBreakWait();
+                                                                           m_platform->BreakWait();
                                                                 
                                                                        }];
     }
@@ -963,7 +967,7 @@ void MCAVFoundationPlayer::Step(int amount)
     [[m_player currentItem] stepByCount:amount];
 }
 
-bool MCMacPlayerSnapshotCVImageBuffer(CVImageBufferRef p_imagebuffer, uint32_t p_width, uint32_t p_height, bool p_mirror, MCImageBitmap *&r_bitmap)
+bool MCAVFoundationPlayer::SnapshotCVImageBuffer(CVImageBufferRef p_imagebuffer, uint32_t p_width, uint32_t p_height, bool p_mirror, MCImageBitmap *&r_bitmap)
 {
 	bool t_success = true;
 	
@@ -985,7 +989,7 @@ bool MCMacPlayerSnapshotCVImageBuffer(CVImageBufferRef p_imagebuffer, uint32_t p
 	t_colorspace = nil;
 	
 	if (t_success)
-		t_success = MCMacPlatformGetImageColorSpace(t_colorspace);
+		t_success = m_platform->GetImageColorSpace(t_colorspace);
 	
 	CGContextRef t_cg_context;
 	t_cg_context = nil;
@@ -1056,7 +1060,7 @@ bool MCAVFoundationPlayer::LockBitmap(const MCGIntegerSize &p_size, MCImageBitma
 	if (m_player_item_video_output == nil || m_current_frame == nil)
 		return false;
 	
-	return MCMacPlayerSnapshotCVImageBuffer(m_current_frame, p_size.width, p_size.height, m_mirrored, r_bitmap);
+	return SnapshotCVImageBuffer(m_current_frame, p_size.width, p_size.height, m_mirrored, r_bitmap);
 }
 
 void MCAVFoundationPlayer::UnlockBitmap(MCImageBitmap *bitmap)
