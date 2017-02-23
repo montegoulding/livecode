@@ -551,7 +551,7 @@
 			'<(SHARED_INTERMEDIATE_DIR)/src/quicktimestubs.mac.cpp',
 			
 			# Group "Desktop - Mac"
-			'src/coretextfonts.mm',
+			'src/coretextfonts.cpp',
 			'src/osxflst.cpp',
 			
 			# Group "Desktop - Linux"

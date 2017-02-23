@@ -28,10 +28,10 @@
 
 #ifdef TARGET_SUBPLATFORM_IPHONE
 #import <CoreText/CoreText.h>
-#import <UIKit/UIFont.h>
+//#import <UIKit/UIFont.h>
 #else
 #import <ApplicationServices/ApplicationServices.h>
-#import <AppKit/NSFont.h>
+//#import <AppKit/NSFont.h>
 #endif
 
 #ifdef TARGET_SUBPLATFORM_IPHONE
@@ -77,67 +77,40 @@ void ios_clear_font_mapping(void)
 }
 #endif
 
-static void* coretext_font_create_system(uint32_t p_size)
+static void * coretext_font_create_system(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont systemFontOfSize: p_size] retain];
-#else
-    return [[NSFont systemFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontSystem, p_size, NULL);
 }
 
-static void* coretext_font_create_system_bold(uint32_t p_size)
+static void * coretext_font_create_system_bold(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont boldSystemFontOfSize: p_size] retain];
-#else
-    return [[NSFont boldSystemFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontEmphasizedSystem, p_size, NULL);
 }
 
-static void* coretext_font_create_content(uint32_t p_size)
+static void * coretext_font_create_content(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont systemFontOfSize: p_size] retain];
-#else
-    return [[NSFont controlContentFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontControlContent, p_size, NULL);
 }
 
-static void* coretext_font_create_menu(uint32_t p_size)
+static void * coretext_font_create_menu(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont systemFontOfSize: p_size] retain];
-#else
-    return [[NSFont menuFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontEmphasizedSystem, p_size, NULL);
 }
 
-static void* coretext_font_create_message(uint32_t p_size)
+static void * coretext_font_create_message(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont systemFontOfSize: p_size] retain];
-#else
-    return [[NSFont messageFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontMessage, p_size, NULL);
 }
 
-static void* coretext_font_create_tooltip(uint32_t p_size)
+static void * coretext_font_create_tooltip(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont systemFontOfSize: p_size] retain];
-#else
-    return [[NSFont toolTipsFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontToolTip, p_size, NULL);
+
 }
 
-static void* coretext_font_create_user(uint32_t p_size)
+static void * coretext_font_create_user(uint32_t p_size)
 {
-#ifdef TARGET_SUBPLATFORM_IPHONE
-    return [[UIFont systemFontOfSize: p_size] retain];
-#else
-    return [[NSFont userFontOfSize: p_size] retain];
-#endif
+    return (void *)CTFontCreateUIFontForLanguage(kCTFontUIFontUser, p_size, NULL);
 }
 
 static void *coretext_font_create_with_name_and_size(MCStringRef p_name, uint32_t p_size)
