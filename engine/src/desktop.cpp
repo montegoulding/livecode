@@ -41,6 +41,7 @@
 #include "aclip.h"
 #include "stacklst.h"
 #include "clipboard.h"
+#include "mac-clipboard.h"
 
 #include "desktop-dc.h"
 #include "param.h"
@@ -533,13 +534,18 @@ static MCPlatformDragOperation dragaction_to_dragoperation(MCDragAction p_action
 	return kMCPlatformDragOperationNone;
 }
 
-void MCPlatformHandleDragEnter(MCPlatformWindowRef p_window, MCRawClipboard* p_dragboard, MCPlatformDragOperation& r_operation)
+void MCPlatformHandleDragEnter(MCPlatformWindowRef p_window, MCPlatformClipboardRef p_dragboard, MCPlatformDragOperation& r_operation)
 {
     // On some platforms (Mac and iOS), the drag board used for drag-and-drop
     // operations may not be the main drag board. If a non-NULL clipboard was
     // supplied for this operation, tell the engine drag board to re-bind to it.
     if (p_dragboard != NULL)
-        MCdragboard->Rebind(p_dragboard);
+    {
+        MCAutoRefcounted<MCMacRawClipboard> t_dragboard;
+        t_dragboard = new MCMacRawClipboard(t_dragboard);
+        
+        MCdragboard->Rebind(t_dragboard);
+    }
 	
     MCdispatcher->wmdragenter(p_window);
     

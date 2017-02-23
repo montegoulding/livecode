@@ -125,7 +125,7 @@ public:
 	void HandleKeyDown(MCPlatformKeyCode key_code, codepoint_t mapped_codepoint, codepoint_t unmapped_codepoint);
 	void HandleKeyUp(MCPlatformKeyCode key_code, codepoint_t mapped_codepoint, codepoint_t unmapped_codepoint);
 	
-	void HandleDragEnter(class MCRawClipboard* p_dragboard, MCPlatformDragOperation& r_operation);
+	void HandleDragEnter(MCPlatformClipboardRef p_dragboard, MCPlatformDragOperation& r_operation);
 	void HandleDragMove(MCPoint location, MCPlatformDragOperation& r_operation);
 	void HandleDragLeave(void);
 	void HandleDragDrop(bool& r_accepted);
@@ -347,7 +347,7 @@ void MCPlatformCallbackSendMouseLeave(MCPlatformWindowRef window);
 void MCPlatformCallbackSendMouseMove(MCPlatformWindowRef window, MCPoint location);
 void MCPlatformCallbackSendMouseScroll(MCPlatformWindowRef window, int32_t dx, int32_t dy);
 
-void MCPlatformCallbackSendDragEnter(MCPlatformWindowRef window, class MCRawClipboard* p_dragboard, MCPlatformDragOperation& r_operation);
+void MCPlatformCallbackSendDragEnter(MCPlatformWindowRef window, MCPlatformClipboardRef p_dragboard, MCPlatformDragOperation& r_operation);
 void MCPlatformCallbackSendDragLeave(MCPlatformWindowRef window);
 void MCPlatformCallbackSendDragMove(MCPlatformWindowRef window, MCPoint location, MCPlatformDragOperation& r_operation);
 void MCPlatformCallbackSendDragDrop(MCPlatformWindowRef window, bool& r_accepted);

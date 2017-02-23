@@ -303,3 +303,38 @@ void MCPlatformBeep(void) { return; }
 
 void MCPlatformGetSystemProperty(MCPlatformSystemProperty property, MCPlatformPropertyType type, void *value) { return; }
 void MCPlatformSetSystemProperty(MCPlatformSystemProperty property, MCPlatformPropertyType type, void *value) { return; }
+
+// Clipboard
+MCPlatformClipboardRef MCPlatformPasteboardSystem(void) { return NULL; }
+MCPlatformClipboardRef MCPlatformPasteboardWithUniqueName(void){ return NULL; }
+MCPlatformClipboardRef MCPlatformPasteboardDrag(void){ return NULL; }
+void MCPlatformPasteboardRetain(MCPlatformClipboardRef p_pasteboard) { return; }
+void MCPlatformPasteboardRelease(MCPlatformClipboardRef p_pasteboard) { return; }
+uindex_t MCPlatformPasteboardChangeCount(MCPlatformClipboardRef p_pasteboard){ return 0; }
+uindex_t MCPlatformPasteboardClearContents(MCPlatformClipboardRef p_pasteboard){ return 0; }
+bool MCPlatformPasteboardWriteItems(MCPlatformClipboardRef p_pasteboard, CFMutableArrayRef p_items){ return true; }
+CFMutableArrayRef MCPlatformPasteboardItemsMutableCopy(MCPlatformClipboardRef p_pasteboard){ return NULL; }
+MCPlatformClipboardItemRef MCPlatformPasteboardCreateItemRef(void){ return NULL; }
+void MCPlatformPasteboardItemRetain(MCPlatformClipboardItemRef p_item) { return; }
+void MCPlatformPasteboardItemRelease(MCPlatformClipboardItemRef p_item) { return; }
+bool MCPlatformPasteboardItemIsNSPasteboardItem(MCPlatformClipboardItemRef p_item){ return true; }
+bool MCPlatformPasteboardItemAddRepresentation(MCPlatformClipboardItemRef p_item, CFStringRef p_type, CFDataRef p_data){ return true; }
+CFArrayRef MCPlatformPasteboardItemRepresentationTypes(MCPlatformClipboardItemRef m_item){ return NULL; }
+CFStringRef MCPlatformCFStringFromClass(void * p_class){ return NULL; }
+CFDataRef MCPlatformPasteboardItemDataForType(MCPlatformClipboardItemRef p_item, CFStringRef p_type){ return NULL; }
+
+// Native layer
+
+void MCPlatformNativeLayerContainerViewRetain(MCPlatformNativeLayerContainerViewRef p_view) { return; }
+void MCPlatformNativeLayerContainerViewRelease(MCPlatformNativeLayerContainerViewRef p_view) { return; }
+void MCPlatformBitmapImageRepRelease(MCPlatformNativeLayerContainerViewRef p_view) { return; }
+void MCPlatformNativeLayerContainerViewRemove(MCPlatformNativeLayerContainerViewRef p_view) { return; }
+void MCPlatformCreateBitmapImageRep(MCPlatformNativeLayerContainerViewRef p_view, MCPlatformBitmapImageRepRef &r_rep) { return; }
+void MCPlatformBitmapImageRepRetain(MCPlatformBitmapImageRepRef p_cached) { return; }
+void MCPlatformBitmapImageRepCache(MCPlatformNativeLayerContainerViewRef p_view, MCPlatformBitmapImageRepRef p_cached, MCGRaster &r_raster) { return; }
+void MCPlatformNativeLayerContainerViewSetGeometry(MCPlatformNativeLayerContainerViewRef p_view, MCRectangle p_rect, MCPlatformWindowRef p_window, int32_t p_gp_height) { return; }
+void MCPlatformNativeLayerContainerViewSetVisible(MCPlatformNativeLayerContainerViewRef p_view, bool p_visible) { return; }
+void MCPlatformNativeLayerContainerViewAddSubView(void * t_parent_view,MCPlatformNativeLayerContainerViewRef m_view, MCPlatformNativeLayerContainerViewRef t_before_view) { return; }
+void MCPlatformWindowContentView(MCPlatformWindowRef p_window, void *&r_view) { return; }
+void MCPlatformCreateNativeLayerContainerView(MCPlatformNativeLayerContainerViewRef & r_view) { return; }
+void MCPlatformViewSetNeedsDisplay(void * p_view) { return; }

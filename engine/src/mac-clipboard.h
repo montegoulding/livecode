@@ -19,10 +19,8 @@
 #ifndef MAC_CLIPBOARD_H
 #define MAC_CLIPBOARD_H
 
-
+#include "platform.h"
 #include "raw-clipboard.h"
-
-#import <AppKit/AppKit.h>
 
 #include "foundation-auto.h"
 
@@ -39,8 +37,8 @@ public:
 private:
     
     // The representation is identified by an (item,index) tuple
-    id m_item;
-    NSUInteger m_index;
+    MCPlatformClipboardItemRef m_item;
+    uindex_t m_index;
     
     // Cache of the StringRef identifying the data type and the DataRef holding
     // the data itself for this representation. These are only initialised when
@@ -51,8 +49,8 @@ private:
     
     // Lifetime is managed by the parent MCMacRawClipboardItem
     friend class MCMacRawClipboardItem;
-    MCMacRawClipboardItemRep(id p_item, NSUInteger p_index);
-    MCMacRawClipboardItemRep(id p_item, NSUInteger p_index, MCStringRef p_type, MCDataRef p_data);
+    MCMacRawClipboardItemRep(MCPlatformClipboardItemRef p_item, uindex_t p_index);
+    MCMacRawClipboardItemRep(MCPlatformClipboardItemRef p_item, uindex_t p_index, MCStringRef p_type, MCDataRef p_data);
     virtual ~MCMacRawClipboardItemRep();
 };
 
@@ -74,7 +72,7 @@ private:
     friend class MCMacRawClipboard;
     
     // The object being wrapped
-    id m_item;
+    MCPlatformClipboardItemRef m_item;
     
     // Cache of the representation objects. Marked as mutable as the various
     // representation objects are only allocated when they are requested.
@@ -83,7 +81,7 @@ private:
     // Constructors. If no item is supplied, a new NSPasteboardItem will be
     // automatically created.
     MCMacRawClipboardItem();
-    MCMacRawClipboardItem(id p_item);
+    MCMacRawClipboardItem(MCPlatformClipboardItemRef p_item);
     
     // Destructor
     virtual ~MCMacRawClipboardItem();
@@ -115,7 +113,7 @@ public:
 	virtual MCDataRef DecodeTransferredHTML(MCDataRef p_html) const;
     
     // Constructor. The NSPasteboard being wrapped is required.
-    MCMacRawClipboard(NSPasteboard* p_pasteboard);
+    MCMacRawClipboard(MCPlatformClipboardRef p_pasteboard);
     
     // Converts a LiveCode-style RawClipboardData key into an OSX UTI
     static MCStringRef CopyAsUTI(MCStringRef p_key);
@@ -123,13 +121,13 @@ public:
 private:
     
     // The NSPasteboard being wrapped
-    NSPasteboard* m_pasteboard;
+    MCPlatformClipboardRef m_pasteboard;
     
     // Change count used to track ownership of the clipboard
-    NSInteger m_last_changecount;
+    uindex_t m_last_changecount;
     
     // The array that we are pushing onto the clipboard
-    NSMutableArray* m_items;
+    CFMutableArrayRef m_items;
     
     // Indicates whether any changes have been made to the clipboard
     bool m_dirty;

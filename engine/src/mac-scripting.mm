@@ -21,6 +21,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -166,11 +167,11 @@ static JSObjectCallAsFunctionPtr JSObjectCallAsFunction;
 
 ///////////////////////////////////////////////////////////////////////////////
 
-class MCPlatformScriptEnvironment
+class MCPlatformScriptEnvironment : public MCMacPlatformStubs
 {
 public:
-	MCPlatformScriptEnvironment(void);
-	~MCPlatformScriptEnvironment(void);
+	MCPlatformScriptEnvironment(MCMacPlatform *p_platform);
+	virtual ~MCPlatformScriptEnvironment(void);
 	
 	void Retain(void);
 	void Release(void);
@@ -180,6 +181,10 @@ public:
 	void Run(MCStringRef p_script, MCStringRef &r_result);
 	
 	char *Call(const char *p_method, const char **p_arguments, unsigned int p_argument_count);
+	
+	//////////
+	
+	MCMacPlatformCallbacks *GetCallbacks();
 	
 private:
 	struct Function
@@ -194,6 +199,8 @@ private:
 	
 	Function *m_functions;
 	uint4 m_function_count;
+	
+	MCMacPlatform *m_platform;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -203,8 +210,59 @@ sym = (sym##Ptr)NSAddressOfSymbol(NSLookupSymbolInImage((const mach_header *)Jav
 
 ///////////////////////////////////////////////////////////////////////////////
 
-// SN-2014-12-22: [[ Bug 14278 ]] Parameter added to choose a UTF-8 string.
-extern char *osx_cfstring_to_cstring(CFStringRef p_string, bool p_release, bool p_utf8 = false);
+static char *osx_cfstring_to_cstring(CFStringRef p_string, bool p_release = true, bool p_utf8_string = false)
+{
+    bool t_success;
+    t_success = true;
+    
+    if (p_string == NULL)
+        t_success = false;
+    
+    char *t_cstring;
+    t_cstring = NULL;
+    if (t_success)
+    {
+        CFIndex t_string_length;
+        t_string_length = CFStringGetLength(p_string);
+        
+        // SN-2014-12-22: [[ Bug 14278 ]] Parameter added to choose a UTF-8 string.
+        CFStringEncoding t_encoding;
+        if (p_utf8_string)
+            t_encoding = kCFStringEncodingUTF8;
+        else
+            t_encoding = kCFStringEncodingMacRoman;
+        
+        CFIndex t_buffer_size;
+        t_buffer_size = CFStringGetMaximumSizeForEncoding(t_string_length, t_encoding) + 1;
+        t_cstring = (char *)malloc(t_buffer_size);
+        
+        if (t_cstring != NULL)
+        {
+            // MW-2012-03-15: [[ Bug 9935 ]] Use CFStringGetBytes() so that '?' is substituted for any non-
+            //   mappable chars.
+            CFIndex t_used;
+            CFStringGetBytes(p_string, CFRangeMake(0, CFStringGetLength(p_string)), t_encoding, '?', False, (UInt8*)t_cstring, t_buffer_size, &t_used);
+            t_cstring[t_used] = '\0';
+        }
+        else
+            t_success = false;
+        
+        if (t_success)
+            t_cstring = (char *)realloc(t_cstring, strlen(t_cstring) + 1);
+    }
+    
+    if (!t_success)
+    {
+        if (t_cstring != NULL)
+            free(t_cstring);
+        t_cstring = NULL;
+    }
+    
+    if (p_string != NULL && p_release)
+        CFRelease(p_string);
+    
+    return t_cstring;
+}
 
 static bool ConvertMCStringToJSString(MCStringRef p_string, JSStringRef &r_js_string)
 {
@@ -357,12 +415,14 @@ static JSValueRef InvokeHostFunction(JSContextRef p_context, JSObjectRef p_funct
 
 ///////////////////////////////////////////////////////////////////////////////
 
-MCPlatformScriptEnvironment::MCPlatformScriptEnvironment(void)
+MCPlatformScriptEnvironment::MCPlatformScriptEnvironment(MCMacPlatform *p_platform)
 {
 	m_references = 1;
 	m_runtime = NULL;
 	m_functions = NULL;
 	m_function_count = 0;
+	
+	m_platform = p_platform;
 }
 
 MCPlatformScriptEnvironment::~MCPlatformScriptEnvironment(void)
@@ -374,6 +434,11 @@ MCPlatformScriptEnvironment::~MCPlatformScriptEnvironment(void)
 	
 	if (m_runtime != NULL)
 		JSGlobalContextRelease(m_runtime);
+}
+
+MCMacPlatformCallbacks *MCPlatformScriptEnvironment::GetCallbacks()
+{
+	return m_platform->GetCallbacks();
 }
 
 void MCPlatformScriptEnvironment::Retain(void)
@@ -443,7 +508,7 @@ void MCPlatformScriptEnvironment::Run(MCStringRef p_script, MCStringRef &r_resul
 		static JSClassDefinition s_function_class =
 		{
 			0, 0, "__livecode_script_environment_function__", NULL, NULL, NULL,
-			NULL, NULL, NULL, NULL, NULL, NULL, NULL, InvokeHostFunction, NULL, NULL, NULL
+            NULL, NULL, NULL, NULL, NULL, NULL, NULL, InvokeHostFunction, NULL, NULL, NULL
 		};
 		
 		t_function_class = JSClassCreate(&s_function_class);
@@ -490,7 +555,7 @@ void MCPlatformScriptEnvironment::Run(MCStringRef p_script, MCStringRef &r_resul
 	if (t_success)
 	{
 		m_runtime = t_runtime;
-		r_result = MCValueRetain(kMCEmptyString);
+		r_result = MCValueRetain(MCSTR(""));
 	}
 	else
 	{
@@ -571,7 +636,7 @@ char *MCPlatformScriptEnvironment::Call(const char *p_method, const char **p_arg
 
 // SN-2014-07-23: [[ Bug 12907 ]]
 //  Update as well MCSreenDC::createscriptenvironment (and callees)
-void MCPlatformScriptEnvironmentCreate(MCStringRef language, MCPlatformScriptEnvironmentRef& r_env)
+void MCMacPlatform::ScriptEnvironmentCreate(MCStringRef language, MCPlatformScriptEnvironmentRef& r_env)
 {
 	if (JavaScriptCoreLibrary == NULL)
 	{
@@ -598,30 +663,30 @@ void MCPlatformScriptEnvironmentCreate(MCStringRef language, MCPlatformScriptEnv
 		GET_JSC_SYMBOL(JSObjectCallAsFunction);
 	}
 	
-	r_env = new MCPlatformScriptEnvironment();
+	r_env = new MCPlatformScriptEnvironment(this);
 }
 
-void MCPlatformScriptEnvironmentRetain(MCPlatformScriptEnvironmentRef env)
+void MCMacPlatform::ScriptEnvironmentRetain(MCPlatformScriptEnvironmentRef env)
 {
 	env -> Retain();
 }
 
-void MCPlatformScriptEnvironmentRelease(MCPlatformScriptEnvironmentRef env)
+void MCMacPlatform::ScriptEnvironmentRelease(MCPlatformScriptEnvironmentRef env)
 {
 	env -> Release();
 }
 
-bool MCPlatformScriptEnvironmentDefine(MCPlatformScriptEnvironmentRef env, const char *function, MCPlatformScriptEnvironmentCallback callback)
+bool MCMacPlatform::ScriptEnvironmentDefine(MCPlatformScriptEnvironmentRef env, const char *function, MCPlatformScriptEnvironmentCallback callback)
 {
 	return env -> Define(function, callback);
 }
 
-void MCPlatformScriptEnvironmentRun(MCPlatformScriptEnvironmentRef env, MCStringRef script, MCStringRef& r_result)
+void MCMacPlatform::ScriptEnvironmentRun(MCPlatformScriptEnvironmentRef env, MCStringRef script, MCStringRef& r_result)
 {
     env -> Run(script, r_result);
 }
 
-void MCPlatformScriptEnvironmentCall(MCPlatformScriptEnvironmentRef env, const char *method, const char **arguments, uindex_t argument_count, char*& r_result)
+void MCMacPlatform::ScriptEnvironmentCall(MCPlatformScriptEnvironmentRef env, const char *method, const char **arguments, uindex_t argument_count, char*& r_result)
 {
 	r_result = env -> Call(method, arguments, argument_count);
 }

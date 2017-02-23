@@ -32,18 +32,10 @@
 
 
 // COCOA-TODO: Clean up external linkage for surface.
-extern MCRectangle MCU_intersect_rect(const MCRectangle&, const MCRectangle&);
-extern bool MCGRasterToCGImage(const MCGRaster &p_raster, const MCGIntegerRectangle &p_src_rect, CGColorSpaceRef p_colorspace, bool p_copy, bool p_invert, CGImageRef &r_image);
-extern bool MCGImageToCGImage(MCGImageRef p_src, const MCGIntegerRectangle &p_src_rect, bool p_invert, CGImageRef &r_image);
-extern MCGFloat MCResGetDeviceScale(void);
-
-////////////////////////////////////////////////////////////////////////////////
-
-// IM-2014-10-03: [[ Bug 13432 ]] Add src_rect, alpha & blend mode parameters to MCMacRenderRasterToCG().
-static void MCMacRenderRasterToCG(CGContextRef p_target, CGRect p_dst_rect, const MCGRaster &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend);
-static void MCMacRenderImageToCG(CGContextRef p_target, CGRect p_dst_rect, MCGImageRef &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend);
-
-static void MCMacClipCGContextToRegion(CGContextRef p_context, MCGRegionRef p_region, uint32_t p_surface_height);
+//extern MCRectangle MCU_intersect_rect(const MCRectangle&, const MCRectangle&);
+//extern bool MCGRasterToCGImage(const MCGRaster &p_raster, const MCGIntegerRectangle &p_src_rect, CGColorSpaceRef p_colorspace, bool p_copy, bool p_invert, CGImageRef &r_image);
+//extern bool MCGImageToCGImage(MCGImageRef p_src, const MCGIntegerRectangle &p_src_rect, bool p_invert, CGImageRef &r_image);
+//extern MCGFloat MCResGetDeviceScale(void);
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -59,14 +51,14 @@ CGRect MCMacFlipCGRect(const CGRect &p_rect, uint32_t p_surface_height)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-MCMacPlatformSurface::MCMacPlatformSurface(MCMacPlatformWindow *p_window, CGContextRef p_cg_context, MCGRegionRef p_update_rgn)
+MCMacPlatformSurface::MCMacPlatformSurface(MCMacPlatformWindow *p_window, CGContextRef p_cg_context, MCGRegionRef p_update_rgn, MCMacPlatform *p_platform)
 {
 	// Retain the window to ensure it doesn't vanish whilst the surface is alive.
 	m_window = p_window;
 	m_window -> Retain();
 	
 	// IM-2015-02-23: [[ WidgetPopup ]] Find out if this surface is for an opaque window
-	MCPlatformGetWindowProperty(p_window, kMCPlatformWindowPropertyIsOpaque, kMCPlatformPropertyTypeBool, &m_opaque);
+	p_window->GetProperty(kMCPlatformWindowPropertyIsOpaque, kMCPlatformPropertyTypeBool, &m_opaque);
 	
 	// Borrow the CGContext and MCRegion for now.
 	m_cg_context = p_cg_context;
@@ -76,8 +68,10 @@ MCMacPlatformSurface::MCMacPlatformSurface(MCMacPlatformWindow *p_window, CGCont
     
     m_raster . pixels = nil;
     
+    m_platform = p_platform;
+    
 	// Setup everything so that its ready for use.
-	Lock();
+    Lock();
 }
 
 MCMacPlatformSurface::~MCMacPlatformSurface(void)
@@ -86,6 +80,11 @@ MCMacPlatformSurface::~MCMacPlatformSurface(void)
 	Unlock();
 	
 	m_window -> Release();
+}
+
+MCMacPlatformCallbacks *MCMacPlatformSurface::GetCallbacks()
+{
+	return m_platform->GetCallbacks();
 }
 
 // MM-2014-07-31: [[ ThreadedRendering ]] Updated to use the new platform surface API.
@@ -242,7 +241,7 @@ bool MCMacPlatformSurface::Composite(MCGRectangle p_dst_rect, MCGImageRef p_src_
 	// render image to transformed rect
 	CGRect t_dst_cgrect;
 	t_dst_cgrect = CGRectMake(t_dst_rect . origin . x, t_surface_height - (t_dst_rect . origin . y + t_dst_rect . size . height), t_dst_rect . size . width, t_dst_rect . size . height);
-	MCMacRenderImageToCG(t_context, t_dst_cgrect, p_src_image, t_src_rect, p_opacity, p_blend_mode);
+	RenderImageToCG(t_context, t_dst_cgrect, p_src_image, t_src_rect, p_opacity, p_blend_mode);
 	
 	UnlockSystemContext();
 	
@@ -313,9 +312,9 @@ void MCMacPlatformSurface::Unlock(void)
 			MCGRasterApplyAlpha(m_raster, t_mask->mask, MCGIntegerPointMake(-t_bounds.origin.x * t_scale, -t_bounds.origin.y * t_scale));
 		}
 			
-        MCMacClipCGContextToRegion(m_cg_context, m_update_rgn, t_surface_height);
+        ClipCGContextToRegion(m_cg_context, m_update_rgn, t_surface_height);
         // IM-2014-10-03: [[ Bug 13432 ]] Render with copy blend mode to replace destination alpha with the source alpha.
-        MCMacRenderRasterToCG(m_cg_context, t_dst_rect, m_raster, MCGRectangleMake(0, 0, m_raster.width, m_raster.height), 1.0, kMCGBlendModeCopy);
+        RenderRasterToCG(m_cg_context, t_dst_rect, m_raster, MCGRectangleMake(0, 0, m_raster.width, m_raster.height), 1.0, kMCGBlendModeCopy);
         
         free(m_raster . pixels);
         m_raster . pixels = nil;
@@ -335,7 +334,7 @@ MCGFloat MCMacPlatformSurface::GetBackingScaleFactor(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static inline CGBlendMode MCGBlendModeToCGBlendMode(MCGBlendMode p_blend)
+CGBlendMode MCMacPlatformSurface::MCGBlendModeToCGBlendMode(MCGBlendMode p_blend)
 {
 	// MM-2013-08-28: [[ RefactorGraphics ]] Tweak for 10.4 SDK support.
 	switch (p_blend)
@@ -402,7 +401,7 @@ static inline CGBlendMode MCGBlendModeToCGBlendMode(MCGBlendMode p_blend)
 	
 }
 
-static void MCMacRenderCGImage(CGContextRef p_target, CGRect p_dst_rect, CGImageRef p_src, MCGFloat p_alpha, MCGBlendMode p_blend)
+void MCMacPlatformSurface::RenderCGImage(CGContextRef p_target, CGRect p_dst_rect, CGImageRef p_src, MCGFloat p_alpha, MCGBlendMode p_blend)
 {
 	CGContextSaveGState(p_target);
 	
@@ -414,7 +413,7 @@ static void MCMacRenderCGImage(CGContextRef p_target, CGRect p_dst_rect, CGImage
 	CGContextRestoreGState(p_target);
 }
 
-static void MCMacRenderImageToCG(CGContextRef p_target, CGRect p_dst_rect, MCGImageRef &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend)
+void MCMacPlatformSurface::RenderImageToCG(CGContextRef p_target, CGRect p_dst_rect, MCGImageRef &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend)
 {
 	bool t_success = true;
 	
@@ -423,22 +422,22 @@ static void MCMacRenderImageToCG(CGContextRef p_target, CGRect p_dst_rect, MCGIm
 	t_success = MCGImageToCGImage(p_src, MCGRectangleGetBounds(p_src_rect), false, t_image);
 	if (t_success)
 	{
-		MCMacRenderCGImage(p_target, p_dst_rect, t_image, p_alpha, p_blend);
+		RenderCGImage(p_target, p_dst_rect, t_image, p_alpha, p_blend);
 		CGImageRelease(t_image);
 	}
 }
 
-static void MCMacRenderRasterToCG(CGContextRef p_target, CGRect p_dst_rect, const MCGRaster &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend)
+void MCMacPlatformSurface::RenderRasterToCG(CGContextRef p_target, CGRect p_dst_rect, const MCGRaster &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend)
 {
 	CGColorSpaceRef t_colorspace;
-	if (MCMacPlatformGetImageColorSpace(t_colorspace))
+	if (m_platform->GetImageColorSpace(t_colorspace))
 	{
 		CGImageRef t_image;
 		t_image = nil;
 		
 		if (MCGRasterToCGImage(p_src, MCGRectangleGetBounds(p_src_rect), t_colorspace, false, false, t_image))
 		{
-			MCMacRenderCGImage(p_target, p_dst_rect, t_image, p_alpha, p_blend);
+			RenderCGImage(p_target, p_dst_rect, t_image, p_alpha, p_blend);
 			CGImageRelease(t_image);
 		}
 		
@@ -467,7 +466,7 @@ static bool MCGRegionConvertToCGRectsCallback(void *p_state, const MCGIntegerRec
 	return true;
 }
 
-bool MCGRegionConvertToCGRects(MCGRegionRef self, CGRect *&r_cgrects, uint32_t& r_cgrect_count)
+bool MCMacPlatformSurface::MCGRegionConvertToCGRects(MCGRegionRef self, CGRect *&r_cgrects, uint32_t& r_cgrect_count)
 {
 	MCGRegionConvertToCGRectsState t_state;
 	t_state . rects = nil;
@@ -485,7 +484,7 @@ bool MCGRegionConvertToCGRects(MCGRegionRef self, CGRect *&r_cgrects, uint32_t& 
 	return true;
 }
 
-static void MCMacClipCGContextToRegion(CGContextRef p_context, MCGRegionRef p_region, uint32_t p_surface_height)
+void MCMacPlatformSurface::ClipCGContextToRegion(CGContextRef p_context, MCGRegionRef p_region, uint32_t p_surface_height)
 {
 	CGRect *t_rects;
 	t_rects = nil;
@@ -504,8 +503,7 @@ static void MCMacClipCGContextToRegion(CGContextRef p_context, MCGRegionRef p_re
 
 ////////////////////////////////////////////////////////////////////////////////
 
-extern bool MCImageGetCGColorSpace(CGColorSpaceRef &r_colorspace);
-bool MCMacPlatformGetImageColorSpace(CGColorSpaceRef &r_colorspace)
+bool MCMacPlatform::GetImageColorSpace(CGColorSpaceRef &r_colorspace)
 {
 	return MCImageGetCGColorSpace(r_colorspace);
 }

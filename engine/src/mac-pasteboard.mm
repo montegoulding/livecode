@@ -23,6 +23,7 @@
 #include "platform-internal.h"
 
 #include "mac-internal.h"
+#include "mac-platform.h"
 
 #include <QuickTime/QuickTime.h>
 
@@ -30,7 +31,7 @@
 
 extern bool MCImageBitmapToCGImage(MCImageBitmap *p_bitmap, bool p_copy, bool p_invert, CGImageRef &r_image);
 
-void MCPlatformDoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOperations p_allowed_operations, MCImageBitmap *p_image, const MCPoint *p_image_loc, MCPlatformDragOperation& r_operation)
+void MCMacPlatform::DoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOperations p_allowed_operations, MCImageBitmap *p_image, const MCPoint *p_image_loc, MCPlatformDragOperation& r_operation)
 {
 	CGImageRef t_cg_image;
 	t_cg_image = nil;
@@ -81,7 +82,7 @@ void MCPlatformDoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOpe
 	if ((p_allowed_operations & kMCPlatformDragOperationLink) != 0)
 		t_allowed_operations |= NSDragOperationLink;
 	
-	MCMacPlatformSyncMouseBeforeDragging();
+	SyncMouseBeforeDragging();
 	
 	// We create a private pasteboard here if the main one contains no items.
     // This is required as the OSX drag-and-drop loop requires a pasteboard to
@@ -105,10 +106,10 @@ void MCPlatformDoDragDrop(MCPlatformWindowRef p_window, MCPlatformAllowedDragOpe
 	
 	//MCMacPlatformSyncMouseAfterTracking();
 	
-	r_operation = MCMacPlatformMapNSDragOperationToDragOperation(t_op);
+	r_operation = MapNSDragOperationToDragOperation(t_op);
 }
 
-bool MCMacPasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data)
+bool MCMacPlatform::PasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data)
 {
 	// Check the data is actually TIFF, it is actually a PNG then do nothing
 	// (some versions of SnagIt! put PNG data masquerading as TIFF).
@@ -143,7 +144,7 @@ bool MCMacPasteboardConvertTIFFToPNG(MCDataRef p_in_data, MCDataRef& r_out_data)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-NSDragOperation MCMacPlatformMapDragOperationToNSDragOperation(MCPlatformDragOperation p_operation)
+NSDragOperation MCMacPlatform::MapDragOperationToNSDragOperation(MCPlatformDragOperation p_operation)
 {
 	switch(p_operation)
 	{
@@ -163,7 +164,7 @@ NSDragOperation MCMacPlatformMapDragOperationToNSDragOperation(MCPlatformDragOpe
 	return NSDragOperationNone;
 }
 
-MCPlatformDragOperation MCMacPlatformMapNSDragOperationToDragOperation(NSDragOperation p_operation)
+MCPlatformDragOperation MCMacPlatform::MapNSDragOperationToDragOperation(NSDragOperation p_operation)
 {
 	switch(p_operation)
 	{
@@ -184,3 +185,88 @@ MCPlatformDragOperation MCMacPlatformMapNSDragOperationToDragOperation(NSDragOpe
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+
+MCPlatformClipboardRef MCMacPlatform::PasteboardSystem()
+{
+    return [NSPasteboard generalPasteboard];
+}
+
+MCPlatformClipboardRef MCMacPlatform::PasteboardWithUniqueName()
+{
+    return [NSPasteboard pasteboardWithUniqueName];
+}
+
+MCPlatformClipboardRef MCMacPlatform::PasteboardDrag()
+{
+    return [NSPasteboard pasteboardWithName:NSDragPboard];
+}
+
+void MCMacPlatform::PasteboardRetain(MCPlatformClipboardRef p_pasteboard)
+{
+    [(NSPasteboard*)p_pasteboard retain];
+}
+
+void MCMacPlatform::PasteboardRelease(MCPlatformClipboardRef p_pasteboard)
+{
+    [(NSPasteboard*)p_pasteboard release];
+}
+
+uindex_t MCMacPlatform::PasteboardChangeCount(MCPlatformClipboardRef p_pasteboard)
+{
+    return [(NSPasteboard*)p_pasteboard changeCount];
+}
+
+uindex_t MCMacPlatform::PasteboardClearContents(MCPlatformClipboardRef p_pasteboard)
+{
+    return [(NSPasteboard*)p_pasteboard clearContents];
+}
+
+bool MCMacPlatform::PasteboardWriteItems(MCPlatformClipboardRef p_pasteboard, CFMutableArrayRef p_items)
+{
+    return [(NSPasteboard*)p_pasteboard writeObjects:(NSArray*) p_items];
+}
+
+CFMutableArrayRef MCMacPlatform::PasteboardItemsMutableCopy(MCPlatformClipboardRef p_pasteboard)
+{
+    return (CFMutableArrayRef)[[(NSPasteboard*)p_pasteboard pasteboardItems] mutableCopy];
+}
+
+MCPlatformClipboardItemRef MCMacPlatform::PasteboardCreateItemRef()
+{
+    return MCPlatformClipboardItemRef([[NSPasteboardItem alloc] init]);
+}
+
+void MCMacPlatform::PasteboardItemRetain(MCPlatformClipboardItemRef p_item)
+{
+    [(NSPasteboardItem *) p_item retain];
+}
+
+void MCMacPlatform::PasteboardItemRelease(MCPlatformClipboardItemRef p_item)
+{
+    [(NSPasteboardItem *) p_item release];
+}
+
+bool MCMacPlatform::PasteboardItemIsNSPasteboardItem(MCPlatformClipboardItemRef p_item)
+{
+    return [(NSPasteboardItem *)p_item isKindOfClass:[NSPasteboardItem class]];
+}
+
+bool MCMacPlatform::PasteboardItemAddRepresentation(MCPlatformClipboardItemRef p_item, CFStringRef p_type, CFDataRef p_data)
+{
+    return [(NSPasteboardItem *)p_item setData:(NSData *)p_data forType:(NSString *)p_type];
+}
+
+CFArrayRef MCMacPlatform::PasteboardItemRepresentationTypes(MCPlatformClipboardItemRef p_item)
+{
+    return CFArrayRef([(NSPasteboardItem *)p_item types]);
+}
+
+CFStringRef MCMacPlatform::CFStringFromClass(void * p_class)
+{
+    return CFStringRef(NSStringFromClass([(id)p_class class]));
+}
+
+CFDataRef MCMacPlatform::PasteboardItemDataForType(MCPlatformClipboardItemRef p_item, CFStringRef p_type)
+{
+    return CFDataRef([(NSPasteboardItem *)p_item dataForType:(NSString *)p_type]);
+}

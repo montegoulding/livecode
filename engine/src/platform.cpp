@@ -63,7 +63,7 @@ void MCPlatformHandleMouseRelease(MCPlatformWindowRef window, uint32_t button, b
 void MCPlatformHandleMouseMove(MCPlatformWindowRef window, MCPoint location);
 void MCPlatformHandleMouseScroll(MCPlatformWindowRef window, int dx, int dy);
 
-void MCPlatformHandleDragEnter(MCPlatformWindowRef window, class MCRawClipboard* p_clipboard, MCPlatformDragOperation& r_operation);
+void MCPlatformHandleDragEnter(MCPlatformWindowRef window, MCPlatformClipboardRef p_clipboard, MCPlatformDragOperation& r_operation);
 void MCPlatformHandleDragMove(MCPlatformWindowRef window, MCPoint location, MCPlatformDragOperation& r_operation);
 void MCPlatformHandleDragLeave(MCPlatformWindowRef window);
 void MCPlatformHandleDragDrop(MCPlatformWindowRef window, bool& r_accepted);
@@ -268,7 +268,7 @@ void MCPlatformCallbackSendMouseScroll(MCPlatformWindowRef p_window, int dx, int
 
 //////////
 
-void MCPlatformCallbackSendDragEnter(MCPlatformWindowRef p_window, MCRawClipboard* p_dragboard, MCPlatformDragOperation& r_operation)
+void MCPlatformCallbackSendDragEnter(MCPlatformWindowRef p_window, MCPlatformClipboardRef p_dragboard, MCPlatformDragOperation& r_operation)
 {
     //MCLog("Window(%p) -> DragEnter(%p)", p_window, p_dragboard);
 	MCPlatformWindowDeathGrip(p_window);

@@ -3,10 +3,13 @@
 
 #import <AppKit/NSColorPanel.h>
 
+#include "mac-platform.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class MCMacPlatformWindow;
 class MCMacPlatformSurface;
+class MCMacPlatform;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -34,7 +37,11 @@ class MCMacPlatformSurface;
     bool m_running : 1;
     
     NSMutableArray *m_pending_apple_events;
+	
+	MCMacPlatform *m_platform;
 }
+
+- (id)initWithPlatform:(MCMacPlatform*)platform argc:(int)argc argv:(MCStringRef *)argv envp:(MCStringRef*)envp;
 
 // Platform init / finit.
 - (void)initializeModules;
@@ -77,6 +84,7 @@ class MCMacPlatformSurface;
 
 - (NSError *)application:(NSApplication *)application willPresentError:(NSError *)error;
 
+- (MCMacPlatform *) platform;
 @end
 
 @compatibility_alias MCApplicationDelegate com_runrev_livecode_MCApplicationDelegate;
@@ -102,9 +110,10 @@ class MCMacPlatformSurface;
 {
 	bool m_can_become_key : 1;
     NSRect m_moving_frame;
+    MCMacPlatform *m_platform;
 }
 
-- (id)initWithContentRect:(NSRect)contentRect styleMask:(NSUInteger)windowStyle backing:(NSBackingStoreType)bufferingType defer:(BOOL)deferCreation;
+- (id)initWithPlatform:(MCMacPlatform *) p_platform contentRect:(NSRect)contentRect styleMask:(NSUInteger)windowStyle backing:(NSBackingStoreType)bufferingType defer:(BOOL)deferCreation;
 
 - (void)setCanBecomeKeyWindow: (BOOL)value;
 
@@ -124,8 +133,10 @@ void MCMacPlatformWindowWindowMoved(NSWindow *p_self, MCPlatformWindowRef p_wind
     bool m_is_popup : 1;
     id m_monitor;
     NSRect m_moving_frame;
+    MCMacPlatform *m_platform;
 }
 
+- (id)initWithPlatform:(MCMacPlatform *) p_platform contentRect:(NSRect)contentRect styleMask:(NSUInteger)windowStyle backing:(NSBackingStoreType)bufferingType defer:(BOOL)deferCreation;
 - (void)setCanBecomeKeyWindow: (BOOL)value;
 - (void)dealloc;
 
@@ -189,11 +200,13 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
     // MW-2014-04-23: [[ Bug 12270 ]] If true the size / position of the window is
     //   being changed by the user.
     bool m_user_reshape : 1;
+    
+    MCMacPlatform *m_platform;
 }
 
 //////////
 
-- (id)initWithPlatformWindow: (MCMacPlatformWindow *)window;
+- (id)initWithPlatform:(MCMacPlatform *)p_platform window: (MCMacPlatformWindow *)window;
 - (void)dealloc;
 
 - (MCMacPlatformWindow *)platformWindow;
@@ -236,9 +249,10 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 @interface com_runrev_livecode_MCWindowContainerView: NSView
 {
     MCMacPlatformWindow *m_window;
+    MCMacPlatform *m_platform;
 }
 
-- (id)initWithPlatformWindow:(MCMacPlatformWindow *)window;
+- (id)initWithPlatform:(MCMacPlatform *)p_platform window:(MCMacPlatformWindow *)window;
 
 - (void)setFrameSize: (NSSize)size;
 
@@ -258,9 +272,11 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
     bool m_use_input_method : 1;
     
 	NSDragOperation m_allowed_drag_operations;
+    
+    MCMacPlatform *m_platform;
 }
 
-- (id)initWithPlatformWindow:(MCMacPlatformWindow *)window;
+- (id)initWithPlatform:(MCMacPlatform *)p_platform window:(MCMacPlatformWindow *)window;
 - (void)dealloc;
 
 - (void)updateTrackingAreas;
@@ -373,11 +389,12 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 @interface com_runrev_livecode_MCMenuDelegate: NSObject<NSMenuDelegate>
 {
 	MCPlatformMenuRef m_menu;
+    MCMacPlatform * m_platform;
 }
 
 //////////
 
-- (id)initWithPlatformMenuRef: (MCPlatformMenuRef)p_menu_ref;
+- (id)initWithPlatform:(MCMacPlatform *)p_platform menuRef: (MCPlatformMenuRef)p_menu_ref;
 - (void)dealloc;
 
 //////////
@@ -400,8 +417,11 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 @compatibility_alias MCMenuDelegate com_runrev_livecode_MCMenuDelegate;
 
 @interface com_runrev_livecode_MCAppMenuDelegate: NSObject<NSMenuDelegate>
+{
+    MCMacPlatform * m_platform;
+}
 
-- (id)init;
+- (id)initWithPlatform:(MCMacPlatform *)p_platform;
 - (void)dealloc;
 
 - (void)shadowedMenuItemSelected:(NSString*)tag;
@@ -427,10 +447,10 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void);
 ////////////////////////////////////////////////////////////////////////////////
 
 // MM-2014-07-31: [[ ThreadedRendering ]] Updated to use the new platform surface API.
-class MCMacPlatformSurface: public MCPlatformSurface
+class MCMacPlatformSurface: public MCPlatformSurface, public MCMacPlatformStubs
 {
 public:
-	MCMacPlatformSurface(MCMacPlatformWindow *window, CGContextRef cg_context, MCGRegionRef update_rgn);
+	MCMacPlatformSurface(MCMacPlatformWindow *window, CGContextRef cg_context, MCGRegionRef update_rgn, MCMacPlatform *p_platform);
 	~MCMacPlatformSurface(void);
 	
 	virtual bool LockGraphics(MCGIntegerRectangle area, MCGContextRef& r_context, MCGRaster &r_raster);
@@ -445,8 +465,19 @@ public:
 	virtual bool Composite(MCGRectangle dst_rect, MCGImageRef src_image, MCGRectangle src_rect, MCGFloat opacity, MCGBlendMode blend);
 	
 	virtual MCGFloat GetBackingScaleFactor(void);
-	   
+	
+	MCMacPlatformCallbacks *GetCallbacks();
+	
 private:
+	
+	// Surface - internal
+	CGBlendMode MCGBlendModeToCGBlendMode(MCGBlendMode p_blend);
+	bool MCGRegionConvertToCGRects(MCGRegionRef self, CGRect *&r_cgrects, uint32_t& r_cgrect_count);
+	void ClipCGContextToRegion(CGContextRef p_context, MCGRegionRef p_region, uint32_t p_surface_height);
+	void RenderCGImage(CGContextRef p_target, CGRect p_dst_rect, CGImageRef p_src, MCGFloat p_alpha, MCGBlendMode p_blend);
+	void RenderImageToCG(CGContextRef p_target, CGRect p_dst_rect, MCGImageRef &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend);
+	void RenderRasterToCG(CGContextRef p_target, CGRect p_dst_rect, const MCGRaster &p_src, MCGRectangle p_src_rect, MCGFloat p_alpha, MCGBlendMode p_blend);
+	
     void Lock(void);
 	void Unlock(void);
 	
@@ -462,14 +493,16 @@ private:
 	bool m_cg_context_first_lock;
 	
 	bool m_opaque;
+    
+    MCMacPlatform *m_platform;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class MCMacPlatformWindow: public MCPlatformWindow
+class MCMacPlatformWindow: public MCPlatformWindow, public MCMacPlatformStubs
 {
 public:
-	MCMacPlatformWindow(void);
+	MCMacPlatformWindow(MCMacPlatform *p_platform);
 	virtual ~MCMacPlatformWindow(void);
 
 	MCWindowView *GetView(void);
@@ -505,6 +538,8 @@ public:
 	
 	// IM-2015-01-30: [[ Bug 14140 ]] Locking the frame will prevent the window from being moved or resized
 	void SetFrameLocked(bool p_locked);
+	
+	MCMacPlatformCallbacks *GetCallbacks();
 	
 protected:
 	virtual void DoRealize(void);
@@ -574,11 +609,13 @@ private:
 	// The parent pointer for sheets and drawers.
 	MCPlatformWindowRef m_parent;
 	
+	MCMacPlatform *m_platform;
+	
 	friend class MCMacPlatformSurface;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-
+/*
 void MCMacPlatformScheduleCallback(void (*)(void*), void *);
 
 void MCMacPlatformBeginModalSession(MCMacPlatformWindow *window);
@@ -603,8 +640,9 @@ bool MCMacPlatformMapKeyCode(uint32_t mac_key_code, uint32_t modifier_flags, MCP
 
 bool MCMacMapNSStringToCodepoint(NSString *string, codepoint_t& r_codepoint);
 bool MCMacMapCodepointToNSString(codepoint_t p_codepoint, NSString*& r_string);
+ */
 bool MCMacMapSelectorToTextInputAction(SEL p_selector, MCPlatformTextInputAction& r_action);
-
+/*
 void MCMacPlatformMapScreenMCPointToNSPoint(MCPoint point, NSPoint& r_point);
 void MCMacPlatformMapScreenNSPointToMCPoint(NSPoint point, MCPoint& r_point);
 
@@ -642,23 +680,17 @@ NSDragOperation MCMacPlatformMapDragOperationToNSDragOperation(MCPlatformDragOpe
 MCPlatformDragOperation MCMacPlatformMapNSDragOperationToDragOperation(NSDragOperation);
 
 void MCMacPlatformPasteboardCreate(NSPasteboard *pasteboard, MCPlatformPasteboardRef& r_pasteboard);
-
+*/
 ////////////////////////////////////////////////////////////////////////////////
 
 bool MCPlatformInitializeMenu(void);
 void MCPlatformFinalizeMenu(void);
 
-bool MCPlatformInitializeAbortKey(void);
-void MCPlatformFinalizeAbortKey(void);
-
-bool MCPlatformInitializeColorTransform(void);
-void MCPlatformFinalizeColorTransform(void);
-
 ////////////////////////////////////////////////////////////////////////////////
-
+/*
 // IM-2014-09-29: [[ Bug 13451 ]] Return the standard colorspace for images on OSX
 bool MCMacPlatformGetImageColorSpace(CGColorSpaceRef &r_colorspace);
-
+*/
 ////////////////////////////////////////////////////////////////////////////////
 
 // IM-2014-10-03: [[ Bug 13432 ]] Store both alpha data and derived cg image in the mask.
@@ -669,12 +701,12 @@ struct MCMacPlatformWindowMask
 	
 	uint32_t references;
 };
-
+/*
 // IM-2014-09-30: [[ Bug 13501 ]] Allow system event checking to be enabled/disabled
 void MCMacPlatformEnableEventChecking(void);
 void MCMacPlatformDisableEventChecking(void);
 bool MCMacPlatformIsEventCheckingEnabled(void);
-
+*/
 ////////////////////////////////////////////////////////////////////////////////
 
 // The function pointer for objc_msgSend_fpret needs to be cast in order

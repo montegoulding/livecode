@@ -20,6 +20,7 @@
 #include "typedefs.h"
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -291,11 +292,11 @@ static void abort_key_timer_callback(CFRunLoopTimerRef p_timer, void *p_info)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool MCPlatformGetAbortKeyPressed(void)
+bool MCMacPlatform::GetAbortKeyPressed(void)
 {
     // MW-2014-04-23: [[ Bug 12163 ]] If the abortKey hasn't been checked
     //   recently, then tickle the event queue so that we suppress the SPOD.
-	if (!s_abort_key_checked && MCMacPlatformIsEventCheckingEnabled())
+	if (!s_abort_key_checked && IsEventCheckingEnabled())
 	{
 		NSDisableScreenUpdates();
 		[NSApp nextEventMatchingMask: 0
@@ -318,7 +319,7 @@ bool MCPlatformGetAbortKeyPressed(void)
 
 static MCAbortKeyThread *s_abort_key_thread = nil;
 
-bool MCPlatformInitializeAbortKey(void)
+bool MCMacPlatform::InitializeAbortKey(void)
 {
 #ifdef USE_EVENTTAP
 	if (!AXAPIEnabled())
@@ -330,7 +331,7 @@ bool MCPlatformInitializeAbortKey(void)
 	return true;
 }
 
-void MCPlatformFinalizeAbortKey(void)
+void MCMacPlatform::FinalizeAbortKey(void)
 {
 	[s_abort_key_thread terminate];
 	[s_abort_key_thread release];

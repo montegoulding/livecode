@@ -20,20 +20,35 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
 @interface com_runrev_livecode_MCSoundDelegate: NSObject<NSSoundDelegate>
-
+{
+    MCMacPlatform *m_platform;
+}
+- (id)initWithPlatform:(MCMacPlatform *)p_platform;
 - (void)sound: (NSSound *)sound didFinishPlaying:(BOOL)finishedPlaying;
 
 @end
 
 @implementation com_runrev_livecode_MCSoundDelegate
 
+- (id)initWithPlatform:(MCMacPlatform *)p_platform
+{
+    self = [super init];
+    if (self == nil)
+        return nil;
+    
+    m_platform = p_platform;
+    
+    return self;
+}
+
 - (void)sound:(NSSound *)sound didFinishPlaying:(BOOL)finishedPlaying
 {
-    MCPlatformCallbackSendSoundFinished((MCPlatformSoundRef)sound);
+    m_platform->MCPlatformCallbackSendSoundFinished((MCPlatformSoundRef)sound);
 }
 
 @end
@@ -42,7 +57,7 @@ static com_runrev_livecode_MCSoundDelegate *s_delegate = nil;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCPlatformSoundCreateWithData(const void *p_data, size_t p_data_size, MCPlatformSoundRef& r_sound)
+void MCMacPlatform::SoundCreateWithData(const void *p_data, size_t p_data_size, MCPlatformSoundRef& r_sound)
 {
     NSData *t_data;
     t_data = [NSData dataWithBytes: p_data length: p_data_size];
@@ -58,56 +73,56 @@ void MCPlatformSoundCreateWithData(const void *p_data, size_t p_data_size, MCPla
     r_sound = (MCPlatformSoundRef)t_sound;
 }
 
-void MCPlatformSoundRetain(MCPlatformSoundRef self)
+void MCMacPlatform::SoundRetain(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     [t_sound retain];
 }
 
-void MCPlatformSoundRelease(MCPlatformSoundRef self)
+void MCMacPlatform::SoundRelease(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     [t_sound release];
 }
 
-bool MCPlatformSoundIsPlaying(MCPlatformSoundRef self)
+bool MCMacPlatform::SoundIsPlaying(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     return [t_sound isPlaying];
 }
 
-void MCPlatformSoundPlay(MCPlatformSoundRef self)
+void MCMacPlatform::SoundPlay(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     [t_sound play];
 }
 
-void MCPlatformSoundPause(MCPlatformSoundRef self)
+void MCMacPlatform::SoundPause(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     [t_sound pause];
 }
 
-void MCPlatformSoundResume(MCPlatformSoundRef self)
+void MCMacPlatform::SoundResume(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     [t_sound resume];
 }
 
-void MCPlatformSoundStop(MCPlatformSoundRef self)
+void MCMacPlatform::SoundStop(MCPlatformSoundRef self)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
     [t_sound stop];
 }
 
-void MCPlatformSoundSetProperty(MCPlatformSoundRef self, MCPlatformSoundProperty property, MCPlatformPropertyType type, void *value)
+void MCMacPlatform::SoundSetProperty(MCPlatformSoundRef self, MCPlatformSoundProperty property, MCPlatformPropertyType type, void *value)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
@@ -127,7 +142,7 @@ void MCPlatformSoundSetProperty(MCPlatformSoundRef self, MCPlatformSoundProperty
     }
 }
 
-void MCPlatformSoundGetProperty(MCPlatformSoundRef self, MCPlatformSoundProperty property, MCPlatformPropertyType type, void *value)
+void MCMacPlatform::SoundGetProperty(MCPlatformSoundRef self, MCPlatformSoundProperty property, MCPlatformPropertyType type, void *value)
 {
     NSSound *t_sound;
     t_sound = (NSSound *)self;
@@ -171,7 +186,7 @@ static bool get_device_mute(AudioDeviceID p_device, bool& r_mute)
     return true;
 }
 
-void MCMacPlatformGetGlobalVolume(double& r_volume)
+void MCMacPlatform::GetGlobalVolume(double& r_volume)
 {
     AudioObjectPropertyAddress t_addr;
     t_addr . mElement = kAudioObjectPropertyElementMaster;
@@ -251,7 +266,7 @@ static bool set_device_volume(AudioDeviceID p_device, double p_volume)
     return true;
 }
 
-void MCMacPlatformSetGlobalVolume(double p_volume)
+void MCMacPlatform::SetGlobalVolume(double p_volume)
 {
     p_volume = fmin(fmax(p_volume, 0.0), 1.0);
     

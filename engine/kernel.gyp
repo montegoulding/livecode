@@ -34,15 +34,17 @@
             'sources':
             [
                 'src/platform.h',
-                'src/platform.cpp',
+                #'src/platform.cpp',
                 'src/platform-internal.h',
                 'src/platform-player.cpp',
-                'src/platform-recorder.cpp',
                 'src/platform-surface.cpp',
                 'src/platform-window.cpp',
                 
                 'src/platform-engine-stubs.cpp',
                 'src/platform-engine-stubs-c.c',
+				
+				'src/mac-platform.h',
+				'src/mac-platform.mm',
                 
                 'src/mac-internal.h',
                 'src/mac-abort.mm',
@@ -60,7 +62,8 @@
                 'src/mac-sound.mm',
                 'src/mac-surface.mm',
                 'src/mac-window.mm',
-            ],
+				'src/mac-native-layer-container-view.mm',
+			],
             
             'libraries':
             [

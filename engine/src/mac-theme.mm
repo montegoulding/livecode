@@ -16,6 +16,7 @@
 
 
 #include "platform.h"
+#include "mac-platform.h"
 
 #include "osxprefix.h"
 
@@ -37,26 +38,28 @@
 #import <CoreText/CoreText.h>
 
 
-// Returns the name of the legacy font
-static NSString* get_legacy_font_name()
-{
-    if (MCmajorosversion < 0x10A0)
-        return @"Lucida Grande";
-    if (MCmajorosversion > 0x10B0)
-        return @"San Francisco";
-    else
-        return @"Helvetica Neue";
-}
-
 // Returns the correct font for a control of the given type
-static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlState p_state, MCNameRef* r_name = nil)
+NSFont* MCMacPlatform::FontForControl(MCPlatformControlType p_type, MCPlatformControlState p_state, MCNameRef* r_name)
 {
     // Always return the same font regardless of control type in legacy mode
     if (p_state & kMCPlatformControlStateCompatibility)
     {
         static NSFont* s_legacy_font = nil;
         if (nil == s_legacy_font)
-            s_legacy_font = [[NSFont fontWithName:get_legacy_font_name() size:11] retain];
+        {
+            uint32_t t_version;
+            GetGlobalProperty(kMCPlatformGlobalPropertyMajorOSVersion, kMCPlatformPropertyTypeUInt32, &t_version);
+            
+            NSString * t_name;
+            if (t_version < 0x10A0)
+                t_name = @"Lucida Grande";
+            if (t_version > 0x10B0)
+                 t_name =  @"San Francisco";
+            else
+                 t_name =  @"Helvetica Neue";
+            
+            s_legacy_font = [[NSFont fontWithName:t_name size:11] retain];
+        }
         if (nil == s_legacy_font)
             s_legacy_font = [[NSFont systemFontOfSize:11] retain];
 
@@ -67,13 +70,19 @@ static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlS
         return s_legacy_font;
     }
     
+    MCNewAutoNameRef t_name;
     switch (p_type)
     {
         case kMCPlatformControlTypeRichText:
         {
             static NSFont* s_user_font = [[NSFont userFontOfSize:-1.0] retain];
             if (r_name)
-                *r_name = MCValueRetain(MCN_font_usertext);
+            {
+                if (MCNameCreateWithCString("(Styled Text)", &t_name))
+                    *r_name = *t_name;
+                else
+                    *r_name = nil;
+            }
             return s_user_font;
         }
             
@@ -85,7 +94,12 @@ static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlS
         {
             static NSFont* s_menu_font = [[NSFont menuFontOfSize:-1.0] retain];
             if (r_name)
-                *r_name = MCValueRetain(MCN_font_menutext);
+            {
+                if (MCNameCreateWithCString("(Menu)", &t_name))
+                    *r_name = *t_name;
+                else
+                    *r_name = nil;
+            }
             return s_menu_font;
         }
             
@@ -94,7 +108,12 @@ static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlS
         {
             static NSFont* s_content_font = [[NSFont controlContentFontOfSize:-1.0] retain];
             if (r_name)
-                *r_name = MCValueRetain(MCN_font_content);
+            {
+                if (MCNameCreateWithCString("(Text)", &t_name))
+                    *r_name = *t_name;
+                else
+                    *r_name = nil;
+            }
             return s_content_font;
         }
             
@@ -109,7 +128,12 @@ static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlS
         {
             static NSFont* s_message_font = [[NSFont messageFontOfSize:-1.0] retain];
             if (r_name)
-                *r_name = MCValueRetain(MCN_font_message);
+            {
+                if (MCNameCreateWithCString("(Message)", &t_name))
+                    *r_name = *t_name;
+                else
+                    *r_name = nil;
+            }
             return s_message_font;
         }
             
@@ -117,7 +141,12 @@ static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlS
         {
             static NSFont* s_tooltip_font = [[NSFont toolTipsFontOfSize:-1.0] retain];
             if (r_name)
-                *r_name = MCValueRetain(MCN_font_tooltip);
+            {
+                if (MCNameCreateWithCString("(Tooltip)", &t_name))
+                    *r_name = *t_name;
+                else
+                    *r_name = nil;
+            }
             return s_tooltip_font;
         }
             
@@ -125,19 +154,24 @@ static NSFont* font_for_control(MCPlatformControlType p_type, MCPlatformControlS
         {
             static NSFont* s_system_font = [[NSFont systemFontOfSize:[NSFont systemFontSize]] retain];
             if (r_name)
-                *r_name = MCValueRetain(MCN_font_system);
+            {
+                if (MCNameCreateWithCString("(System)", &t_name))
+                    *r_name = *t_name;
+                else
+                    *r_name = nil;
+            }
             return s_system_font;
         }
     }
 }
 
 
-bool MCPlatformGetControlThemePropBool(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, bool& r_bool)
+bool MCMacPlatform::GetControlThemePropBool(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, bool& r_bool)
 {
     return false;
 }
 
-bool MCPlatformGetControlThemePropInteger(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, int& r_int)
+bool MCMacPlatform::GetControlThemePropInteger(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, int& r_int)
 {
     bool t_found;
     t_found = false;
@@ -150,7 +184,7 @@ bool MCPlatformGetControlThemePropInteger(MCPlatformControlType p_type, MCPlatfo
             if (p_state & kMCPlatformControlStateCompatibility)
                 r_int = 11;
             else
-                return [font_for_control(p_type, p_state) pointSize];
+                return [FontForControl(p_type, p_state) pointSize];
         }
         
         // Property is not known
@@ -161,7 +195,7 @@ bool MCPlatformGetControlThemePropInteger(MCPlatformControlType p_type, MCPlatfo
     return t_found;
 }
 
-bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color)
+bool MCMacPlatform::GetControlThemePropColor(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCColor& r_color)
 {
     bool t_found;
     t_found = false;
@@ -372,11 +406,11 @@ bool MCPlatformGetControlThemePropColor(MCPlatformControlType p_type, MCPlatform
     return t_found;
 }
 
-bool MCPlatformGetControlThemePropFont(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCFontRef& r_font)
+bool MCMacPlatform::GetControlThemePropFont(MCPlatformControlType p_type, MCPlatformControlPart p_part, MCPlatformControlState p_state, MCPlatformThemeProperty p_which, MCFontRef& r_font)
 {
     // Get the font for the given control type
 	MCNewAutoNameRef t_font_name;
-    NSFont* t_font = font_for_control(p_type, p_state, &(&t_font_name));
+    NSFont* t_font = FontForControl(p_type, p_state, &(&t_font_name));
     if (t_font == nil)
         return false;
     

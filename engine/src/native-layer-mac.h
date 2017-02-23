@@ -20,8 +20,7 @@
 
 #include "native-layer.h"
 
-#import <AppKit/NSView.h>
-#import <AppKit/NSImageView.h>
+#include "platform.h"
 
 class MCNativeLayerMac : public MCNativeLayer
 {
@@ -29,22 +28,20 @@ public:
     
 	virtual bool GetNativeView(void *&r_view);
 	
-    MCNativeLayerMac(MCObject *p_object, NSView *p_view);
+    MCNativeLayerMac(MCObject *p_object, MCPlatformNativeLayerContainerViewRef p_view);
     ~MCNativeLayerMac();
     
 private:
     
-    NSView* m_view;
-    NSBitmapImageRep *m_cached;
+    MCPlatformNativeLayerContainerViewRef m_view;
+    MCPlatformBitmapImageRepRef m_cached;
 
     // Returns the NSWindow* for the stack containing this widget
-    NSWindow* getStackWindow();
+    void* getStackWindow();
 	// Returns the nsview of the parent of this control
-	bool getParentView(NSView *&r_view);
+	bool getParentView(void *&r_view);
 
-	NSRect calculateFrameRect(const MCRectangle &p_rect);
-    
-    // Performs the attach/detach operations
+	// Performs the attach/detach operations
 	virtual void doAttach();
 	virtual void doDetach();
 	

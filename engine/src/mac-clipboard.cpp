@@ -20,6 +20,7 @@
 #include "foundation-auto.h"
 #include "util.h"
 
+#include <CoreServices/CoreServices.h>
 
 // Table mapping MCRawClipboardKnownType constants to UTIs
 const char* const MCMacRawClipboard::s_clipboard_types[] =
@@ -54,22 +55,22 @@ const char* const MCMacRawClipboard::s_clipboard_types[] =
 
 MCRawClipboard* MCRawClipboard::CreateSystemClipboard()
 {
-    return new MCMacRawClipboard([NSPasteboard generalPasteboard]);
+    return new MCMacRawClipboard(MCPlatformPasteboardSystem());
 }
 
 MCRawClipboard* MCRawClipboard::CreateSystemSelectionClipboard()
 {
     // Create a pasteboard internal to LiveCode
-    return new MCMacRawClipboard([NSPasteboard pasteboardWithUniqueName]);
+    return new MCMacRawClipboard(MCPlatformPasteboardWithUniqueName());
 }
 
 MCRawClipboard* MCRawClipboard::CreateSystemDragboard()
 {
-    return new MCMacRawClipboard([NSPasteboard pasteboardWithName:NSDragPboard]);
+    return new MCMacRawClipboard(MCPlatformPasteboardDrag());
 }
 
 
-MCMacRawClipboard::MCMacRawClipboard(NSPasteboard* p_pasteboard) :
+MCMacRawClipboard::MCMacRawClipboard(MCPlatformClipboardRef p_pasteboard) :
   MCRawClipboard(),
   m_pasteboard(p_pasteboard),
   m_last_changecount(0),
@@ -77,32 +78,27 @@ MCMacRawClipboard::MCMacRawClipboard(NSPasteboard* p_pasteboard) :
   m_dirty(false),
   m_external_data(false)
 {
-    [m_pasteboard retain];
+    MCPlatformPasteboardRetain(p_pasteboard);
 }
 
 MCMacRawClipboard::~MCMacRawClipboard()
 {
-    [m_items release];
-    [m_pasteboard release];
+    CFRelease(m_items);
+    MCPlatformPasteboardRelease(m_pasteboard);
 }
 
 uindex_t MCMacRawClipboard::GetItemCount() const
 {
-    return [m_items count];
+    return CFArrayGetCount(m_items);
 }
 
 const MCMacRawClipboardItem* MCMacRawClipboard::GetItemAtIndex(uindex_t p_index) const
 {
-#if UINDEX_MAX > NSUIntegerMax
-    if (p_index > NSUIntegerMax)
-        return NULL;
-#endif
-
     // Retrieve the item at the specified index, if it exists
-    if (p_index >= [m_items count])
+    if (p_index >= CFArrayGetCount(m_items))
         return NULL;
     
-    id t_item = [m_items objectAtIndex:p_index];
+    MCPlatformClipboardItemRef t_item = MCPlatformClipboardItemRef(CFArrayGetValueAtIndex(m_items, p_index));
     
     // Index may have been invalid
     if (t_item == nil)
@@ -123,7 +119,7 @@ void MCMacRawClipboard::Clear()
     // Discard any contents that we might already have
     m_dirty = true;
     m_external_data = false;
-    [m_items release];
+    CFRelease(m_items);
     m_items = nil;
 }
 
@@ -131,7 +127,7 @@ bool MCMacRawClipboard::IsOwned() const
 {
     // We own the clipboard if it hasn't been changed since we last asserted
     // ownership.
-    return [m_pasteboard changeCount] == m_last_changecount;
+    return MCPlatformPasteboardChangeCount(m_pasteboard) == m_last_changecount;
 }
 
 bool MCMacRawClipboard::IsExternalData() const
@@ -152,7 +148,7 @@ bool MCMacRawClipboard::AddItem(MCRawClipboardItem* p_item)
     
     // If we haven't already done so, create the items array
     if (m_items == nil)
-        m_items = [[NSMutableArray alloc] init];
+        m_items = CFArrayCreateMutable(kCFAllocatorDefault, 0, NULL);
     
     // Check for allocation success
     if (m_items == nil)
@@ -162,7 +158,7 @@ bool MCMacRawClipboard::AddItem(MCRawClipboardItem* p_item)
     m_dirty = true;
     
     // Push the item onto the array
-    [m_items addObject:t_item->m_item];
+    CFArrayAppendValue(m_items, (const void *)t_item->m_item);
     return true;
 }
 
@@ -173,21 +169,21 @@ bool MCMacRawClipboard::PushUpdates()
         return true;
     
     // Take ownership of the clipboard
-    m_last_changecount = [m_pasteboard clearContents];
+    m_last_changecount = MCPlatformPasteboardClearContents(m_pasteboard);
     
     // Push all of the clipboard items onto the clipboard
-    BOOL t_success = YES;
+    bool t_success = true;
     if (m_items != nil)
-        t_success = [m_pasteboard writeObjects:m_items];
+        t_success = MCPlatformPasteboardWriteItems(m_pasteboard, m_items);
     
     // Update the change count
-    m_last_changecount = [m_pasteboard changeCount];
+    m_last_changecount = MCPlatformPasteboardChangeCount(m_pasteboard);
     
     // Clipboard is now clean
     if (t_success)
         m_dirty = false;
     
-    return (t_success != NO);
+    return (t_success != false);
 }
 
 bool MCMacRawClipboard::PullUpdates()
@@ -197,8 +193,8 @@ bool MCMacRawClipboard::PullUpdates()
         return true;
     
     // Grab the contents of the clipboard
-    [m_items release];
-    m_items = [[m_pasteboard pasteboardItems] mutableCopy];
+    CFRelease(m_items);
+    m_items = MCPlatformPasteboardItemsMutableCopy(m_pasteboard);
     m_external_data = true;
     return (m_items != NULL);
 }
@@ -212,7 +208,7 @@ bool MCMacRawClipboard::FlushData()
 uindex_t MCMacRawClipboard::GetMaximumItemCount() const
 {
     // As many items as an NSArray can handle
-    return NSUIntegerMax;
+    return UINDEX_MAX;
 }
 
 MCStringRef MCMacRawClipboard::GetKnownTypeString(MCRawClipboardKnownType p_type) const
@@ -323,33 +319,33 @@ MCStringRef MCMacRawClipboard::CopyAsUTI(MCStringRef p_key)
 
 MCMacRawClipboardItem::MCMacRawClipboardItem() :
   MCRawClipboardItem(),
-  m_item([[NSPasteboardItem alloc] init]),
+  m_item(MCPlatformPasteboardCreateItemRef()),
   m_rep_cache()
 {
     ;
 }
 
-
-MCMacRawClipboardItem::MCMacRawClipboardItem(id p_item) :
+MCMacRawClipboardItem::MCMacRawClipboardItem(MCPlatformClipboardItemRef p_item) :
   MCRawClipboardItem(),
   m_item(p_item),
   m_rep_cache()
 {
-    [m_item retain];
+    MCPlatformPasteboardItemRetain(m_item);
     
     // Count the number of representations
-    NSUInteger t_rep_count;
+    uindex_t t_rep_count;
     
+    ;
     // Is this an NSPasteboardItem? If not, it only has one representation
-    if (![m_item isKindOfClass:[NSPasteboardItem class]])
+    if (!MCPlatformPasteboardItemIsNSPasteboardItem(m_item))
     {
         t_rep_count = 1;
     }
     else
     {
         // Get the type array for this item and count the entries
-        NSArray* t_types = [m_item types];
-        t_rep_count = [t_types count];
+        CFArrayRef t_rep_types = MCPlatformPasteboardItemRepresentationTypes(m_item);
+        t_rep_count = CFArrayGetCount(t_rep_types);
     }
     
     // Initialise the representation cache to be empty
@@ -365,7 +361,7 @@ MCMacRawClipboardItem::MCMacRawClipboardItem(id p_item) :
 
 MCMacRawClipboardItem::~MCMacRawClipboardItem()
 {
-    [m_item release];
+    MCPlatformPasteboardItemRelease(m_item);
     
     // Clear the representation cache
     for (uindex_t i = 0; i < m_rep_cache.Size(); i++)
@@ -439,20 +435,22 @@ bool MCMacRawClipboardItem::AddRepresentation(MCStringRef p_type, MCDataRef p_by
     
     // Turn the type string and data into their NS equivalents.
     // Note that the NSData is auto-released when we get it.
-    NSString* t_type;
-    NSData* t_data;
-    if (!MCStringConvertToCFStringRef(*t_uti, (CFStringRef&)t_type))
+    CFStringRef t_type;
+    CFDataRef t_data;
+    if (!MCStringConvertToCFStringRef(*t_uti, t_type))
         return false;
-    t_data = [NSData dataWithBytes:MCDataGetBytePtr(p_bytes) length:MCDataGetLength(p_bytes)];
+    
+    t_data = CFDataCreate(kCFAllocatorDefault, MCDataGetBytePtr(p_bytes), MCDataGetLength(p_bytes));
     if (t_data == nil)
     {
-        [t_type release];
+        CFRelease(t_type);
         return false;
     }
     
     // Add a new representation to the NSPasteboardItem object
-    BOOL t_result = [m_item setData:t_data forType:t_type];
-    [t_type release];
+    bool t_result = MCPlatformPasteboardItemAddRepresentation(m_item, t_type, t_data);
+    CFRelease(t_type);
+    CFRelease(t_data);
     return t_result;
 }
 
@@ -462,7 +460,7 @@ bool MCMacRawClipboardItem::AddRepresentation(MCStringRef p_type, render_callbac
 }
 
 
-MCMacRawClipboardItemRep::MCMacRawClipboardItemRep(id p_item, NSUInteger p_index) :
+MCMacRawClipboardItemRep::MCMacRawClipboardItemRep(MCPlatformClipboardItemRef p_item, uindex_t p_index) :
   MCRawClipboardItemRep(),
   m_item(p_item),
   m_index(p_index),
@@ -473,7 +471,7 @@ MCMacRawClipboardItemRep::MCMacRawClipboardItemRep(id p_item, NSUInteger p_index
     // reference for us.
 }
 
-MCMacRawClipboardItemRep::MCMacRawClipboardItemRep(id p_item, NSUInteger p_index, MCStringRef p_type, MCDataRef p_data) :
+MCMacRawClipboardItemRep::MCMacRawClipboardItemRep(MCPlatformClipboardItemRef p_item, uindex_t p_index, MCStringRef p_type, MCDataRef p_data) :
   MCRawClipboardItemRep(),
   m_item(p_item),
   m_index(p_index),
@@ -503,18 +501,19 @@ MCStringRef MCMacRawClipboardItemRep::CopyTypeString() const
     }
     
     // The type string
-    NSString* t_type = nil;
+    CFStringRef t_type = nil;
     
     // Is this item an NSPasteboardItem or something else?
-    if ([m_item isKindOfClass:[NSPasteboardItem class]])
+    if (MCPlatformPasteboardItemIsNSPasteboardItem(m_item))
     {
         // Is the index valid for this item?
-        NSArray* t_types = [m_item types];
-        if (m_index >= [t_types count])
+        CFArrayRef t_rep_types = MCPlatformPasteboardItemRepresentationTypes(m_item);
+        uindex_t t_rep_count = CFArrayGetCount(t_rep_types);
+        if (m_index >= t_rep_count)
             return NULL;
         
         // Get the type string
-        t_type = (NSString*)[t_types objectAtIndex:m_index];
+        t_type = (CFStringRef)CFArrayGetValueAtIndex(t_rep_types, m_index);
         
         // If the type string is dynamic, try to turn in into some other useful
         // type. The order of these is completely arbitrary... the goal here is
@@ -522,7 +521,7 @@ MCStringRef MCMacRawClipboardItemRep::CopyTypeString() const
         //
         // A domain is prefixed so that the transformation is reversible (the
         // colon character is prohibited in UTIs).
-        if ([t_type hasPrefix:@"dyn."])
+        if (CFStringHasPrefix(t_type, CFSTR("dyn.")))
         {
             CFStringRef t_new_type = nil;
             CFStringRef t_new_type_domain = nil;
@@ -553,13 +552,13 @@ MCStringRef MCMacRawClipboardItemRep::CopyTypeString() const
             
             if (t_new_type != nil)
             {
-                NSMutableString* t_prefixed_type = [[NSMutableString alloc] init];
-                [t_prefixed_type autorelease];
-                [t_prefixed_type appendFormat:@"%@:%@", t_new_type_domain, t_new_type];
+                CFStringRef t_strings[2];
+                t_strings[0] = t_new_type_domain;
+                t_strings[1] = t_new_type;
+                CFArrayRef t_array = CFArrayCreate(kCFAllocatorDefault,(const void**)t_strings, 2, NULL);
+                t_type = CFStringCreateByCombiningStrings(kCFAllocatorDefault, t_array, CFSTR(":"));
                 CFRelease(t_new_type);
-                
-                t_type = t_prefixed_type;
-            }
+             }
         }
     }
     else
@@ -569,7 +568,7 @@ MCStringRef MCMacRawClipboardItemRep::CopyTypeString() const
             return NULL;
         
         // Use the class name as the type string
-        t_type = NSStringFromClass([m_item class]);
+        t_type = MCPlatformCFStringFromClass((void *)m_item);
     }
     
     // Convert the NSString into a StringRef
@@ -594,26 +593,32 @@ MCDataRef MCMacRawClipboardItemRep::CopyData() const
     if (MCStringIsEqualTo(*m_type, MCSTR("public.file-url"), kMCStringOptionCompareExact))
     {
         // Turn the data into an NSURL object
-        NSData* t_bytes = [m_item dataForType:@"public.file-url"];
+        CFDataRef t_bytes = MCPlatformPasteboardItemDataForType(m_item, CFSTR("public.file-url"));
+        
         if (t_bytes == nil)
             return NULL;
-        NSString* t_url_string = [[NSString alloc] initWithData:t_bytes encoding:NSUTF8StringEncoding];
-        if (t_url_string == nil)
-            return NULL;
-        NSURL* t_url = [NSURL URLWithString:t_url_string];
-        [t_url_string release];
+        
+        CFURLRef t_url = CFURLCreateWithBytes(kCFAllocatorDefault, CFDataGetBytePtr(t_bytes), CFDataGetLength(t_bytes), kCFStringEncodingUTF8, NULL);
+        
         if (t_url == nil)
             return NULL;
         
         // Get the current path of the file referenced by the URL
-        NSString* t_path = [t_url path];
+        CFStringRef t_path = CFURLCopyPath(t_url);
+        CFRelease(t_url);
+        
         if (t_path == nil)
             return NULL;
         
         // Turn this path into a LiveCode string
         MCAutoStringRef t_path_string;
         if (!MCStringCreateWithCFString((CFStringRef)t_path, &t_path_string))
+        {
+            CFRelease(t_path);
             return NULL;
+        }
+        
+        CFRelease(t_path);
         
         // Because this needs to return data, UTF-8 encode the result
         if (!MCStringEncode(*t_path_string, kMCStringEncodingUTF8, false, &m_data))
@@ -623,7 +628,7 @@ MCDataRef MCMacRawClipboardItemRep::CopyData() const
     }
     
     // Is this item an NSPasteboardItem or something else?
-    else if ([m_item isKindOfClass:[NSPasteboardItem class]])
+    else if (MCPlatformPasteboardItemIsNSPasteboardItem(m_item))
     {
         // Get the type string for this representation (as lookup is by type)
         MCAutoStringRef t_type_string(CopyTypeString());
@@ -640,12 +645,12 @@ MCDataRef MCMacRawClipboardItemRep::CopyData() const
             return NULL;
         
         // Get the data for this type
-        NSData* t_bytes = [m_item dataForType:(NSString*)t_type];
+        CFDataRef t_bytes = MCPlatformPasteboardItemDataForType(m_item, CFSTR("public.file-url"));
         CFRelease(t_type);
         
         // Convert the data to a DataRef
         MCDataRef t_data;
-        if (!MCDataCreateWithBytes((const byte_t*)[t_bytes bytes], [t_bytes length], t_data))
+        if (!MCDataCreateWithBytes((const byte_t*)CFDataGetBytePtr(t_bytes), CFDataGetLength(t_bytes), t_data))
             return NULL;
         
         m_data = t_data;

@@ -594,7 +594,7 @@ void MCPlatformWindow::HandleKeyUp(MCPlatformKeyCode p_key_code, codepoint_t p_m
 	MCPlatformCallbackSendKeyUp(this, p_key_code, p_mapped_char, p_unmapped_char);
 }
 
-void MCPlatformWindow::HandleDragEnter(MCRawClipboard* p_dragboard, MCPlatformDragOperation& r_operation)
+void MCPlatformWindow::HandleDragEnter(MCPlatformClipboardRef p_dragboard, MCPlatformDragOperation& r_operation)
 {
 	MCPlatformCallbackSendDragEnter(this, p_dragboard, r_operation);
 }

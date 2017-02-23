@@ -20,6 +20,7 @@
 #include "typedefs.h"
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -56,7 +57,8 @@ enum
 
 - (void)sendEvent:(NSEvent *)p_event
 {
-	if (!MCMacPlatformApplicationSendEvent(p_event))
+    MCMacPlatform * t_platform = [(MCApplicationDelegate*)[self delegate] platform];
+	if (t_platform && !t_platform->ApplicationSendEvent(p_event))
 	{
         [super sendEvent: p_event];
     }
@@ -64,12 +66,12 @@ enum
 
 @end
 
-bool MCMacPlatformApplicationSendEvent(NSEvent *p_event)
+bool MCMacPlatform::ApplicationSendEvent(NSEvent *p_event)
 {
     if ([p_event type] == NSApplicationDefined &&
         [p_event subtype] == kMCMacPlatformMouseSyncEvent)
 	{
-        MCMacPlatformHandleMouseSync();
+        HandleMouseSync();
 		return true;
 	}
 
@@ -83,27 +85,27 @@ bool MCMacPlatformApplicationSendEvent(NSEvent *p_event)
 		if ([p_event type] == NSLeftMouseDragged)
 			MCMacPlatformWindowWindowMoved(t_window, s_moving_window);
 		else if ([p_event type] == NSLeftMouseUp)
-			MCMacPlatformApplicationWindowStoppedMoving(s_moving_window);
+			ApplicationWindowStoppedMoving(s_moving_window);
 	}
 	
 	return false;
 }
 
-bool MCMacPlatformApplicationWindowIsMoving(MCPlatformWindowRef p_window)
+bool MCMacPlatform::ApplicationWindowIsMoving(MCPlatformWindowRef p_window)
 {
     return p_window == s_moving_window;
 }
 
-void MCMacPlatformApplicationWindowStartedMoving(MCPlatformWindowRef p_window)
+void MCMacPlatform::ApplicationWindowStartedMoving(MCPlatformWindowRef p_window)
 {
     if (s_moving_window != nil)
-        MCMacPlatformApplicationWindowStoppedMoving(s_moving_window);
+        ApplicationWindowStoppedMoving(s_moving_window);
     
-    MCPlatformRetainWindow(p_window);
+    p_window -> Retain();
     s_moving_window = p_window;
 }
 
-void MCMacPlatformApplicationWindowStoppedMoving(MCPlatformWindowRef p_window)
+void MCMacPlatform::ApplicationWindowStoppedMoving(MCPlatformWindowRef p_window)
 {
     if (s_moving_window == nil)
         return;
@@ -112,18 +114,18 @@ void MCMacPlatformApplicationWindowStoppedMoving(MCPlatformWindowRef p_window)
 	//   which is not reported to the delegate when the window doesn't actually move.
 	[[((MCMacPlatformWindow*)s_moving_window)->GetHandle() delegate] windowMoveFinished];
 
-    MCPlatformReleaseWindow(s_moving_window);
+    s_moving_window -> Release();
     s_moving_window = nil;
 }
 
-void MCMacPlatformApplicationBecomePseudoModalFor(NSWindow *p_window)
+void MCMacPlatform::ApplicationBecomePseudoModalFor(NSWindow *p_window)
 {
     // MERG-2016-03-04: ensure pseudo modals open above any calling modals
     [p_window setLevel: kCGPopUpMenuWindowLevel];
     s_pseudo_modal_for = p_window;
 }
 
-NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
+NSWindow *MCMacPlatform::ApplicationPseudoModalFor(void)
 {
     // MERG-2016-03-04: ensure pseudo modals remain above any calling modals
     // If we need to check whether we're pseudo-modal, it means we're in a
@@ -180,7 +182,7 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
 
 //////////
 
-- (id)initWithArgc:(int)argc argv:(MCStringRef *)argv envp:(MCStringRef*)envp
+- (id)initWithPlatform:(MCMacPlatform*)platform argc:(int)argc argv:(MCStringRef *)argv envp:(MCStringRef*)envp
 {
 	self = [super init];
 	if (self == nil)
@@ -195,6 +197,8 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
     m_running = false;
     
     m_pending_apple_events = [[NSMutableArray alloc] initWithCapacity: 0];
+	
+	m_platform = platform;
     
 	return self;
 }
@@ -203,16 +207,23 @@ NSWindow *MCMacPlatformApplicationPseudoModalFor(void)
 
 - (void)initializeModules
 {
-	MCPlatformInitializeColorTransform();
-	MCPlatformInitializeAbortKey();
-    MCPlatformInitializeMenu();
+	m_platform->MCPlatformInitializeColorTransform();
+	m_platform->InitializeAbortKey();
+    m_platform->MCPlatformInitializeMenu();
 }
 
 - (void)finalizeModules
 {
-    MCPlatformFinalizeMenu();
-	MCPlatformFinalizeAbortKey();
-	MCPlatformFinalizeColorTransform();
+    m_platform->MCPlatformFinalizeMenu();
+	m_platform->FinalizeAbortKey();
+	m_platform->MCPlatformFinalizeColorTransform();
+}
+
+//////////
+
+- (MCMacPlatform *) platform
+{
+    return m_platform;
 }
 
 //////////
@@ -238,10 +249,6 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (OSErr)preDispatchAppleEvent: (const AppleEvent *)p_event withReply: (AppleEvent *)p_reply
 {
-    extern OSErr MCAppleEventHandlerDoAEAnswer(const AppleEvent *event, AppleEvent *reply, long refcon);
-    extern OSErr MCAppleEventHandlerDoSpecial(const AppleEvent *event, AppleEvent *reply, long refcon);
-    extern OSErr MCAppleEventHandlerDoOpenDoc(const AppleEvent *event, AppleEvent *reply, long refcon);
-    
     if (!m_running)
     {
         MCPendingAppleEvent *t_event;
@@ -269,19 +276,19 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
     }
     
     if (aeclass == kCoreEventClass && aeid == kAEAnswer)
-        return MCAppleEventHandlerDoAEAnswer(p_event, p_reply, 0);
+        return m_platform->MCAppleEventHandlerDoAEAnswer(p_event, p_reply, 0);
     
     // SN-2014-10-13: [[ Bug 13644 ]] Break the wait loop after we handled the Apple Event
     OSErr t_err;
-    t_err = MCAppleEventHandlerDoSpecial(p_event, p_reply, 0);
+    t_err = m_platform->MCAppleEventHandlerDoSpecial(p_event, p_reply, 0);
     if (t_err == errAEEventNotHandled)
     {
         if (aeclass == kCoreEventClass && aeid == kAEOpenDocuments)
-            t_err = MCAppleEventHandlerDoOpenDoc(p_event, p_reply, 0);
+            t_err = m_platform->MCAppleEventHandlerDoOpenDoc(p_event, p_reply, 0);
     }
     
     if (t_err != errAEEventNotHandled)
-        MCPlatformBreakWait();
+        m_platform->BreakWait();
     
     return t_err;
 }
@@ -308,8 +315,8 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
     
 	// Dispatch the startup callback.
 	int t_error_code;
-	MCAutoStringRef t_error_message;
-	MCPlatformCallbackSendApplicationStartup(m_argc, m_argv, m_envp, t_error_code, &t_error_message);
+	MCMacPlatformAutoStringRef t_error_message(m_platform);
+	m_platform->MCPlatformCallbackSendApplicationStartup(m_argc, m_argv, m_envp, t_error_code, &t_error_message);
 	
 	[t_pool release];
 	
@@ -319,7 +326,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 		// If the error message is non-nil, report it in a suitable way.
 		if (*t_error_message != nil)
         {
-            MCAutoStringRefAsUTF8String t_utf8_message;
+            MCMacPlatformAutoStringRefAsUTF8String t_utf8_message(m_platform);
             t_utf8_message . Lock(*t_error_message);
 			fprintf(stderr, "Startup error - %s\n", *t_utf8_message);
         }
@@ -362,7 +369,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
         NSAutoreleasePool *t_pool;
         t_pool = [[NSAutoreleasePool alloc] init];
     
-        MCPlatformCallbackSendApplicationRun(t_continue);
+        m_platform->MCPlatformCallbackSendApplicationRun(t_continue);
         
         [t_pool release];
         
@@ -393,7 +400,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
     if (m_explicit_quit)
         return NSTerminateNow;
     
-    if (MCMacPlatformApplicationPseudoModalFor() != nil)
+    if (m_platform->ApplicationPseudoModalFor() != nil)
         return NSTerminateCancel;
     
     // There is an NSApplicationTerminateReplyLater result code which will place
@@ -401,7 +408,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 	// option for now of just sending the callback and seeing what AppKit does
 	// with the (eventual) event loop that will result...
 	bool t_terminate;
-	MCPlatformCallbackSendApplicationShutdownRequest(t_terminate);
+	m_platform->MCPlatformCallbackSendApplicationShutdownRequest(t_terminate);
 	
 	if (t_terminate)
 		return NSTerminateNow;
@@ -413,7 +420,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 {
 	// Dispatch the shutdown callback.
 	int t_exit_code;
-	MCPlatformCallbackSendApplicationShutdown(t_exit_code);
+	m_platform->MCPlatformCallbackSendApplicationShutdown(t_exit_code);
 	
 	// Finalize everything
 	[self finalizeModules];
@@ -425,7 +432,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 // Dock menu handling.
 - (NSMenu *)applicationDockMenu:(NSApplication *)sender
 {
-	return MCMacPlatformGetIconMenu();
+	return m_platform->GetIconMenu();
 }
 
 //////////
@@ -468,7 +475,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)applicationDidBecomeActive:(NSNotification *)notification
 {
-	MCPlatformCallbackSendApplicationResume();
+	m_platform->MCPlatformCallbackSendApplicationResume();
 }
 
 - (void)applicationWillResignActive:(NSNotification *)notification
@@ -494,7 +501,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 - (void)applicationDidResignActive:(NSNotification *)notification
 {
-	MCPlatformCallbackSendApplicationSuspend();
+	m_platform->MCPlatformCallbackSendApplicationSuspend();
 }
 
 //////////
@@ -515,7 +522,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 	s_have_desktop_height = false;
 	
 	// Dispatch the notification.
-	MCPlatformCallbackSendScreenParametersChanged();
+	m_platform->MCPlatformCallbackSendScreenParametersChanged();
 }
 
 //////////
@@ -563,7 +570,7 @@ static OSErr preDispatchAppleEvent(const AppleEvent *p_event, AppleEvent *p_repl
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
+void MCMacPlatform::GetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *r_value)
 {
 	switch(p_property)
 	{
@@ -611,7 +618,7 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 			break;
 			
         case kMCPlatformSystemPropertyVolume:
-            MCMacPlatformGetGlobalVolume(*(double *)r_value);
+            GetGlobalVolume(*(double *)r_value);
             break;
             
 		default:
@@ -620,12 +627,12 @@ void MCPlatformGetSystemProperty(MCPlatformSystemProperty p_property, MCPlatform
 	}
 }
 
-void MCPlatformSetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value)
+void MCMacPlatform::SetSystemProperty(MCPlatformSystemProperty p_property, MCPlatformPropertyType p_type, void *p_value)
 {
     switch(p_property)
     {
         case kMCPlatformSystemPropertyVolume:
-            MCMacPlatformSetGlobalVolume(*(double *)p_value);
+            SetGlobalVolume(*(double *)p_value);
             break;
         
         default:
@@ -661,7 +668,7 @@ struct MCCallback
 static MCCallback *s_callbacks = nil;
 static uindex_t s_callback_count;
 
-void MCPlatformBreakWait(void)
+void MCMacPlatform::BreakWait(void)
 {
     [s_callback_lock lock];
 	if (s_wait_broken)
@@ -695,29 +702,29 @@ void MCPlatformBreakWait(void)
 static void runloop_observer(CFRunLoopObserverRef observer, CFRunLoopActivity activity, void *info)
 {
  	if (s_in_blocking_wait)
-		MCPlatformBreakWait();
+		static_cast<MCMacPlatform*>(info)->BreakWait();
 }
 
 static uindex_t s_event_checking_enabled = 0;
 
-void MCMacPlatformEnableEventChecking(void)
+void MCMacPlatform::EnableEventChecking(void)
 {
 	s_event_checking_enabled += 1;
 }
 
-void MCMacPlatformDisableEventChecking(void)
+void MCMacPlatform::DisableEventChecking(void)
 {
 	s_event_checking_enabled -= 1;
 }
 
-bool MCMacPlatformIsEventCheckingEnabled(void)
+bool MCMacPlatform::IsEventCheckingEnabled(void)
 {
 	return s_event_checking_enabled == 0;
 }
 
-bool MCPlatformWaitForEvent(double p_duration, bool p_blocking)
+bool MCMacPlatform::WaitForEvent(double p_duration, bool p_blocking)
 {
-	if (!MCMacPlatformIsEventCheckingEnabled())
+	if (!IsEventCheckingEnabled())
 		return false;
 	
 	// Handle all the pending callbacks.
@@ -742,7 +749,11 @@ bool MCPlatformWaitForEvent(double p_duration, bool p_blocking)
 	// to the queue.
 	if (s_observer == nil)
 	{
-		s_observer = CFRunLoopObserverCreate(kCFAllocatorDefault, kCFRunLoopAfterWaiting, true, 0, runloop_observer, NULL);
+        CFRunLoopObserverContext t_context;
+        memset (&t_context, 0, sizeof (t_context));
+        t_context.info = (void*)this;
+        
+		s_observer = CFRunLoopObserverCreate(kCFAllocatorDefault, kCFRunLoopAfterWaiting, true, 0, runloop_observer, &t_context);
 		CFRunLoopAddObserver([[NSRunLoop currentRunLoop] getCFRunLoop], s_observer, (CFStringRef)NSEventTrackingRunLoopMode);
 	}
 	
@@ -801,25 +812,26 @@ bool MCPlatformWaitForEvent(double p_duration, bool p_blocking)
 }
 
 
-void MCMacPlatformBeginModalSession(MCMacPlatformWindow *p_window)
+void MCMacPlatform::BeginModalSession(MCPlatformWindow *p_window)
 {
     // MW-2014-07-24: [[ Bug 12898 ]] The context of the click is changing, so make sure we sync
     //   mouse state - i.e. send a mouse release if in mouseDown and send a mouseLeave for the
     //   current mouse window.
-	MCMacPlatformSyncMouseBeforeDragging();
+	SyncMouseBeforeDragging();
     
 	/* UNCHECKED */ MCMemoryResizeArray(s_modal_session_count + 1, s_modal_sessions, s_modal_session_count);
 	
+    MCMacPlatformWindow * t_window = static_cast<MCMacPlatformWindow*>(p_window);
 	s_modal_sessions[s_modal_session_count - 1] . is_done = false;
-	s_modal_sessions[s_modal_session_count - 1] . window = p_window;
-	p_window -> Retain();
+	s_modal_sessions[s_modal_session_count - 1] . window = t_window;
+	t_window -> Retain();
 	// IM-2015-01-30: [[ Bug 14140 ]] lock the window frame to prevent it from being centered on the screen.
-	p_window->SetFrameLocked(true);
-	s_modal_sessions[s_modal_session_count - 1] . session = [NSApp beginModalSessionForWindow: (NSWindow *)(p_window -> GetHandle())];
-	p_window->SetFrameLocked(false);
+	t_window->SetFrameLocked(true);
+	s_modal_sessions[s_modal_session_count - 1] . session = [NSApp beginModalSessionForWindow: (NSWindow *)(t_window -> GetHandle())];
+	t_window->SetFrameLocked(false);
 }
 
-void MCMacPlatformEndModalSession(MCMacPlatformWindow *p_window)
+void MCMacPlatform::EndModalSession(MCPlatformWindow *p_window)
 {
 	uindex_t t_index;
 	for(t_index = 0; t_index < s_modal_session_count; t_index++)
@@ -843,7 +855,7 @@ void MCMacPlatformEndModalSession(MCMacPlatformWindow *p_window)
 	}
 }
 
-void MCMacPlatformScheduleCallback(void (*p_callback)(void *), void *p_context)
+void MCMacPlatform::ScheduleCallback(void (*p_callback)(void *), void *p_context)
 {
     [s_callback_lock lock];
 	/* UNCHECKED */ MCMemoryResizeArray(s_callback_count + 1, s_callbacks, s_callback_count);
@@ -851,41 +863,37 @@ void MCMacPlatformScheduleCallback(void (*p_callback)(void *), void *p_context)
 	s_callbacks[s_callback_count - 1] . context = p_context;
     [s_callback_lock unlock];
     
-    MCPlatformBreakWait();
+    BreakWait();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-typedef void (*MCPlatformDeathGripFreeCallback)(void *);
-
-@interface com_runrev_livecode_MCPlatformDeathGrip: NSObject
+@interface com_runrev_livecode_MCPlatformWindowDeathGrip: NSObject
 {
-	void *m_pointer;
-	MCPlatformDeathGripFreeCallback m_free;
+	MCPlatformWindowRef m_window;
 }
 
-- (id)initWithPointer: (void *)pointer freeWith: (MCPlatformDeathGripFreeCallback)free;
+- (id)initWithWindow: (MCPlatformWindowRef) p_window;
 - (void)dealloc;
 
 @end
 
-@implementation com_runrev_livecode_MCPlatformDeathGrip
+@implementation com_runrev_livecode_MCPlatformWindowDeathGrip
 
-- (id)initWithPointer: (void *)pointer freeWith: (MCPlatformDeathGripFreeCallback)free
+- (id)initWithWindow: (MCPlatformWindowRef) p_window
 {
 	self = [super init];
 	if (self == nil)
 		return nil;
 	
-	m_pointer = pointer;
-	m_free = free;
-
+	m_window = p_window;
+    
 	return self;
 }
 
 - (void)dealloc
 {
-	m_free(m_pointer);
+	m_window -> Release();
 	[super dealloc];
 }
 
@@ -896,19 +904,19 @@ typedef void (*MCPlatformDeathGripFreeCallback)(void *);
 // handling chain. A deathgrip lasts for the scope of the current autorelease
 // pool - so means such objects won't get completely destroyed until after event
 // handling has completed.
-void MCPlatformWindowDeathGrip(MCPlatformWindowRef p_window)
+void MCMacPlatform::WindowDeathGrip(MCPlatformWindowRef p_window)
 {
 	// Retain the window.
-	MCPlatformRetainWindow(p_window);
+	p_window -> Retain();
 	
 	// Now push an autorelease object onto the stack that will release the object
 	// after event dispatch.
-	[[[com_runrev_livecode_MCPlatformDeathGrip alloc] initWithPointer: p_window freeWith: (MCPlatformDeathGripFreeCallback)MCPlatformReleaseWindow] autorelease];
+	[[[com_runrev_livecode_MCPlatformWindowDeathGrip alloc] initWithWindow: p_window] autorelease];
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-bool MCPlatformGetMouseButtonState(uindex_t p_button)
+bool MCMacPlatform::GetMouseButtonState(uindex_t p_button)
 {
 	NSUInteger t_buttons;
 	t_buttons = [NSEvent pressedMouseButtons];
@@ -923,12 +931,12 @@ bool MCPlatformGetMouseButtonState(uindex_t p_button)
 	return (t_buttons & (1 << (p_button - 1))) != 0;
 }
 
-MCPlatformModifiers MCPlatformGetModifiersState(void)
+MCPlatformModifiers MCMacPlatform::GetModifiersState(void)
 {
-	return MCMacPlatformMapNSModifiersToModifiers([NSEvent modifierFlags]);
+	return MapNSModifiersToModifiers([NSEvent modifierFlags]);
 }
 
-bool MCPlatformGetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
+bool MCMacPlatform::GetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
 {
 	MCPlatformKeyCode *t_codes;
 	if (!MCMemoryNewArray(128, t_codes))
@@ -945,7 +953,7 @@ bool MCPlatformGetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
 			continue;
 		
 		MCPlatformKeyCode t_code;
-        if (MCMacPlatformMapKeyCode(i, t_flags, t_code))
+        if (MapKeyCode(i, t_flags, t_code))
 			t_codes[t_code_count++] = t_code;
 	}
 	
@@ -955,7 +963,7 @@ bool MCPlatformGetKeyState(MCPlatformKeyCode*& r_codes, uindex_t& r_code_count)
 	return true;
 }
 
-bool MCPlatformGetMouseClick(uindex_t p_button, MCPoint& r_location)
+bool MCMacPlatform::GetMouseClick(uindex_t p_button, MCPoint& r_location)
 {
 	// We want to try and remove a whole click from the queue. Which button
 	// is determined by p_button and if zero means any button. So, first
@@ -1038,19 +1046,19 @@ bool MCPlatformGetMouseClick(uindex_t p_button, MCPoint& r_location)
 	else
 		t_screen_loc = [t_up_event locationInWindow];
 	
-	MCMacPlatformMapScreenNSPointToMCPoint(t_screen_loc, r_location);
+	MapScreenNSPointToMCPoint(t_screen_loc, r_location);
 	
 	[t_pool release];
 	
 	return true;
 }
 
-void MCPlatformGetMousePosition(MCPoint& r_location)
+void MCMacPlatform::GetMousePosition(MCPoint& r_location)
 {
-	MCMacPlatformMapScreenNSPointToMCPoint([NSEvent mouseLocation], r_location);
+	MapScreenNSPointToMCPoint([NSEvent mouseLocation], r_location);
 }
 
-void MCPlatformSetMousePosition(MCPoint p_location)
+void MCMacPlatform::SetMousePosition(MCPoint p_location)
 {
 	CGPoint t_point;
 	t_point . x = p_location . x;
@@ -1058,10 +1066,10 @@ void MCPlatformSetMousePosition(MCPoint p_location)
 	CGWarpMouseCursorPosition(t_point);
 }
 
-void MCPlatformGetWindowAtPoint(MCPoint p_loc, MCPlatformWindowRef& r_window)
+void MCMacPlatform::GetWindowAtPoint(MCPoint p_loc, MCPlatformWindowRef& r_window)
 {
 	NSPoint t_loc_cocoa;
-	MCMacPlatformMapScreenMCPointToNSPoint(p_loc, t_loc_cocoa);
+	MapScreenMCPointToNSPoint(p_loc, t_loc_cocoa);
 	
 	NSInteger t_number;
 	t_number = [NSWindow windowNumberAtPoint: t_loc_cocoa belowWindowWithWindowNumber: 0];
@@ -1091,7 +1099,7 @@ void MCPlatformGetWindowAtPoint(MCPoint p_loc, MCPlatformWindowRef& r_window)
 }
 
 // MW-2014-07-15: [[ Bug 12800 ]] Map a window number to a platform window - if there is one.
-bool MCPlatformGetWindowWithId(uint32_t p_id, MCPlatformWindowRef& r_window)
+bool MCMacPlatform::GetWindowWithId(uint32_t p_id, MCPlatformWindowRef& r_window)
 {
     NSWindow *t_ns_window;
     t_ns_window = [NSApp windowWithWindowNumber: p_id];
@@ -1111,17 +1119,17 @@ bool MCPlatformGetWindowWithId(uint32_t p_id, MCPlatformWindowRef& r_window)
     return true;
 }
 
-uint32_t MCPlatformGetEventTime(void)
+uint32_t MCMacPlatform::GetEventTime(void)
 {
 	return [[NSApp currentEvent] timestamp] * 1000.0;
 }
 
-NSEvent *MCMacPlatformGetLastMouseEvent(void)
+NSEvent *MCMacPlatform::GetLastMouseEvent(void)
 {
 	return s_last_mouse_event;
 }
 
-void MCPlatformFlushEvents(MCPlatformEventMask p_mask)
+void MCMacPlatform::FlushEvents(MCPlatformEventMask p_mask)
 {
 	NSUInteger t_ns_mask;
 	t_ns_mask = 0;
@@ -1147,31 +1155,31 @@ void MCPlatformFlushEvents(MCPlatformEventMask p_mask)
 	}
 }
 
-void MCPlatformBeep(void)
+void MCMacPlatform::Beep(void)
 {
     NSBeep();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCPlatformGetScreenCount(uindex_t& r_count)
+void MCMacPlatform::GetScreenCount(uindex_t& r_count)
 {
 	r_count = [[NSScreen screens] count];
 }
 
-void MCPlatformGetScreenViewport(uindex_t p_index, MCRectangle& r_viewport)
+void MCMacPlatform::GetScreenViewport(uindex_t p_index, MCRectangle& r_viewport)
 {
 	NSRect t_viewport;
 	t_viewport = [[[NSScreen screens] objectAtIndex: p_index] frame];
-	MCMacPlatformMapScreenNSRectToMCRectangle(t_viewport, r_viewport);
+    MapScreenNSRectToMCRectangle(t_viewport, r_viewport);
 }
 
-void MCPlatformGetScreenWorkarea(uindex_t p_index, MCRectangle& r_workarea)
+void MCMacPlatform::GetScreenWorkarea(uindex_t p_index, MCRectangle& r_workarea)
 {
-	MCMacPlatformMapScreenNSRectToMCRectangle([[[NSScreen screens] objectAtIndex: p_index] visibleFrame], r_workarea);
+	MapScreenNSRectToMCRectangle([[[NSScreen screens] objectAtIndex: p_index] visibleFrame], r_workarea);
 }
 
-void MCPlatformGetScreenPixelScale(uindex_t p_index, MCGFloat& r_scale)
+void MCMacPlatform::GetScreenPixelScale(uindex_t p_index, MCGFloat& r_scale)
 {
 	NSScreen *t_screen;
 	t_screen = [[NSScreen screens] objectAtIndex: p_index];
@@ -1185,7 +1193,7 @@ void MCPlatformGetScreenPixelScale(uindex_t p_index, MCGFloat& r_scale)
 
 static MCPlatformWindowRef s_backdrop_window = nil;
 
-void MCMacPlatformSyncBackdrop(void)
+void MCMacPlatform::SyncBackdrop(void)
 {
     if (s_backdrop_window == nil)
         return;
@@ -1219,20 +1227,20 @@ void MCMacPlatformSyncBackdrop(void)
     NSEnableScreenUpdates();
 }
 
-void MCPlatformConfigureBackdrop(MCPlatformWindowRef p_backdrop_window)
+void MCMacPlatform::ConfigureBackdrop(MCPlatformWindowRef p_backdrop_window)
 {
 	if (s_backdrop_window != nil)
 	{
-		MCPlatformReleaseWindow(s_backdrop_window);
+		s_backdrop_window -> Release();
 		s_backdrop_window = nil;
 	}
 	
 	s_backdrop_window = p_backdrop_window;
 	
 	if (s_backdrop_window != nil)
-		MCPlatformRetainWindow(s_backdrop_window);
+		s_backdrop_window -> Retain();
 	
-	MCMacPlatformSyncBackdrop();
+	SyncBackdrop();
 }
 
 
@@ -1412,7 +1420,7 @@ static MCPlatformKeyCode s_mac_keycode_map[] =
 	/* 0x7F */ kMCPlatformKeyCodeUndefined,
 };
 
-bool MCMacPlatformMapKeyCode(uint32_t p_mac_keycode, uint32_t p_modifier_flags, MCPlatformKeyCode& r_keycode)
+bool MCMacPlatform::MapKeyCode(uint32_t p_mac_keycode, uint32_t p_modifier_flags, MCPlatformKeyCode& r_keycode)
 {
 	if (p_mac_keycode > 0x7f)
 		return false;
@@ -1436,97 +1444,35 @@ bool MCMacPlatformMapKeyCode(uint32_t p_mac_keycode, uint32_t p_modifier_flags, 
 
 ////////////////////////////////////////////////////////////////////////////////
 
-// Our mouse handling code relies on getting a stream of mouse move messages
-// with screen co-ordinates, and mouse press messages indicating button state
-// changes. As we need to handle things like mouse grabbing, and windows popping
-// up and moving under the mouse we don't rely on enter/leave from the OS,
-// instead we do it ourselves to ensure we never get into unpleasant situations.
-
-// For this to work, we just need the OS to provide us with:
-//   - mouse press messages within our own windows
-//   - mouse move messages when the mouse moves over our windows *and* when
-//     the mouse is down and the mouse is outside our windows.
-
-// If this is true, then the mouse is currently grabbed so we should defer
-// switching active window until ungrabbed.
-static bool s_mouse_grabbed = false;
-
-// If this is true there was an explicit request for grabbing.
-static bool s_mouse_grabbed_explicit = false;
-
-// This is the currently active window (the one receiving mouse events).
-static MCPlatformWindowRef s_mouse_window = nil;
-
-// This is the current mask of buttons that are pressed.
-static uint32_t s_mouse_buttons = 0;
-
-// This is the button that is being dragged (if not 0xffffffff).
-static uint32_t s_mouse_drag_button = 0xffffffff;
-
-// This is the number of successive clicks detected on the primary button.
-static uint32_t s_mouse_click_count = 0;
-
-// This is the button of the last click (mouseDown then mouseUp) that was
-// detected.
-static uint32_t s_mouse_last_click_button = 0;
-
-// This is the time of the last mouseUp, used to detect multiple clicks.
-static uint32_t s_mouse_last_click_time = 0;
-
-// This is the screen position of the last click, used to detect multiple
-// clicks.
-static MCPoint s_mouse_last_click_screen_position = { 0, 0 };
-
-// This is the window location in the mouse window that we last posted
-// a position event for.
-static MCPoint s_mouse_position = { INT16_MIN, INT16_MAX };
-
-// This is the last screen location we received a mouse move message for.
-static MCPoint s_mouse_screen_position;
-
-// This is the current modifier state, and whether the control key was down
-// for a button 0 press.
-static MCPlatformModifiers s_mouse_modifiers = 0;
-static bool s_mouse_was_control_click = false;
-
-// COCOA-TODO: Clean up this external dependency.
-extern uint2 MCdoubledelta;
-extern uint2 MCdoubletime;
-extern uint2 MCdragdelta;
-
-// MW-2014-06-11: [[ Bug 12436 ]] This is used to temporarily turn off cursor setting
-//   when doing an user-import snapshot.
-static bool s_mouse_cursor_locked = false;
-
-void MCMacPlatformLockCursor(void)
+void MCMacPlatform::LockCursor(void)
 {
-    s_mouse_cursor_locked = true;
+    m_mouse_cursor_locked = true;
 }
 
-void MCMacPlatformUnlockCursor(void)
+void MCMacPlatform::UnlockCursor(void)
 {
-    s_mouse_cursor_locked = false;
+    m_mouse_cursor_locked = false;
     
-    if (s_mouse_window == nil)
-        MCMacPlatformResetCursor();
+    if (m_mouse_window == nil)
+        ResetCursor();
     else
-        MCMacPlatformHandleMouseCursorChange(s_mouse_window);
+        HandleMouseCursorChange(m_mouse_window);
 }
 
-void MCPlatformGrabPointer(MCPlatformWindowRef p_window)
+void MCMacPlatform::GrabPointer(MCPlatformWindowRef p_window)
 {
 	// If we are grabbing for the given window already, do nothing.
-	if (s_mouse_grabbed && p_window == s_mouse_window)
+	if (m_mouse_grabbed && p_window == m_mouse_window)
 	{
-		s_mouse_grabbed_explicit = true;
+		m_mouse_grabbed_explicit = true;
 		return;
 	}
 	
 	// If the mouse window is already w, then just grab.
-	if (p_window == s_mouse_window)
+	if (p_window == m_mouse_window)
 	{
-		s_mouse_grabbed = true;
-		s_mouse_grabbed_explicit = true;
+		m_mouse_grabbed = true;
+		m_mouse_grabbed_explicit = true;
 		return;
 	}
 	
@@ -1535,75 +1481,65 @@ void MCPlatformGrabPointer(MCPlatformWindowRef p_window)
 	//  mouse presses in different windows!).
 }
 
-void MCPlatformUngrabPointer(void)
+void MCMacPlatform::UngrabPointer(void)
 {
 	// If buttons are down, then ungrab will happen when they are released.
-	if (s_mouse_buttons != 0)
+	if (m_mouse_buttons != 0)
 		return;
 	
 	// Otherwise just turn off the grabbed flag.
-	s_mouse_grabbed = false;
-	s_mouse_grabbed_explicit = false;
+	m_mouse_grabbed = false;
+	m_mouse_grabbed_explicit = false;
 }
 
-void MCPlatformDisableScreenUpdates(void)
-{
-    NSDisableScreenUpdates();
-}
-
-void MCPlatformEnableScreenUpdates(void)
-{
-    NSEnableScreenUpdates();
-}
-
-void MCMacPlatformHandleMousePress(uint32_t p_button, bool p_new_state)
+void MCMacPlatform::HandleMousePress(uint32_t p_button, bool p_new_state)
 {
 	bool t_state;
-	t_state = (s_mouse_buttons & (1 << p_button)) != 0;
+	t_state = (m_mouse_buttons & (1 << p_button)) != 0;
 	
 	// If the state is not different from the new state, do nothing.
 	if (p_new_state == t_state)
 		return;
 	
 	// If we are mouse downing with no window, then do nothing.
-	if (p_new_state && s_mouse_window == nil)
+	if (p_new_state && m_mouse_window == nil)
 		return;
 	
 	// Update the state.
 	if (p_new_state)
-		s_mouse_buttons |= (1 << p_button);
+		m_mouse_buttons |= (1 << p_button);
 	else
-		s_mouse_buttons &= ~(1 << p_button);
+		m_mouse_buttons &= ~(1 << p_button);
 	
 	// Record whether it was an explicit grab.
 	bool t_grabbed_explicit;
-	t_grabbed_explicit = s_mouse_grabbed_explicit;
+	t_grabbed_explicit = m_mouse_grabbed_explicit;
 	
 	// If we are grabbed, and mouse buttons are zero, then ungrab.
 	// If mouse buttons are zero, then reset the drag button.
-	if (s_mouse_buttons == 0)
+	if (m_mouse_buttons == 0)
 	{
-		s_mouse_grabbed = false;
-		s_mouse_grabbed_explicit = false;
-		s_mouse_drag_button = 0xffffffff;
+		m_mouse_grabbed = false;
+		m_mouse_grabbed_explicit = false;
+		m_mouse_drag_button = 0xffffffff;
 	}
 		
 	// If mouse buttons are non-zero, then grab.
-	if (s_mouse_buttons != 0)
-		s_mouse_grabbed = true;
+	if (m_mouse_buttons != 0)
+		m_mouse_grabbed = true;
 	
 	// If the control key is down (which we will see as the command key) and if
 	// the button is 0, then we actually want to dispatch a button 2.
 	if (p_button == 0 &&
-		(s_mouse_modifiers & kMCPlatformModifierCommand) != 0 &&
+		(m_mouse_modifiers & kMCPlatformModifierCommand) != 0 &&
 		p_new_state)
 	{
 		p_button = 2;
-		s_mouse_was_control_click = true;
+		m_mouse_was_control_click = true;
 	}
 	
 	if (!p_new_state &&
-		s_mouse_was_control_click && p_button == 0)
+		m_mouse_was_control_click && p_button == 0)
 		p_button = 2;
 		
 	// Determine the press state - this can be down, up or release. If
@@ -1613,66 +1549,70 @@ void MCMacPlatformHandleMousePress(uint32_t p_button, bool p_new_state)
 	{
 		// Get the time of the mouse press event.
 		uint32_t t_event_time;
-		t_event_time = MCPlatformGetEventTime();
+		t_event_time = GetEventTime();
 		
 		// If the click occured within the double click time and double click
 		// radius *and* if the button is the same as the last clicked button
 		// then increment the click count.
-		if (t_event_time - s_mouse_last_click_time < MCdoubletime &&
-			MCU_abs(s_mouse_last_click_screen_position . x - s_mouse_screen_position . x) < MCdoubledelta &&
-			MCU_abs(s_mouse_last_click_screen_position . y - s_mouse_screen_position . y) < MCdoubledelta &&
-			s_mouse_last_click_button == p_button)
-			s_mouse_click_count += 1;
+        uint16_t t_double_delta, t_double_time;
+        GetGlobalProperty(kMCPlatformGlobalPropertyDoubleDelta, kMCPlatformPropertyTypeUInt16, &t_double_delta);
+        GetGlobalProperty(kMCPlatformGlobalPropertyDoubleTime, kMCPlatformPropertyTypeUInt16, &t_double_time);
+        
+		if (t_event_time - m_mouse_last_click_time < t_double_time &&
+			MCU_abs(m_mouse_last_click_screen_position . x - m_mouse_screen_position . x) < t_double_delta &&
+			MCU_abs(m_mouse_last_click_screen_position . y - m_mouse_screen_position . y) < t_double_delta &&
+			m_mouse_last_click_button == p_button)
+			m_mouse_click_count += 1;
 		else
-			s_mouse_click_count = 0;
+			m_mouse_click_count = 0;
 		
 		// Update the last click position / button.
-		s_mouse_last_click_button = p_button;
-		s_mouse_last_click_screen_position = s_mouse_screen_position;
+		m_mouse_last_click_button = p_button;
+		m_mouse_last_click_screen_position = m_mouse_screen_position;
 		
-		MCPlatformCallbackSendMouseDown(s_mouse_window, p_button, s_mouse_click_count);
+		MCPlatformCallbackSendMouseDown(m_mouse_window, p_button, m_mouse_click_count);
 	}
 	else
 	{
 		MCPoint t_global_pos;
-		MCPlatformMapPointFromWindowToScreen(s_mouse_window, s_mouse_position, t_global_pos);
+		m_mouse_window -> MapPointFromWindowToScreen(m_mouse_position, t_global_pos);
 		
 		Window t_new_mouse_window;
-		MCPlatformGetWindowAtPoint(t_global_pos, t_new_mouse_window);
+		GetWindowAtPoint(t_global_pos, t_new_mouse_window);
 		
-		s_mouse_was_control_click = false;
+		m_mouse_was_control_click = false;
 		
 		// If the mouse was grabbed explicitly, we send mouseUp not mouseRelease.
-		if (t_new_mouse_window == s_mouse_window || t_grabbed_explicit)
+		if (t_new_mouse_window == m_mouse_window || t_grabbed_explicit)
 		{
 			// If this is the same button as the last mouseDown, then
 			// update the click time.
-			if (p_button == s_mouse_last_click_button)
-				s_mouse_last_click_time = MCPlatformGetEventTime();
+			if (p_button == m_mouse_last_click_button)
+				m_mouse_last_click_time = GetEventTime();
 			
-			MCPlatformCallbackSendMouseUp(s_mouse_window, p_button, s_mouse_click_count);
+			MCPlatformCallbackSendMouseUp(m_mouse_window, p_button, m_mouse_click_count);
 		}
 		else
 		{
 			// Any release causes us to cancel multi-click tracking.
-			s_mouse_click_count = 0;
-			s_mouse_last_click_time = 0;
+			m_mouse_click_count = 0;
+			m_mouse_last_click_time = 0;
 			
             // MW-2014-06-11: [[ Bug 12339 ]] Only send a mouseRelease message if this wasn't the result of a popup menu.
-			MCPlatformCallbackSendMouseRelease(s_mouse_window, p_button, false);
+			MCPlatformCallbackSendMouseRelease(m_mouse_window, p_button, false);
 		}
 	}
 }
 
-void MCMacPlatformHandleMouseCursorChange(MCPlatformWindowRef p_window)
+void MCMacPlatform::HandleMouseCursorChange(MCPlatformWindowRef p_window)
 {
     // If the mouse is not currently over the window whose cursor has
     // changed - do nothing.
-    if (s_mouse_window != p_window)
+    if (m_mouse_window != p_window)
         return;
     
     // MW-2014-06-11: [[ Bug 12436 ]] If the cursor is locked, do nothing.
-    if (s_mouse_cursor_locked)
+    if (m_mouse_cursor_locked)
         return;
     
     MCMacPlatformWindow *t_window;
@@ -1680,13 +1620,14 @@ void MCMacPlatformHandleMouseCursorChange(MCPlatformWindowRef p_window)
     
     // If we are on Lion+ then check to see if the mouse location is outside
     // of any of the system tracking rects (used for resizing etc.)
-    extern uint4 MCmajorosversion;
-    if (MCmajorosversion >= 0x1070)
+    uint32_t t_version;
+    GetGlobalProperty(kMCPlatformGlobalPropertyMajorOSVersion, kMCPlatformPropertyTypeUInt32, &t_version);
+    if (t_version >= 0x1070)
     {
         // MW-2014-06-11: [[ Bug 12437 ]] Make sure we only check tracking rectangles if we have
         //   a resizable frame.
         bool t_is_resizable;
-        MCPlatformGetWindowProperty(p_window, kMCPlatformWindowPropertyHasSizeWidget, kMCPlatformPropertyTypeBool, &t_is_resizable);
+        p_window->GetProperty(kMCPlatformWindowPropertyHasSizeWidget, kMCPlatformPropertyTypeBool, &t_is_resizable);
         
         if (t_is_resizable)
         {
@@ -1694,7 +1635,7 @@ void MCMacPlatformHandleMouseCursorChange(MCPlatformWindowRef p_window)
             t_tracking_areas = [[t_window -> GetContainerView() superview] trackingAreas];
             
             NSPoint t_mouse_loc;
-            t_mouse_loc = [t_window -> GetView() mapMCPointToNSPoint: s_mouse_position];
+            t_mouse_loc = [t_window -> GetView() mapMCPointToNSPoint: m_mouse_position];
             for(uindex_t i = 0; i < [t_tracking_areas count]; i++)
             {
                 if (NSPointInRect(t_mouse_loc, [(NSTrackingArea *)[t_tracking_areas objectAtIndex: i] rect]))
@@ -1705,62 +1646,62 @@ void MCMacPlatformHandleMouseCursorChange(MCPlatformWindowRef p_window)
     
     // MW-2014-06-25: [[ Bug 12634 ]] Make sure we only change the cursor if we are not
     //   within a native view.
-    if ([t_window -> GetContainerView() hitTest: [t_window -> GetView() mapMCPointToNSPoint: s_mouse_position]] == t_window -> GetView())
+    if ([t_window -> GetContainerView() hitTest: [t_window -> GetView() mapMCPointToNSPoint: m_mouse_position]] == t_window -> GetView())
     {
         // Show the cursor attached to the window.
         MCPlatformCursorRef t_cursor;
-        MCPlatformGetWindowProperty(p_window, kMCPlatformWindowPropertyCursor, kMCPlatformPropertyTypeCursorRef, &t_cursor);
+        p_window->GetProperty(kMCPlatformWindowPropertyCursor, kMCPlatformPropertyTypeCursorRef, &t_cursor);
         
         // PM-2014-04-02: [[ Bug 12082 ]] IDE no longer crashes when changing an applied pattern
         if (t_cursor != nil)
-            MCPlatformSetCursor(t_cursor);
+            SetCursor(t_cursor);
         // SN-2014-10-01: [[ Bug 13516 ]] Hiding a cursor here is not what we want to happen if a cursor hasn't been found
         else
-            MCMacPlatformResetCursor();
+            ResetCursor();
     }
 }
 
-void MCMacPlatformHandleMouseAfterWindowHidden(void)
+void MCMacPlatform::HandleMouseAfterWindowHidden(void)
 {
-	MCMacPlatformHandleMouseMove(s_mouse_screen_position);
+	HandleMouseMove(m_mouse_screen_position);
 }
 
 // MW-2014-06-27: [[ Bug 13284 ]] When live resizing starts, leave the window, and enter it again when it finishes.
-void MCMacPlatformHandleMouseForResizeStart(void)
+void MCMacPlatform::HandleMouseForResizeStart(void)
 {
-    if (s_mouse_window != nil)
-        MCPlatformCallbackSendMouseLeave(s_mouse_window);
+    if (m_mouse_window != nil)
+        MCPlatformCallbackSendMouseLeave(m_mouse_window);
 }
 
-void MCMacPlatformHandleMouseForResizeEnd(void)
+void MCMacPlatform::HandleMouseForResizeEnd(void)
 {
-    if (s_mouse_window != nil)
-        MCPlatformCallbackSendMouseEnter(s_mouse_window);
+    if (m_mouse_window != nil)
+        MCPlatformCallbackSendMouseEnter(m_mouse_window);
 }
 
-void MCMacPlatformHandleMouseMove(MCPoint p_screen_loc)
+void MCMacPlatform::HandleMouseMove(MCPoint p_screen_loc)
 {
 	// First compute the window that should be active now.
 	MCPlatformWindowRef t_new_mouse_window;
-	if (s_mouse_grabbed)
+	if (m_mouse_grabbed)
 	{
 		// If the mouse is grabbed, the mouse window does not change.
-		t_new_mouse_window = s_mouse_window;
+		t_new_mouse_window = m_mouse_window;
 	}
 	else
 	{
 		// If the mouse is not grabbed, then we must determine which of our
 		// window views we are now over.
-		MCPlatformGetWindowAtPoint(p_screen_loc, t_new_mouse_window);
+		GetWindowAtPoint(p_screen_loc, t_new_mouse_window);
 	}
 	
 	// If the mouse window has changed, then we must exit/enter.
 	bool t_window_changed;
 	t_window_changed = false;
-	if (t_new_mouse_window != s_mouse_window)
+	if (t_new_mouse_window != m_mouse_window)
 	{
-		if (s_mouse_window != nil)
-			MCPlatformCallbackSendMouseLeave(s_mouse_window);
+		if (m_mouse_window != nil)
+			MCPlatformCallbackSendMouseLeave(m_mouse_window);
 		
 		if (t_new_mouse_window != nil)
 			MCPlatformCallbackSendMouseEnter(t_new_mouse_window);
@@ -1769,133 +1710,136 @@ void MCMacPlatformHandleMouseMove(MCPoint p_screen_loc)
 		if (t_new_mouse_window == nil)
         {
             // MW-2014-06-11: [[ Bug 12436 ]] If the cursor is locked, do nothing.
-            if (!s_mouse_cursor_locked)
-                MCMacPlatformResetCursor();
+            if (!m_mouse_cursor_locked)
+                ResetCursor();
         }
 			
-		if (s_mouse_window != nil)
-			MCPlatformReleaseWindow(s_mouse_window);
+		if (m_mouse_window != nil)
+            m_mouse_window -> Release();
 		
-		s_mouse_window = t_new_mouse_window;
+		m_mouse_window = t_new_mouse_window;
 		
-		if (s_mouse_window != nil)
-			MCPlatformRetainWindow(s_mouse_window);
+		if (m_mouse_window != nil)
+			m_mouse_window -> Retain();
 			
 		t_window_changed = true;
 	}
 	
 	// Regardless of whether we post a mouse move, update the screen mouse position.
-	s_mouse_screen_position = p_screen_loc;
+	m_mouse_screen_position = p_screen_loc;
 	
 	// If we have a new mouse window, then translate screen loc and update.
-	if (s_mouse_window != nil)
+	if (m_mouse_window != nil)
 	{
 		MCPoint t_window_loc;
-		MCPlatformMapPointFromScreenToWindow(s_mouse_window, p_screen_loc, t_window_loc);
+		m_mouse_window->MapPointFromScreenToWindow(p_screen_loc, t_window_loc);
 		
 		if (t_window_changed ||
-			t_window_loc . x != s_mouse_position . x ||
-			t_window_loc . y != s_mouse_position . y)
+			t_window_loc . x != m_mouse_position . x ||
+			t_window_loc . y != m_mouse_position . y)
 		{
-			s_mouse_position = t_window_loc;
+			m_mouse_position = t_window_loc;
 			
 			// Send the mouse move.
-			MCPlatformCallbackSendMouseMove(s_mouse_window, t_window_loc);
-			
-			// If this is the start of a drag, then send a mouse drag.
-			if (s_mouse_buttons != 0 && s_mouse_drag_button == 0xffffffff &&
-				(MCU_abs(p_screen_loc . x - s_mouse_last_click_screen_position . x) >= MCdragdelta ||
-				 MCU_abs(p_screen_loc . y - s_mouse_last_click_screen_position . y) >= MCdragdelta))
+			MCPlatformCallbackSendMouseMove(m_mouse_window, t_window_loc);
+            
+            uint16_t t_drag_delta;
+            GetGlobalProperty(kMCPlatformGlobalPropertyDoubleDelta, kMCPlatformPropertyTypeUInt16, &t_drag_delta);
+            
+            // If this is the start of a drag, then send a mouse drag.
+			if (m_mouse_buttons != 0 && m_mouse_drag_button == 0xffffffff &&
+				(MCU_abs(p_screen_loc . x - m_mouse_last_click_screen_position . x) >= t_drag_delta ||
+				 MCU_abs(p_screen_loc . y - m_mouse_last_click_screen_position . y) >= t_drag_delta))
 			{
-				s_mouse_drag_button = s_mouse_last_click_button;
-				MCPlatformCallbackSendMouseDrag(s_mouse_window, s_mouse_drag_button);
+				m_mouse_drag_button = m_mouse_last_click_button;
+				MCPlatformCallbackSendMouseDrag(m_mouse_window, m_mouse_drag_button);
 			}
 		}
         
         // MW-2014-04-22: [[ Bug 12253 ]] Ending a drag-drop can cause the mouse window to go.
         // Update the mouse cursor for the mouse window.
-        if (s_mouse_window != nil)
-            MCMacPlatformHandleMouseCursorChange(s_mouse_window);
+        if (m_mouse_window != nil)
+            HandleMouseCursorChange(m_mouse_window);
 	}
 }
 
-void MCMacPlatformHandleMouseScroll(CGFloat dx, CGFloat dy)
+void MCMacPlatform::HandleMouseScroll(CGFloat dx, CGFloat dy)
 {
-	if (s_mouse_window == nil)
+	if (m_mouse_window == nil)
 		return;
 	
 	if (dx != 0.0 || dy != 0.0)
-		MCPlatformCallbackSendMouseScroll(s_mouse_window, dx < 0.0 ? -1 : (dx > 0.0 ? 1 : 0), dy < 0.0 ? -1 : (dy > 0.0 ? 1 : 0));
+		MCPlatformCallbackSendMouseScroll(m_mouse_window, dx < 0.0 ? -1 : (dx > 0.0 ? 1 : 0), dy < 0.0 ? -1 : (dy > 0.0 ? 1 : 0));
 }
 
-void MCMacPlatformHandleMouseSync(void)
+void MCMacPlatform::HandleMouseSync(void)
 {
-	if (s_mouse_window != nil)
+	if (m_mouse_window != nil)
 	{
 		for(uindex_t i = 0; i < 3; i++)
-			if ((s_mouse_buttons & (1 << i)) != 0)
+			if ((m_mouse_buttons & (1 << i)) != 0)
 			{
-				s_mouse_buttons &= ~(1 << i);
+				m_mouse_buttons &= ~(1 << i);
 				
                 // MW-2014-06-11: [[ Bug 12339 ]] Don't send a mouseRelease message in this case.
-				if (s_mouse_was_control_click &&
+				if (m_mouse_was_control_click &&
 					i == 0)
-					MCPlatformCallbackSendMouseRelease(s_mouse_window, 2, true);
+					MCPlatformCallbackSendMouseRelease(m_mouse_window, 2, true);
 				else
-					MCPlatformCallbackSendMouseRelease(s_mouse_window, i, true);
+					MCPlatformCallbackSendMouseRelease(m_mouse_window, i, true);
 			}
 	}
 	
-	s_mouse_grabbed = false;
-	s_mouse_drag_button = 0xffffffff;
-	s_mouse_click_count = 0;
-	s_mouse_last_click_time = 0;
-	s_mouse_was_control_click = false;
+	m_mouse_grabbed = false;
+	m_mouse_drag_button = 0xffffffff;
+	m_mouse_click_count = 0;
+	m_mouse_last_click_time = 0;
+	m_mouse_was_control_click = false;
 
 	MCPoint t_location;
-	MCMacPlatformMapScreenNSPointToMCPoint([NSEvent mouseLocation], t_location);
+	MapScreenNSPointToMCPoint([NSEvent mouseLocation], t_location);
 	
-	MCMacPlatformHandleMouseMove(t_location);
+	HandleMouseMove(t_location);
 }
 
-void MCMacPlatformSyncMouseBeforeDragging(void)
+void MCMacPlatform::SyncMouseBeforeDragging(void)
 {
 	// Release the mouse.
 	uindex_t t_button_to_release;
-	if (s_mouse_buttons != 0)
+	if (m_mouse_buttons != 0)
 	{
-		t_button_to_release = s_mouse_drag_button;
+		t_button_to_release = m_mouse_drag_button;
 		if (t_button_to_release == 0xffffffffU)
-			t_button_to_release = s_mouse_last_click_button;
+			t_button_to_release = m_mouse_last_click_button;
 		
-		s_mouse_buttons = 0;
-		s_mouse_grabbed = false;
-		s_mouse_click_count = 0;
-		s_mouse_last_click_time = 0;
-		s_mouse_drag_button = 0xffffffff;
-		s_mouse_was_control_click = false;
+		m_mouse_buttons = 0;
+		m_mouse_grabbed = false;
+		m_mouse_click_count = 0;
+		m_mouse_last_click_time = 0;
+		m_mouse_drag_button = 0xffffffff;
+		m_mouse_was_control_click = false;
 	}
 	else
 		t_button_to_release = 0xffffffff;
 	
-	if (s_mouse_window != nil)
+	if (m_mouse_window != nil)
 	{
         // MW-2014-06-11: [[ Bug 12339 ]] Ensure mouseRelease is sent if drag is starting.
 		if (t_button_to_release != 0xffffffff)
-			MCPlatformCallbackSendMouseRelease(s_mouse_window, t_button_to_release, false);
-		MCPlatformCallbackSendMouseLeave(s_mouse_window);
+			MCPlatformCallbackSendMouseRelease(m_mouse_window, t_button_to_release, false);
+		MCPlatformCallbackSendMouseLeave(m_mouse_window);
 		
         // SN-2015-01-13: [[ Bug 14350 ]] The user can close the stack in
         //  a mouseLeave handler
-        if (s_mouse_window != nil)
+        if (m_mouse_window != nil)
         {
-            MCPlatformReleaseWindow(s_mouse_window);
-            s_mouse_window = nil;
+            m_mouse_window -> Release();
+            m_mouse_window = nil;
         }
 	}
 }
 
-void MCMacPlatformSyncMouseAfterTracking(void)
+void MCMacPlatform::SyncMouseAfterTracking(void)
 {
 	NSEvent *t_event;
 	t_event = [NSEvent otherEventWithType:NSApplicationDefined
@@ -1912,18 +1856,18 @@ void MCMacPlatformSyncMouseAfterTracking(void)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCMacPlatformHandleModifiersChanged(MCPlatformModifiers p_modifiers)
+void MCMacPlatform::HandleModifiersChanged(MCPlatformModifiers p_modifiers)
 {
-	if (s_mouse_modifiers != p_modifiers)
+	if (m_mouse_modifiers != p_modifiers)
 	{
-		s_mouse_modifiers = p_modifiers;
+		m_mouse_modifiers = p_modifiers;
 		MCPlatformCallbackSendModifiersChanged(p_modifiers);
 	}
 }
 	
 ////////////////////////////////////////////////////////////////////////////////
 
-MCPlatformModifiers MCMacPlatformMapNSModifiersToModifiers(NSUInteger p_modifiers)
+MCPlatformModifiers MCMacPlatform::MapNSModifiersToModifiers(NSUInteger p_modifiers)
 {
 	MCPlatformModifiers t_modifiers;
 	t_modifiers = 0;
@@ -1966,30 +1910,30 @@ CGFloat get_desktop_height()
 	return s_desktop_height;
 }
 
-void MCMacPlatformMapScreenMCPointToNSPoint(MCPoint p, NSPoint& r_point)
+void MCMacPlatform::MapScreenMCPointToNSPoint(MCPoint p, NSPoint& r_point)
 {
 	r_point = NSMakePoint(p . x, get_desktop_height() - p . y);
 }
 
-void MCMacPlatformMapScreenNSPointToMCPoint(NSPoint p, MCPoint& r_point)
+void MCMacPlatform::MapScreenNSPointToMCPoint(NSPoint p, MCPoint& r_point)
 {
 	r_point . x = int16_t(p . x);
 	r_point . y = int16_t(get_desktop_height() - p . y);
 }
 
-void MCMacPlatformMapScreenMCRectangleToNSRect(MCRectangle r, NSRect& r_rect)
+void MCMacPlatform::MapScreenMCRectangleToNSRect(MCRectangle r, NSRect& r_rect)
 {
 	r_rect = NSMakeRect(CGFloat(r . x), get_desktop_height() - CGFloat(r . y + r . height), CGFloat(r . width), CGFloat(r . height));
 }
 
-void MCMacPlatformMapScreenNSRectToMCRectangle(NSRect r, MCRectangle& r_rect)
+void MCMacPlatform::MapScreenNSRectToMCRectangle(NSRect r, MCRectangle& r_rect)
 {
 	r_rect = MCRectangleMake(int16_t(r . origin . x), int16_t(get_desktop_height() - (r . origin . y + r . size . height)), int16_t(r . size . width), int16_t(r . size . height));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCMacPlatformShowMessageDialog(MCStringRef p_title,
+void MCMacPlatform::ShowMessageDialog(MCStringRef p_title,
                                     MCStringRef p_message)
 {
     NSAlert *t_alert = [[NSAlert alloc] init];
@@ -2014,10 +1958,8 @@ static void display_reconfiguration_callback(CGDirectDisplayID display, CGDispla
 extern "C" bool MCModulesInitialize(void);
 extern "C" void MCModulesFinalize(void);
 
-MC_DLLEXPORT_DEF
-int platform_main(int argc, char *argv[], char *envp[])
+int MCMacPlatform::platform_main(int argc, char *argv[], char *envp[])
 {
-	extern bool MCS_mac_elevation_bootstrap_main(int argc, char* argv[]);
 	if (argc == 2 && strcmp(argv[1], "-elevated-slave") == 0)
 		if (!MCS_mac_elevation_bootstrap_main(argc, argv))
 			return -1;
@@ -2067,7 +2009,7 @@ int platform_main(int argc, char *argv[], char *envp[])
 	
 	// Setup our delegate
 	com_runrev_livecode_MCApplicationDelegate *t_delegate;
-	t_delegate = [[com_runrev_livecode_MCApplicationDelegate alloc] initWithArgc: argc argv: t_new_argv envp: t_new_envp];
+    t_delegate = [[com_runrev_livecode_MCApplicationDelegate alloc] initWithPlatform: this argc: argc argv: t_new_argv envp: t_new_envp];
 	
 	// Assign our delegate
 	[t_application setDelegate: t_delegate];
@@ -2096,33 +2038,17 @@ int platform_main(int argc, char *argv[], char *envp[])
 ////////////////////////////////////////////////////////////////////////////////
 
 // MM-2014-07-31: [[ ThreadedRendering ]] Helper functions used to create an auto-release pool for each new thread.
-void *MCMacPlatformCreateAutoReleasePool()
+void *MCMacPlatform::CreateAutoReleasePool()
 {
     NSAutoreleasePool *t_pool;
     t_pool = [[NSAutoreleasePool alloc] init];
     return (void *) t_pool;
 }
 
-void MCMacPlatformReleaseAutoReleasePool(void *p_pool)
+void MCMacPlatform::ReleaseAutoReleasePool(void *p_pool)
 {
     NSAutoreleasePool *t_pool;
     t_pool = (NSAutoreleasePool *) p_pool;
     [t_pool release];
 }
-
-////////////////////////////////////////////////////////////////////////////////
-
-#ifdef MACPLATFORM_STUBS
-extern "C" bool MCPlatformCreate(void*&) __attribute__((visibility("default")));
-bool MCPlatformCreate(void*&) __attribute__((visibility("default")))
-{
-    return false;
-}
-
-extern "C" void MCPlatformDestroy(void) __attribute__((visibility("default")));
-void MCPlatformDestroy(void)
-{
-}
-#endif MACPLATFORM_STUBS
-
 ////////////////////////////////////////////////////////////////////////////////

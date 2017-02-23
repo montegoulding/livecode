@@ -21,6 +21,7 @@
 
 #include "platform.h"
 #include "platform-internal.h"
+#include "mac-platform.h"
 
 #include "mac-internal.h"
 
@@ -131,7 +132,7 @@ static void MCPlatformEndPrintInfo(NSPrintInfo *p_info, void *p_session, void *p
 	[p_info release];
 }
 
-static void MCPlatformBeginPrintDialog(MCPlatformWindowRef p_owner, void *p_session, void *p_settings, void *p_page_format, id p_dialog)
+void MCMacPlatform::BeginPrintDialog(MCPlatformWindowRef p_owner, void *p_session, void *p_settings, void *p_page_format, id p_dialog)
 {
 	NSPrintInfo *t_info;
 	MCPlatformStartPrintInfo(p_session, p_settings, p_page_format, t_info);
@@ -174,7 +175,7 @@ static void MCPlatformBeginPrintDialog(MCPlatformWindowRef p_owner, void *p_sess
 		if (!t_exists)
 		{
 			t_nest -> owner = p_owner;
-			MCPlatformRetainWindow(p_owner);
+			p_owner -> Retain();
 		
 			[p_dialog beginSheetWithPrintInfo:t_info
 							   modalForWindow:((MCMacPlatformWindow *)p_owner) -> GetHandle()
@@ -187,17 +188,17 @@ static void MCPlatformBeginPrintDialog(MCPlatformWindowRef p_owner, void *p_sess
 	}
 }
 
-void MCPlatformBeginPageSetupDialog(MCPlatformWindowRef p_owner, void *p_session, void *p_settings, void *p_page_format)
+void MCMacPlatform::BeginPageSetupDialog(MCPlatformWindowRef p_owner, void *p_session, void *p_settings, void *p_page_format)
 {
-	MCPlatformBeginPrintDialog(p_owner, p_session, p_settings, p_page_format, [NSPageLayout pageLayout]);
+	BeginPrintDialog(p_owner, p_session, p_settings, p_page_format, [NSPageLayout pageLayout]);
 }
 
-void MCPlatformBeginPrintSettingsDialog(MCPlatformWindowRef p_owner, void *p_session, void *p_settings, void *p_page_format)
+void MCMacPlatform::BeginPrintSettingsDialog(MCPlatformWindowRef p_owner, void *p_session, void *p_settings, void *p_page_format)
 {
-	MCPlatformBeginPrintDialog(p_owner, p_session, p_settings, p_page_format, [NSPrintPanel printPanel]);
+	BeginPrintDialog(p_owner, p_session, p_settings, p_page_format, [NSPrintPanel printPanel]);
 }
 
-MCPlatformPrintDialogResult MCPlatformEndPrintDialog(void)
+MCPlatformPrintDialogResult MCMacPlatform::EndPrintDialog(void)
 {
 	MCMacPlatformPrintDialogNest *t_nest;
 	t_nest = s_print_dialog_nesting;
@@ -211,7 +212,7 @@ MCPlatformPrintDialogResult MCPlatformEndPrintDialog(void)
 	t_result = t_nest -> result;
 	
 	if (t_nest -> owner != nil)
-		MCPlatformReleaseWindow(t_nest -> owner);
+		t_nest -> owner -> Release();
 	
     // MW-2014-07-29: [[ Bug 12961 ]] Write back the print settings.
 	MCPlatformEndPrintInfo(t_nest -> info, t_nest -> session, t_nest -> settings, t_nest -> page_format);
