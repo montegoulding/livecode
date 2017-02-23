@@ -16,6 +16,9 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#ifndef __MC_COLOR__
+#define __MC_COLOR__
+
 struct MCColorVector2
 {
 	MCGFloat x;
@@ -57,3 +60,5 @@ bool MCColorTransformLinearRGBToXYZ(const MCColorVector2 &p_white, const MCColor
 									MCColorVector3 &r_white, MCColorMatrix3x3 &r_matrix);
 
 ////////////////////////////////////////////////////////////////////////////////
+
+#endif
