@@ -46,7 +46,7 @@
 
 extern "C"
 {
-    MCExternalError MCValueFromObjValue(id, MCValueRef&);
+    MCExternalError MCValueFromObjcValue(id, MCValueRef&);
     MCExternalError MCArrayToObjcArray(MCArrayRef, NSArray*&);
     MCExternalError MCArrayFromObjcDictionary(NSDictionary*, MCArrayRef&);
     MCExternalError MCArrayFromObjcArray(NSArray*, MCArrayRef&);
