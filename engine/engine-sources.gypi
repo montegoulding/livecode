@@ -679,7 +679,7 @@
 			'src/osxmisc.mm',
 			'src/osxprinter.cpp',
 			'src/osxstack.cpp',
-			'src/osxtheme.mm',
+			'src/osxtheme.cpp',
 			'src/visualeffect.h',
 			
 			# Group "Desktop - Windows"

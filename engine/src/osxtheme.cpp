@@ -722,8 +722,13 @@ static void getscrollbarpressedstate(const MCWidgetInfo &winfo, HIThemeTrackDraw
 			{
 			case WTHEME_PART_ARROW_DEC:
 				{
-                    NSString* t_arrow_style = [[NSUserDefaults standardUserDefaults] objectForKey:@"AppleScrollBarVariant"];
-                    if (![t_arrow_style isEqualToString:@"DoubleBoth"])
+                    CFStringRef t_arrow_style =
+                    CFStringRef(CFPreferencesCopyValue(CFSTR("AppleScrollBarVariant"),
+                            kCFPreferencesAnyApplication,
+                            kCFPreferencesCurrentUser,
+                            kCFPreferencesAnyHost));
+                    
+                    if (CFStringCompare(t_arrow_style, CFSTR("DoubleBoth"), 0) != kCFCompareEqualTo)
 					{
 						if (doublesbarrows)
 							ps = kThemeLeftInsideArrowPressed;
@@ -735,7 +740,8 @@ static void getscrollbarpressedstate(const MCWidgetInfo &winfo, HIThemeTrackDraw
 						// MW-2012-09-20: [[ Bug ]] Arrow not highlighting when pressed as
 						//   wrong constant was used.
 						ps = kThemeLeftInsideArrowPressed;
-				}
+                    }
+                    CFRelease(t_arrow_style);
 				}
 				break;
 			case WTHEME_PART_ARROW_INC:
