@@ -676,7 +676,7 @@
 			'src/osxcoreimage.cpp',
 			'src/osxfield.cpp',
 			'src/osximage.cpp',
-			'src/osxmisc.mm',
+			'src/osxmisc.cpp',
 			'src/osxprinter.cpp',
 			'src/osxstack.cpp',
 			'src/osxtheme.cpp',
