@@ -19,8 +19,6 @@
 #include "unicode.h"
 #include "textlayout.h"
 
-#include <Foundation/Foundation.h>
-
 #if defined(_MACOSX) && MAC_OS_X_VERSION_MAX_ALLOWED <= MAC_OS_X_VERSION_10_6
 #include <ApplicationServices/ApplicationServices.h>
 #else
@@ -30,7 +28,7 @@
 struct MCTextLayoutFont
 {
 	MCTextLayoutFont *next;
-	NSString *name;
+	CFStringRef name;
 	CGFloat size;
 	CTFontRef handle;
 };
@@ -50,7 +48,7 @@ void MCTextLayoutFinalize(void)
 		t_font = s_fonts;
 		s_fonts = s_fonts -> next;
 		
-		[t_font -> name release];
+		CFRelease(t_font -> name);
 		CFRelease(t_font -> handle);
 		delete t_font;
 	}
@@ -64,22 +62,22 @@ CTFontRef ctfont_from_fontstruct(MCFontStruct *p_font_struct)
 
 static CTFontRef ctfont_from_ctfont(CTFontRef p_ct_font)
 {
-	NSString *t_ct_font_name;
+	CFStringRef t_ct_font_name;
 	CGFloat t_ct_font_size;
-	t_ct_font_name = (NSString *)CTFontCopyPostScriptName(p_ct_font);
+	t_ct_font_name = CTFontCopyPostScriptName(p_ct_font);
 	t_ct_font_size = CTFontGetSize(p_ct_font);
 	
 	CTFontRef t_handle;
 	t_handle = nil;
 	for(MCTextLayoutFont *t_font = s_fonts; t_font != nil && t_handle == nil; t_font = t_font -> next)
 	{
-		NSString *t_font_name;
+		CFStringRef t_font_name;
 		float t_font_size;
-		t_font_name = (NSString *)CTFontCopyPostScriptName(t_font -> handle);
+		t_font_name = CTFontCopyPostScriptName(t_font -> handle);
 		t_font_size = CTFontGetSize(t_font -> handle);
-		if ([t_font_name isEqualToString: t_ct_font_name] && t_font_size == t_ct_font_size)
+		if (CFStringCompare(t_font_name, t_ct_font_name, 0) == kCFCompareEqualTo && t_font_size == t_ct_font_size)
 			t_handle = t_font -> handle;
-		[t_font_name release];
+        CFRelease(t_font_name);
 	}
 	
 	if (t_handle == nil)
@@ -87,7 +85,7 @@ static CTFontRef ctfont_from_ctfont(CTFontRef p_ct_font)
 		MCTextLayoutFont *t_font;
 		t_font = new MCTextLayoutFont;
 		t_font -> next = s_fonts;
-		t_font -> name = [t_ct_font_name retain];
+		t_font -> name = t_ct_font_name;
 		t_font -> size = t_ct_font_size;
 		t_font -> handle = p_ct_font;
 		CFRetain(p_ct_font);
@@ -95,9 +93,9 @@ static CTFontRef ctfont_from_ctfont(CTFontRef p_ct_font)
 		
 		t_handle = p_ct_font;
 	}
-	
-	[t_ct_font_name release];
-	
+    else
+        CFRelease(t_ct_font_name);
+    
 	return t_handle;
 }
 
@@ -122,19 +120,23 @@ bool MCTextLayout(const unichar_t *p_chars, uint32_t p_char_count, MCFontStruct 
 	t_typesetter = nil;
 	if (t_success)
 	{
-		NSString *t_string;
-		t_string = [[NSString alloc] initWithCharacters: (unichar_t *)p_chars length: p_char_count];
-		
-		NSDictionary *t_attributes;
-		t_attributes = [[NSDictionary alloc] initWithObjectsAndKeys: (id)t_font, kCTFontAttributeName, nil];
-		
-		NSAttributedString *t_text;
-		t_text = [[NSAttributedString alloc] initWithString: t_string attributes: t_attributes];
-		[t_string release];
-		[t_attributes release];
+        CFStringRef t_string;
+        t_string = CFStringCreateWithCharacters(kCFAllocatorDefault, (unichar_t *)p_chars, p_char_count);
+        
+        const void *t_keys[1] = { kCTFontAttributeName };
+        const void *t_values[1] = { t_font };
+        CFDictionaryRef t_attributes;
+        t_attributes = CFDictionaryCreate(NULL, t_keys, t_values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+
+        CFAttributedStringRef t_text;
+        t_text = CFAttributedStringCreate(kCFAllocatorDefault, t_string, t_attributes);
+        
+        CFRelease(t_string);
+        CFRelease(t_attributes);
         
 		t_typesetter = CTTypesetterCreateWithAttributedString((CFAttributedStringRef)t_text);
-		[t_text release];
+		
+        CFRelease(t_text);
 		if (t_typesetter == nil)
 			t_success = false;
 	}
@@ -150,13 +152,15 @@ bool MCTextLayout(const unichar_t *p_chars, uint32_t p_char_count, MCFontStruct 
 	
 	if (t_success)
 	{
-		NSArray *t_runs;
-		t_runs = (NSArray *)CTLineGetGlyphRuns(t_line);
-		for(id t_run_id in t_runs)
-		{
-			CTRunRef t_run;
-			t_run = (CTRunRef)t_run_id;
-			
+		CFArrayRef t_runs;
+		t_runs = CTLineGetGlyphRuns(t_line);
+        
+        CFIndex t_run_count = CFArrayGetCount(t_runs);
+        CTRunRef t_run;
+        
+        for (CFIndex t_index = 0; t_index < t_run_count; t_index++) {
+            t_run = (CTRunRef)CFArrayGetValueAtIndex(t_runs, t_index);
+        	
 			CFIndex t_glyph_count;
 			t_glyph_count = CTRunGetGlyphCount(t_run);
 			
@@ -226,7 +230,7 @@ bool MCTextLayout(const unichar_t *p_chars, uint32_t p_char_count, MCFontStruct 
 			delete[] t_layout_glyphs;
 			delete[] t_clusters;
 		}
-	}
+    }
 	
 	if (t_line != nil)
 		CFRelease(t_line);

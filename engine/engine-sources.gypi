@@ -671,7 +671,7 @@
 			'src/osxprinter.h',
 			'src/osxtheme.h',
 			'src/cgimageutil.cpp',
-			'src/coretextlayout.mm',
+			'src/coretextlayout.cpp',
 			'src/osxcisupport.mm',
 			'src/osxcoreimage.cpp',
 			'src/osxfield.cpp',
