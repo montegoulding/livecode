@@ -1546,6 +1546,16 @@ void MCPlatformUngrabPointer(void)
 	s_mouse_grabbed_explicit = false;
 }
 
+void MCPlatformDisableScreenUpdates(void)
+{
+    NSDisableScreenUpdates();
+}
+
+void MCPlatformEnableScreenUpdates(void)
+{
+    NSEnableScreenUpdates();
+}
+
 void MCMacPlatformHandleMousePress(uint32_t p_button, bool p_new_state)
 {
 	bool t_state;
