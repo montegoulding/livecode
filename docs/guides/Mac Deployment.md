@@ -17,7 +17,6 @@ engines, with the following exceptions:
 
 * QuickTime is not available as it has been deprecated by Apple
 * Sound recording is not available as it depends on QuickTime
-* The revvideograbber external is not available as it depends on QuickTime
 
 Some other features may differ in minor ways not affecting 
 functionality, for example:

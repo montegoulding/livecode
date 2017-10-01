@@ -13,7 +13,6 @@ revfont/src
 revmobile/src
 revpdfprinter/src
 revspeech/src
-revvideograbber/src
 revxml/src
 thirdparty/headers/linux/include
 thirdparty/headers/linux/include/atk

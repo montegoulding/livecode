@@ -40,8 +40,6 @@ This repository contains a number of subprojects, each of which has its own subd
 
   * `revspeech/` — Text-to-speech support
 
-  * `revvideograbber/` — Video capture
-
   * `revxml/` — XML parsing and generation
 
   * `revzip/` - Zip archive management
