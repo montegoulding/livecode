@@ -145,7 +145,7 @@ def build(target):
 	args = ["python", "prebuilt/build.py"] + format_target_params(*target)
 	print(' '.join(args))
 
-	exit_status = subprocess.call(args)
+	exit_status = 0 #subprocess.call(args)
 	if exit_status == 0 and get_build_edition() == "commercial":
 		args = ["python", "../prebuilt/build.py"] + format_target_params(*target)
 		print(' '.join(args))
@@ -157,7 +157,7 @@ def package(target):
 	args = ["python", "prebuilt/package.py"] + format_target_params(*target)
 	print(' '.join(args))
 
-	exit_status = subprocess.call(args)
+	exit_status = 0 #subprocess.call(args)
 	if exit_status == 0 and get_build_edition() == "commercial":
 		args = ["python", "../prebuilt/package.py"] + format_target_params(*target)
 		print(' '.join(args))
@@ -190,7 +190,7 @@ def bin_archive(target):
 	args = ["python", "prebuilt/archive.py"] + format_target_params(*target)
 	print(' '.join(args))
 
-	exit_status = subprocess.call(args)
+	exit_status = 0 #subprocess.call(args)
 	if exit_status == 0 and get_build_edition() == "commercial":
 		args = ["python", "../prebuilt/archive.py"] + format_target_params(*target)
 		print(' '.join(args))
@@ -203,7 +203,7 @@ def do_bin_archive():
 	return bin_archive(target)
 
 def do_bin_extract():
-	exit_status = subprocess.call(['python', 'prebuilt/extract.py'])
+	exit_status = 0 #subprocess.call(['python', 'prebuilt/extract.py'])
 	if exit_status == 0 and get_build_edition() == "commercial":
 		args = ["python", "../prebuilt/extract.py"]
 		exit_status = subprocess.call(args)
@@ -218,7 +218,7 @@ def prebuilts_upload(target):
 	args = ["python", "prebuilt/upload.py"] + format_target_params(*target)
 	print(' '.join(args))
 
-	exit_status = subprocess.call(args)
+	exit_status = 0 #subprocess.call(args)
 	if exit_status == 0 and get_build_edition() == "commercial":
 		args = ["python", "../prebuilt/upload.py"] + format_target_params(*target)
 		print(' '.join(args))
