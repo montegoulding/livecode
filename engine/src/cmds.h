@@ -1073,7 +1073,8 @@ class MCMessage : public MCStatement
 	MCAutoPointer<MCExpression> eventtype;
 	MCAutoPointer<MCChunk> target;
 	MCAutoPointer<MCExpression> in;
-	Functions units;
+    MCParameter *params;
+    Functions units;
 	Boolean program;
 	Boolean reply;
 	Boolean send;
@@ -1084,6 +1085,7 @@ public:
         eventtype(nullptr),
         target(nullptr),
         in(nullptr),
+        params(nullptr),
         units(F_TICKS),
         program(False),
         reply(True),
@@ -1093,6 +1095,7 @@ public:
     }
 	virtual Parse_stat parse(MCScriptPoint &);
     virtual void exec_ctxt(MCExecContext &ctxt);
+    ~MCMessage(void);
 };
 
 class MCCall : public MCMessage
