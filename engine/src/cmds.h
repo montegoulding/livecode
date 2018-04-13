@@ -1079,6 +1079,7 @@ class MCMessage : public MCStatement
 	Boolean reply;
 	Boolean send;
     Boolean script;
+    Boolean widget;
 public:
     MCMessage(Boolean p_send) :
         message(nullptr),
@@ -1089,8 +1090,9 @@ public:
         units(F_TICKS),
         program(False),
         reply(True),
-        script(False)
-	{
+        script(False),
+        widget(False)
+    {
         send = p_send;
     }
 	virtual Parse_stat parse(MCScriptPoint &);

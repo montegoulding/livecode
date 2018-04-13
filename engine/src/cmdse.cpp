@@ -650,6 +650,10 @@ Parse_stat MCMessage::parse(MCScriptPoint &sp)
         }
         MCerrorlock--;
     }
+    else if (!send && sp.skip_token(SP_FACTOR, TT_CHUNK, CT_WIDGET) == PS_NORMAL)
+    {
+        widget = True;
+    }
 
     if (!script && sp.parseexp(False, True, &(&message)) != PS_NORMAL)
     {
@@ -757,6 +761,15 @@ void MCMessage::exec_ctxt(MCExecContext &ctxt)
 		else
 			t_target_ptr = nil;
         
+        if (widget)
+        {
+            if (t_target_ptr == nullptr || t_target_ptr->object->gettype() != CT_WIDGET)
+            {
+                ctxt.LegacyThrow(EE_SEND_BADTARGET);
+                return;
+            }
+        }
+        
         // Evaluate the parameter list
         bool t_success, t_can_debug;
         MCParameter *tptr = params;
@@ -807,7 +820,7 @@ void MCMessage::exec_ctxt(MCExecContext &ctxt)
             if (!script)
             {
                 if (!send)
-                    MCEngineExecCall(ctxt, *t_message, t_target_ptr, params);
+                    MCEngineExecCall(ctxt, *t_message, t_target_ptr, params, widget);
                 else
                     MCEngineExecSend(ctxt, *t_message, t_target_ptr, params);
             }
