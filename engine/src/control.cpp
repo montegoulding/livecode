@@ -383,7 +383,7 @@ Boolean MCControl::doubleup(uint2 which)
 	return True;
 }
 
-void MCControl::timer(MCNameRef mptr, MCParameter *params)
+void MCControl::timer(MCNameRef mptr, MCParameter *params, bool p_widget)
 {
 	if (MCNameIsEqualToCaseless(mptr, MCM_idle))
 	{
