@@ -2554,6 +2554,23 @@ bool MCMacMapSelectorToTextInputAction(SEL p_selector, MCPlatformTextInputAction
 
 ////////////////////////////////////////////////////////////////////////////////
 
+@interface com_runrev_livecode_Flipped_NSView : NSView
+
+- (BOOL)isFlipped;
+
+@end
+
+@implementation com_runrev_livecode_Flipped_NSView
+
+- (BOOL)isFlipped
+{
+    return YES;
+}
+
+@end
+
+////////////////////////////////////////////////////////////////////////////////
+
 void MCMacPlatformCreateWindow(MCPlatformWindowRef& r_window)
 {
 	r_window = new MCMacPlatformWindow;
