@@ -494,7 +494,11 @@
 						[
 							'OS == "ios"',
 							{
-								'dist_files': [ '<(PRODUCT_DIR)/standalone-mobile-community.ios-engine' ],
+								'dist_files': 
+								[ 
+									'<(PRODUCT_DIR)/standalone-mobile-community.ios-engine',
+									'<(PRODUCT_DIR)/standalone-mobile-lib-community.lcext',
+								],
 							},
 						],
 						[
