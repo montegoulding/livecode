@@ -29,6 +29,7 @@ import android.util.*;
 import android.view.*;
 import android.content.Context;
 import android.util.AttributeSet;
+import android.graphics.*;
 
 public class OpenGLView extends SurfaceView implements SurfaceHolder.Callback
 {
@@ -194,11 +195,28 @@ public class OpenGLView extends SurfaceView implements SurfaceHolder.Callback
 		Log.i("revandroid", "OpenGLView.surfaceDestroyed");
 		doSurfaceDestroyed(this);
     }
+    
+    @Override
+    protected void onMeasure (int widthMeasureSpec,
+                              int heightMeasureSpec)
+    {
+        int t_status_bar_height = 0;
+        int t_resource_id = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        if (t_resource_id > 0)
+        {
+            t_status_bar_height = getResources().getDimensionPixelSize(t_resource_id);
+        }
+        
+        int t_screen_height = getRootView().getHeight();
+        
+        setMeasuredDimension(((View)getParent()).getWidth(), t_screen_height - t_status_bar_height);
+    }
 	
     public void surfaceChanged(SurfaceHolder holder, int format, int w, int h)
 	{
-		Log.i("revandroid", "OpenGLView.surfaceChanged");
+        Log.i("revandroid", "OpenGLView.surfaceChanged");
 		doSurfaceChanged(this);
+        
     }
 	
 	public static void dumpConfig(String msg, EGL10 egl, EGLDisplay display, EGLConfig config)

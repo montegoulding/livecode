@@ -691,7 +691,7 @@ void MCScreenDC::do_fit_window(bool p_immediate_resize, bool p_post_message)
 
 		// When we get a resize from android, we need to redraw the whole thing
 		// as the buffer will have changed!
-		((MCStack *)m_current_window) -> dirtyrect(((MCStack *)m_current_window) -> getcurcard() -> getrect());
+		((MCStack *)m_current_window) -> dirtyall();
 	}
 }
 
@@ -2768,8 +2768,9 @@ static void doSurfaceChangedCallback(void *p_is_init)
 
 	// We can now re-enable screen updates.
 	MCRedrawEnableScreenUpdates();
-
-	// Force a screen redraw
+    
+    // Force a screen redraw
+    MCRedrawDirtyScreen();
 	MCRedrawUpdateScreen();
 }
 
