@@ -2947,14 +2947,15 @@ private:
 	int m_options;
 };
 
-extern "C" JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doNativeNotify(JNIEnv *env, jobject object, int p_callback, int p_context) __attribute__((visibility("default")));
-JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doNativeNotify(JNIEnv *env, jobject object, int p_callback, int p_context)
+extern "C" JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doNativeNotify(JNIEnv *env, jobject object, jlong p_callback, jlong p_context) __attribute__((visibility("default")));
+JNIEXPORT void JNICALL Java_com_runrev_android_Engine_doNativeNotify(JNIEnv *env, jobject object, jlong p_callback, jlong p_context)
 {
 	co_yield_to_engine_and_call((co_yield_callback_t)p_callback, (void *)p_context);
 }
 
 bool android_run_on_main_thread(void *p_callback, void *p_callback_state, int p_options)
 {
+    MCLog("android_run_on_main_thread start");
 	// If this is a jump, then handle things differently.
 	if ((p_options & (kMCExternalRunOnMainThreadJumpToUI | kMCExternalRunOnMainThreadJumpToEngine)) != 0)
 	{
@@ -2976,7 +2977,8 @@ bool android_run_on_main_thread(void *p_callback, void *p_callback_state, int p_
 				co_yield_to_engine_and_call((co_yield_callback_t)p_callback, p_callback_state);
 		}
 		
-		return true;
+        MCLog("android_run_on_main_thread return true");
+        return true;
 	}
 	
 	// If the current thread is not the engine thread, then we must poke
@@ -2993,8 +2995,9 @@ bool android_run_on_main_thread(void *p_callback, void *p_callback_state, int p_
 		
 		MCRunOnMainThreadHelper *t_helper;
 		t_helper = new (nothrow) MCRunOnMainThreadHelper(p_callback, p_callback_state, p_options);
-		MCAndroidEngineCall("nativeNotify", "vii", nil, MCRunOnMainThreadHelper::DispatchThunk, t_helper);
-		return true;
+		MCAndroidEngineCall("nativeNotify", "vjj", nil, MCRunOnMainThreadHelper::DispatchThunk, t_helper);
+        MCLog("android_run_on_main_thread return true 1");
+        return true;
 	}
 	
 	// Unsafe and immediate -> queue and perform
@@ -3006,13 +3009,15 @@ bool android_run_on_main_thread(void *p_callback, void *p_callback_state, int p_
 				((MCExternalThreadRequiredCallback)p_callback)(p_callback_state, 0);
 			else
 				((MCExternalThreadOptionalCallback)p_callback)(p_callback_state);
-			return true;
+            MCLog("android_run_on_main_thread return true 2");
+            return true;
 		}
 		
 		MCRunOnMainThreadHelper *t_helper;
 		t_helper = new (nothrow) MCRunOnMainThreadHelper(p_callback, p_callback_state, p_options & ~kMCExternalRunOnMainThreadPost);
-		MCAndroidEngineCall("nativeNotify", "vii", nil, MCRunOnMainThreadHelper::DispatchThunk, t_helper);
-		return true;
+		MCAndroidEngineCall("nativeNotify", "vjj", nil, MCRunOnMainThreadHelper::DispatchThunk, t_helper);
+        MCLog("android_run_on_main_thread return true 3");
+        return true;
 	}
 	
 	// Safe and immediate -> post to front of event queue
@@ -3024,7 +3029,8 @@ bool android_run_on_main_thread(void *p_callback, void *p_callback_state, int p_
 	else
 		MCEventQueuePostCustomAtFront(t_event);
 	
-	return true;
+    MCLog("android_run_on_main_thread return true 4");
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
