@@ -240,7 +240,10 @@ Parse_stat MCChunk::parse(MCScriptPoint &sp, Boolean doingthe)
 		if (type == ST_ID)
 		{
 			te = NULL;
-			if (sp.lookup(SP_FACTOR, te) != PS_NORMAL || te->type == TT_PROPERTY)
+            /* TODO[MW]: Generalize to allow any non-special-cased chunk function
+             * name to be used as target. */
+			if (sp.lookup(SP_FACTOR, te) != PS_NORMAL || te->type == TT_PROPERTY ||
+                (te->type == TT_FUNCTION && te->which == F_TRY))
 			{
 				if (need_target)
 				{
