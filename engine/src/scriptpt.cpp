@@ -1817,7 +1817,70 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 						return PS_ERROR;
 					}
 
-					if (lookupconstant(&newfact) != PS_NORMAL)
+					if (lookupconstant(&newfact) == PS_NORMAL)
+                    {
+                        MCAutoValueRef t_root_value;
+                        MCValueRef t_current_value = nullptr;
+                        for(;;)
+                        {
+                            if (next(type) != PS_NORMAL)
+                                break;
+                            
+                            if (type != ST_LB)
+                            {
+                                backup();
+                                break;
+                            }
+                            
+                            if (t_current_value == nullptr)
+                            {
+                                if (!newfact->constant_eval(&t_root_value))
+                                {
+                                    MCperror->add(PE_EXPRESSION_NOTCONSTANT, *this);
+                                    return PS_ERROR;
+                                }
+                                t_current_value = *t_root_value;
+                            }
+                        
+                            if (!MCValueIsArray(t_current_value))
+                            {
+                                MCperror->add(PE_EXPRESSION_NOTCONSTANTARRAY, *this);
+                                return PS_ERROR;
+                            }
+                            
+                            MCAutoPointer<MCExpression> t_index_expr;
+                            MCNewAutoNameRef t_index;
+                            if (parseexp(False, True, &(&t_index_expr)) != PS_NORMAL ||
+                                !t_index_expr->getattrs().IsConstant() ||
+                                !t_index_expr->constant_eval(&t_index))
+                            {
+                                MCperror->add(PE_EXPRESSION_KEYNOTCONSTANT, *this);
+                                return PS_ERROR;
+                            }
+                            
+                            MCValueRef t_next_value;
+                            if (!MCArrayFetchValue((MCArrayRef)t_current_value, false, *t_index, t_next_value))
+                            {
+                                MCperror->add(PE_EXPRESSION_CONSTANTKEYNOTEXIST, *this);
+                                return PS_ERROR;
+                            }
+                            
+                            t_current_value = t_next_value;
+                            
+                            if (next(type) != PS_NORMAL || type != ST_RB)
+                            {
+                                MCperror->add(PE_VARIABLE_NORBRACE, *this);
+                                return PS_ERROR;
+                            }
+                        }
+                        
+                        if (t_current_value != nullptr)
+                        {
+                            delete newfact;
+                            newfact = new(nothrow) MCLiteral(t_current_value);
+                        }
+                    }
+                    else
 					{
 						MCVarref *newvar;
 						newfact = NULL;

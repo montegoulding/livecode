@@ -162,43 +162,40 @@ Parse_stat MCLocaltoken::parse(MCScriptPoint &sp)
 				return PS_ERROR;
 			}
 		}
-
-		MCVarref *tvar = NULL;
-		MCAutoStringRef init;
-		bool initialised = false;
-		if (sp.skip_token(SP_FACTOR, TT_BINOP, O_EQ) == PS_NORMAL)
-		{
+        
+        MCVarref *tvar = NULL;
+        MCAutoValueRef init;
+        bool initialised = false;
+        if (sp.skip_token(SP_FACTOR, TT_BINOP, O_EQ) == PS_NORMAL)
+        {
             // MW-2014-11-06: [[ Bug 3680 ]] If there is nothing after '=' it's an error.
-			if (sp.next(type) != PS_NORMAL)
-			{
-				if (constant)
-					MCperror->add(PE_CONSTANT_BADINIT, sp);
-				else
-					MCperror->add(PE_LOCAL_BADINIT, sp);
-				return PS_ERROR;
-			}
-            
-            // MW-2014-11-06: [[ Bug 3680 ]] We allow either - or + next, but only if the
-            //   next token is a number.
-			if (type == ST_MIN || (type == ST_OP && sp.token_is_cstring("+")))
-			{
-                bool t_is_minus = type == ST_MIN;
-                // negative or positive initializer
-				if (sp.next(type) != PS_NORMAL || type != ST_NUM)
-				{
-					if (constant)
-						MCperror->add(PE_CONSTANT_BADINIT, sp);
-					else
-						MCperror->add(PE_LOCAL_BADINIT, sp);
-					return PS_ERROR;
-				}
-                // PM-2015-01-30: [[ Bug 14439 ]] Make sure minus sign is not ignored when assigning value to var at declaration
-                if (t_is_minus)
-                    /* UNCHECKED */ MCStringFormat(&init, "-%@", sp.gettoken_stringref());
+            if (sp.next(type) != PS_NORMAL)
+            {
+                if (constant)
+                    MCperror->add(PE_CONSTANT_BADINIT, sp);
                 else
-                    init = sp.gettoken_stringref();
-			}
-			else
+                    MCperror->add(PE_LOCAL_BADINIT, sp);
+                return PS_ERROR;
+            }
+            
+            /* If the next token is not an id token, then parse an expression */
+            if (type != ST_ID)
+            {
+                MCLog("%@", sp.gettoken_nameref());
+                sp.backup();
+                
+                /* Parse an expression, check its constant, and try to evalute
+                 * its constant value. */
+                MCAutoPointer<MCExpression> t_value_exp;
+                if (sp.parseexp(False, True, &(&t_value_exp)) != PS_NORMAL ||
+                    !t_value_exp->getattrs().IsConstant() ||
+                    !t_value_exp->constant_eval(&init))
+                {
+                    MCperror->add(PE_INITIALIZER_NOTCONSTANT, sp);
+                    return PS_ERROR;
+                }
+            }
+            else
             {
                 // MW-2014-11-06: [[ Bug 3680 ]] If we are in explicit var mode, and the token
                 //   is not a string literal or a number, then it must be a constant in the constant
@@ -217,23 +214,23 @@ Parse_stat MCLocaltoken::parse(MCScriptPoint &sp)
                 //   a number, its an error.
                 if (MCexplicitvariables && type != ST_LIT && type != ST_NUM)
                 {
-					if (constant)
-						MCperror->add(PE_CONSTANT_BADINIT, sp);
-					else
-						MCperror->add(PE_LOCAL_BADINIT, sp);
-					return PS_ERROR;
+                    if (constant)
+                        MCperror->add(PE_CONSTANT_BADINIT, sp);
+                    else
+                        MCperror->add(PE_LOCAL_BADINIT, sp);
+                    return PS_ERROR;
                 }
                 
                 init = sp.gettoken_stringref();
             }
-
-			initialised = true;
-		}
-		else if (constant)
-			{
-				MCperror->add(PE_CONSTANT_NOINIT, sp);
-				return PS_ERROR;
-			}
+            
+            initialised = true;
+        }
+        else if (constant)
+        {
+            MCperror->add(PE_CONSTANT_NOINIT, sp);
+            return PS_ERROR;
+        }
 
 		MCAutoValueRef t_init_value;
 		if (initialised)

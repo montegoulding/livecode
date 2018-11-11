@@ -244,6 +244,15 @@ void MCMinus::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 //  Miscellaneous operators
 //
 
+MCExpressionAttrs MCGrouping::getattrs(void) const
+{
+    if (right != NULL)
+    {
+        return right->getattrs();
+    }
+    return {};
+}
+
 void MCGrouping::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 {
     if (right != NULL)

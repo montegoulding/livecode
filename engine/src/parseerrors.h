@@ -1828,6 +1828,21 @@ enum Parse_errors
     
     // {PE-0594} try: bad parameters
     PE_TRYFUNC_BADPARAM,
+    
+    // {PE-0595} initializer: not constant
+    PE_INITIALIZER_NOTCONSTANT,
+    
+    // {PE-0596} expression: not constant
+    PE_EXPRESSION_NOTCONSTANT,
+    
+    // {PE-0597} expression: constant is not an array
+    PE_EXPRESSION_NOTCONSTANTARRAY,
+    
+    // {PE-0598} expression: key is not constant
+    PE_EXPRESSION_KEYNOTCONSTANT,
+    
+    // {PE-0599} expression: constant key not present
+    PE_EXPRESSION_CONSTANTKEYNOTEXIST,
 };
 
 extern const char *MCparsingerrors;

@@ -320,6 +320,9 @@ public:
 	{
 		rank = FR_GROUPING;
     }
+    
+    virtual MCExpressionAttrs getattrs(void) const;
+    
     virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
 };
 
