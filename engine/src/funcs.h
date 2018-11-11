@@ -129,6 +129,21 @@ protected:
     MCExpression *m_expression;
 };
 
+template<typename ParamType,
+         typename ReturnType,
+         void (*EvalFunction)(MCExecContext&, typename MCExecValueTraits<ParamType>::in_type, typename MCExecValueTraits<ReturnType>::out_type),
+         Exec_errors EvalError,
+         Parse_errors ParseError>
+class MCDeterministicUnaryFunctionCtxt: public MCUnaryFunctionCtxt<ParamType, ReturnType, EvalFunction, EvalError, ParseError>
+{
+public:
+    virtual MCExpressionAttrs getattrs(void) const
+    {
+        return MCUnaryFunctionCtxt<ParamType, ReturnType, EvalFunction, EvalError, ParseError>::m_expression->getattrs();
+    }
+};
+
+
 template<void (*EvalExprMethod)(MCExecContext &, real64_t*, uindex_t, real64_t&),
          Exec_errors EvalError,
          Parse_errors ParseError>
@@ -285,6 +300,7 @@ class MCCapsLockKey : public MCConstantFunctionCtxt<MCNameRef, MCInterfaceEvalCa
 public:
 };
 
+/* CharToNum is not deterministic as it relies on the useUnicode local property */
 class MCCharToNum : public MCUnaryFunctionCtxt<MCValueRef, MCValueRef, MCStringsEvalCharToNum, EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM>
 {
 public:
@@ -292,7 +308,7 @@ public:
     virtual ~MCCharToNum(){}
 };
 
-class MCByteToNum : public MCUnaryFunctionCtxt<MCStringRef, integer_t, MCStringsEvalByteToNum, EE_BYTETONUM_BADSOURCE, PE_BYTETONUM_BADPARAM>
+class MCByteToNum : public MCDeterministicUnaryFunctionCtxt<MCStringRef, integer_t, MCStringsEvalByteToNum, EE_BYTETONUM_BADSOURCE, PE_BYTETONUM_BADPARAM>
 {
 public:
     MCByteToNum(){}
@@ -1115,13 +1131,14 @@ class MCMovingControls : public MCConstantFunctionCtxt<MCStringRef, MCInterfaceE
 public:
 };
 
-class MCNativeCharToNum : public MCUnaryFunctionCtxt<MCStringRef, uinteger_t, MCStringsEvalNativeCharToNum, EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> // FIXME
+class MCNativeCharToNum : public MCDeterministicUnaryFunctionCtxt<MCStringRef, uinteger_t, MCStringsEvalNativeCharToNum, EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> // FIXME
 {
 public:
     MCNativeCharToNum(){}
     virtual ~MCNativeCharToNum(){}
 };
 
+/* NumToChar is not deterministic as it relies on the useUnicode local property */
 class MCNumToChar: public MCUnaryFunctionCtxt<uinteger_t, MCValueRef, MCStringsEvalNumToChar, EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM>
 {
 public:
@@ -1129,7 +1146,7 @@ public:
     virtual ~MCNumToChar(){}
 };
 
-class MCNumToNativeChar : public MCUnaryFunctionCtxt<uinteger_t, MCStringRef, MCStringsEvalNumToNativeChar,
+class MCNumToNativeChar : public MCDeterministicUnaryFunctionCtxt<uinteger_t, MCStringRef, MCStringsEvalNumToNativeChar,
     EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM> // FIXME
 {
 public:
@@ -1137,7 +1154,7 @@ public:
     virtual ~MCNumToNativeChar(){}
 };
 
-class MCNumToUnicodeChar : public MCUnaryFunctionCtxt<uinteger_t, MCStringRef, MCStringsEvalNumToUnicodeChar,
+class MCNumToUnicodeChar : public MCDeterministicUnaryFunctionCtxt<uinteger_t, MCStringRef, MCStringsEvalNumToUnicodeChar,
     EE_NUMTOCHAR_BADSOURCE, PE_NUMTOCHAR_BADPARAM> // FIXME
 {
 public:
@@ -1146,7 +1163,7 @@ public:
 };
 
 // AL-2014-10-21: [[ Bug 13740 ]] numToByte should return a DataRef
-class MCNumToByte: public MCUnaryFunctionCtxt<integer_t, MCDataRef, MCStringsEvalNumToByte, EE_NUMTOBYTE_BADSOURCE, PE_NUMTOBYTE_BADPARAM>
+class MCNumToByte: public MCDeterministicUnaryFunctionCtxt<integer_t, MCDataRef, MCStringsEvalNumToByte, EE_NUMTOBYTE_BADSOURCE, PE_NUMTOBYTE_BADPARAM>
 {
 public:
     MCNumToByte(void){}
@@ -1573,7 +1590,7 @@ public:
 	virtual void eval_ctxt(MCExecContext &, MCExecValue &);
 };
 
-class MCUnicodeCharToNum : public MCUnaryFunctionCtxt<MCStringRef, uinteger_t, MCStringsEvalUnicodeCharToNum,
+class MCUnicodeCharToNum : public MCDeterministicUnaryFunctionCtxt<MCStringRef, uinteger_t, MCStringsEvalUnicodeCharToNum,
     EE_CHARTONUM_BADSOURCE, PE_CHARTONUM_BADPARAM> // FIXME
 {
 public:

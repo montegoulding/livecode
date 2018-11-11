@@ -27,8 +27,8 @@ class MCLiteral : public MCExpression
 	MCValueRef value;
 public:
 	MCLiteral(MCValueRef v)
-	{
-		/* UNCHECKED */ value = MCValueRetain(v);
+    {
+        /* UNCHECKED */ MCValueInter(v, value);
 	}
 	~MCLiteral(void)
 	{

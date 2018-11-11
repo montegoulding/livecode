@@ -41,4 +41,16 @@ on TestLocalConstant
 	constant kLocalArrayLiteral = { "value": 1 }
 	TestAssert "arr literal", kLocalArrayLiteral is { "value": 1 }
 	TestAssert "arr literal (key)", kLocalArrayLiteral["value"] is 1
+
+	constant kNumToNativeCharLiteral = (numToNativeChar(100))
+	get 100
+	TestAssert "numtonativechar literal", kNumToNativeCharLiteral is numToNativeChar(it)
+
+	constant kNumToCodepointLiteral = (numToCodepoint(10000))
+	get 10000
+	TestAssert "numtocodepoint literal", kNumToCodepointLiteral is numToCodepoint(it)
+
+	constant kNumToByteLiteral = (numToByte(127))
+	get 127
+	TestAssert "numtobyte literal", kNumToByteLiteral is numToByte(it)
 end TestLocalConstant
