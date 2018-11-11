@@ -53,4 +53,8 @@ on TestLocalConstant
 	constant kNumToByteLiteral = (numToByte(127))
 	get 127
 	TestAssert "numtobyte literal", kNumToByteLiteral is numToByte(it)
+
+	constant kConcatLiteral = ("foo" & "bar")
+	get "foo"
+	TestAssert "concat literal", kConcatLiteral is it & "bar"
 end TestLocalConstant

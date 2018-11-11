@@ -284,11 +284,14 @@ public:
 	{
 		rank = FR_CONCAT;
     }
+    virtual MCExpressionAttrs getattrs(void) const;
     virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
 };
 
 class MCConcatSpace : public MCBinaryOperatorCtxt<MCStringRef, MCStringRef, MCStringsEvalConcatenateWithSpace, EE_CONCATSPACE_BADLEFT, EE_CONCATSPACE_BADRIGHT, FR_CONCAT>
-{};
+{
+    virtual MCExpressionAttrs getattrs(void) const;
+};
 
 class MCContains : public MCBinaryOperatorCtxt<MCStringRef, bool, MCStringsEvalContains, EE_CONTAINS_BADLEFT, EE_CONTAINS_BADRIGHT, FR_COMPARISON>
 {};

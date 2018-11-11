@@ -26,10 +26,7 @@ class MCLiteral : public MCExpression
 {
 	MCValueRef value;
 public:
-	MCLiteral(MCValueRef v)
-    {
-        /* UNCHECKED */ MCValueInter(v, value);
-	}
+    MCLiteral(MCValueRef v);
 	~MCLiteral(void)
 	{
 		MCValueRelease(value);

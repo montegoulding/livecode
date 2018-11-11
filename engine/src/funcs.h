@@ -139,10 +139,9 @@ class MCDeterministicUnaryFunctionCtxt: public MCUnaryFunctionCtxt<ParamType, Re
 public:
     virtual MCExpressionAttrs getattrs(void) const
     {
-        return MCUnaryFunctionCtxt<ParamType, ReturnType, EvalFunction, EvalError, ParseError>::m_expression->getattrs();
+        return MCUnaryFunctionCtxt<ParamType, ReturnType, EvalFunction, EvalError, ParseError>::m_expression->getattrs().template SetType<ReturnType>();
     }
 };
-
 
 template<void (*EvalExprMethod)(MCExecContext &, real64_t*, uindex_t, real64_t&),
          Exec_errors EvalError,

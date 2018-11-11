@@ -24,7 +24,14 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 MCExpressionAttrs MCConstant::getattrs(void) const
 {
-    return MCExpressionAttrs().SetIsConstant();
+    if (nvalue == BAD_NUMERIC)
+    {
+        return MCExpressionAttrs().SetIsConstantString();
+    }
+    else
+    {
+        return MCExpressionAttrs().SetIsConstantNumber();
+    }
 }
 
 void MCConstant::eval_ctxt(MCExecContext& ctxt, MCExecValue& r_value)

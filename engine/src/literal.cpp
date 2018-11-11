@@ -26,9 +26,82 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "scriptpt.h"
 #include "mcerror.h"
 
+MCLiteral::MCLiteral(MCValueRef p_value)
+{
+    if (MCValueGetTypeCode(p_value) == kMCValueTypeCodeString)
+    {
+        MCNameCreate((MCStringRef)p_value, (MCNameRef&)value);
+    }
+    else
+    {
+        MCValueInter(p_value, value);
+    }
+}
+        
 MCExpressionAttrs MCLiteral::getattrs(void) const
 {
-    return MCExpressionAttrs().SetIsConstant();
+    MCExpressionAttrs t_attrs;
+    switch(MCValueGetTypeCode(value))
+    {
+        /* Boolean and Null are not numbers, but are constant strings */
+        case kMCValueTypeCodeBoolean:
+        case kMCValueTypeCodeNull:
+            t_attrs.SetIsConstantString();
+            break;
+        /* Strings and names and data constant strings, but are only constant numbers
+         * if conversion from string->number is not affected by convertOctals.
+         * This means the string must not start with '0<digit>'. */
+        case kMCValueTypeCodeString:
+            t_attrs.SetIsConstantString();
+            if (MCStringGetLength((MCStringRef)value) == 1 ||
+                __is_constant_number(MCStringGetNativeCharPtr((MCStringRef)value)))
+            {
+                t_attrs.SetIsConstantNumber();
+            }
+            break
+        case kMCValueTypeCodeName:
+            t_attrs.SetIsConstantString();
+            if (MCStringGetLength(MCNameGetString((MCNameRef)value)) == 1 ||
+                __is_constant_number(MCStringGetNativeCharPtr(MCNameGetString((MCNameRef)value))))
+            {
+                t_attrs.SetIsConstantNumber();
+            }
+            break
+        case kMCValueTypeCodeData:
+            t_attrs.SetIsConstantString();
+            if (MCDataGetLength((MCDataRef)value) == 1 ||
+                __is_constant_number((const char_t *)MCDataGetBytePtr((MCDataRef)value)))
+            {
+                t_attrs.SetIsConstantNumber();
+            }
+            break;
+        /* Numbers are always constant numbers in this context, but cannot be
+         * constant strings, as their conversion to string depends on the
+         * numberFormat. */
+        case kMCValueTypeCodeNumber:
+            t_attrs.SetIsConstantNumber();
+            break;
+        /* Arrays convert to the empty string, so are constant strings. */
+        case kMCValueTypeCodeArray:
+            t_attrs.SetIsConstantString();
+            break;
+        default:
+            break;
+    }
+    return t_attrs;
+}
+
+/* If the first char is not 0 then it cannot be an octal number.
+ * If the first char is 0, but the second is not a digit, then it cannot be
+ * an octal number.
+ * Otherwise it could be an octal number. */
+static bool __is_constant_number(const char_t *p_chars)
+{
+    if (p_chars[0] != '0')
+        return true;
+    if (!isdigit(p_chars[1]))
+        return true;
+    return false;
 }
 
 Parse_stat MCLiteral::parse(MCScriptPoint &sp, Boolean the)
@@ -58,15 +131,18 @@ MCSequenceLiteral::~MCSequenceLiteral(void)
 
 MCExpressionAttrs MCSequenceLiteral::getattrs(void) const
 {
+    MCExpressionAttrs t_attrs;
+    t_attrs.SetIsArray();
+    
     /* If there are dynamic values, then the expression cannot be constant. */
     if (m_dynamic_values != nullptr)
     {
-        return {};
+        return t_attrs;
     }
     
     /* If there are no dynamic values, then the expression is constant and its
      * value is m_base_value. */
-    return MCExpressionAttrs().SetIsConstant();
+    return t_attrs.SetIsConstant();
 }
 
 Parse_stat MCSequenceLiteral::parse(MCScriptPoint& sp, Boolean the)
@@ -254,15 +330,18 @@ MCArrayLiteral::~MCArrayLiteral(void)
 
 MCExpressionAttrs MCArrayLiteral::getattrs(void) const
 {
+    MCExpressionAttrs t_attrs;
+    t_attrs.SetIsArray();
+    
     /* If there are dynamic values, then the expression cannot be constant. */
     if (m_dynamic_values != nullptr)
     {
-        return {};
+        return t_attrs;
     }
     
     /* If there are no dynamic values, then the expression is constant and its
      * value is m_base_value. */
-    return MCExpressionAttrs().SetIsConstant();
+    return t_attrs.SetIsConstant();
 }
 
 #ifndef __ALLOW_DYNAMIC_ARRAY_LITERAL_KEYS__
