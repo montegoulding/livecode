@@ -54,6 +54,13 @@ public:
 		return next;
 	}
 
+    MCExpressionAttrs getattrs(void) const
+    {
+        if (exp != nullptr)
+            return exp->getattrs();
+        return {};
+    }
+    
 	void setvalueref_argument(MCValueRef name);
 	void give_exec_argument(MCExecValue name);
 	void setn_argument(real8 n);

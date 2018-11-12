@@ -34,133 +34,20 @@ public:
         return (m_flags & kIsConstant) != 0;
     }
     
-    bool HasType(void) const
-    {
-        return (m_flags & _kTypeMask) != 0;
-    }
-    
-    bool IsBoolean(void) const
-    {
-        return _IsType(kIsBoolean);
-    }
-    
-    bool IsString(void) const
-    {
-        return _IsType(kIsString);
-    }
-    
-    bool IsNumber(void) const
-    {
-        return _IsType(kIsNumber);
-    }
-    
-    bool IsData(void) const
-    {
-        return _IsType(kIsData);
-    }
-    
-    bool IsArray(void) const
-    {
-        return _IsType(kIsArray);
-    }
-    
     MCExpressionAttrs SetIsConstant(void)
     {
         m_flags |= kIsConstant;
         return *this;
     }
     
-    MCExpressionAttrs SetIsBoolean(void)
-    {
-        m_flags = (m_flags & ~_kTypeMask) | kIsBoolean;
-        return *this;
-    }
-    
-    MCExpressionAttrs SetIsString(void)
-    {
-        m_flags = (m_flags & ~_kTypeMask) | kIsString;
-        return *this;
-    }
-    
-    MCExpressionAttrs SetIsNumber(void)
-    {
-        m_flags = (m_flags & ~_kTypeMask) | kIsNumber;
-        return *this;
-    }
-    
-    MCExpressionAttrs SetIsData(void)
-    {
-        m_flags = (m_flags & ~_kTypeMask) | kIsData;
-        return *this;
-    }
-    
-    MCExpressionAttrs SetIsArray(void)
-    {
-        m_flags = (m_flags & ~_kTypeMask) | kIsArray;
-        return *this;
-    }
-    
-    template<typename T>
-    MCExpressionAttrs SetType(void);
-    
 private:
     enum
     {
         kIsConstant = 1 << 0,
-        kIsConstantString = 1 << 1,
-        kIsConstantNumber = 1 << 2,
     };
     
     uint32_t m_flags = 0;
 };
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<MCBooleanRef>(void)
-{
-    return SetIsBoolean();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<double>(void)
-{
-    return SetIsNumber();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<integer_t>(void)
-{
-    return SetIsNumber();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<uinteger_t>(void)
-{
-    return SetIsNumber();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<MCNumberRef>(void)
-{
-    return SetIsNumber();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<MCStringRef>(void)
-{
-    return SetIsString();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<MCDataRef>(void)
-{
-    return SetIsData();
-}
-
-template<>
-inline MCExpressionAttrs MCExpressionAttrs::SetType<MCArrayRef>(void)
-{
-    return SetIsArray();
-}
 
 class MCExpression
 {
@@ -214,17 +101,7 @@ public:
 	void eval_typed(MCExecContext& ctxt, MCExecValueType return_type, void* return_value);
 	
 	//////////
-    
-    template<typename T>
-    bool constant_eval(T& r_value)
-    {
-        return constant_eval_typed(MCExecValueTraits<T>::type_enum, &r_value);
-    }
-    
-    bool constant_eval_typed(MCExecValueType return_type, void* return_value_ptr);
-    
-    //////////
-	
+    	
 	void setrank(Factor_rank newrank)
 	{
 		rank = newrank;

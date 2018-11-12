@@ -427,6 +427,10 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 
 	MCScriptPoint sp(objptr, this, script);
 
+    /* Create a default MCExecContext to use for static evaluation of top-level
+     * constant declarations and initializers */
+    MCExecContext t_static_ctxt;
+    
 	// MW-2008-11-02: Its possible for the objptr to be NULL if this is inert execution
 	//   (for example 'getdefaultprinter()' on Linux) so don't indirect in this case.
 	bool t_is_parent_script;
@@ -497,7 +501,11 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 
 						t_is_private = true;
 					}
-					newhandler = new (nothrow) MCHandler((uint1)te->which, t_is_private);
+                    newhandler = new (nothrow) MCHandler((uint1)te->which, t_is_private);
+                    
+                    /* Handlers must use their own static context */
+                    sp.setstaticctxt(nullptr);
+                    
 					if (newhandler->parse(sp, te->which == HT_GETPROP || te->which == HT_SETPROP) != PS_NORMAL)
 					{
 						sp.sethandler(NULL);
@@ -520,6 +528,10 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 				break;
 				case TT_VARIABLE:
 					sp.sethandler(NULL);
+                    
+                    /* Variables (and constants) use our static context. */
+                    sp.setstaticctxt(&t_static_ctxt);
+                        
 					switch (te->which)
 					{
 					case S_GLOBAL:

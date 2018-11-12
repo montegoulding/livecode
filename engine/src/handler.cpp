@@ -239,6 +239,11 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 		MCperror->add(PE_HANDLER_BADPARAMEOL, sp);
 		return PS_ERROR;
 	}
+    
+    /* Whilst parsing the body of a handler, provide a static context. */
+    MCExecContext t_static_ctxt;
+    sp.setstaticctxt(&t_static_ctxt);
+    
 	sp.sethandler(this);
 	MCStatement *curstatement = NULL;
 	MCStatement *newstatement = NULL;

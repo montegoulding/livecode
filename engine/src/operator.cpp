@@ -110,15 +110,13 @@ void MCNot::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 
 MCExpressionAttrs MCConcat::getattrs(void) const
 {
-    /* Concat is only constant if both sides are constant when converted to
-     * strings. */
-    if (!t_left->getattrs().IsConstantString() || 
-        !t_right->getattrs().IsConstantString())
+    if (!left->getattrs().IsConstant() || 
+        !right->getattrs().IsConstant())
     {
         return {};
     }
     
-    return MCExpressionAttrs().SetIsConstantString();
+    return MCExpressionAttrs().SetIsConstant();
 }
 
 void MCConcat::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
@@ -158,15 +156,13 @@ void MCConcat::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 
 MCExpressionAttrs MCConcatSpace::getattrs(void) const
 {
-    /* ConcatSpace is only constant if both sides are constant when converted to
-     * strings. */
-    if (!t_left->getattrs().IsConstantString() || 
-        !t_right->getattrs().IsConstantString())
+    if (!left->getattrs().IsConstant() || 
+        !right->getattrs().IsConstant())
     {
         return {};
     }
     
-    return MCExpressionAttrs().SetIsConstantString();
+    return MCExpressionAttrs().SetIsConstant();
 }
 
 Parse_stat MCBeginsEndsWith::parse(MCScriptPoint& sp, Boolean the)

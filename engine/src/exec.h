@@ -1782,6 +1782,13 @@ private:
     bool m_wholematches : 1;
     bool m_usesystemdate : 1;
     bool m_useunicode : 1;
+    
+    bool m_itemdel_unknown : 1;
+    bool m_linedel_unknown : 1;
+    bool m_string_options_unknown : 1;
+    bool m_convertoctals_unknown : 1;
+    bool m_useunicode_unknown : 1;
+    bool m_numberformat_unknown : 1;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

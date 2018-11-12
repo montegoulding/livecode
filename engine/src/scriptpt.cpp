@@ -132,6 +132,8 @@ MCScriptPoint::MCScriptPoint(MCObject *o, MCHandlerlist *hl, MCStringRef s)
 	in_tag = False;
 	was_in_tag = False;
 	token_nameref = MCValueRetain(kMCEmptyName);
+    
+    m_static_ctxt = nullptr;
 }
 
 MCScriptPoint::MCScriptPoint(MCScriptPoint &sp)
@@ -155,6 +157,8 @@ MCScriptPoint::MCScriptPoint(MCScriptPoint &sp)
 	was_in_tag = sp.was_in_tag;
 	token_nameref = MCValueRetain(kMCEmptyName);
     m_type = ST_UNDEFINED;
+    
+    m_static_ctxt = sp.m_static_ctxt;
 }
 
 MCScriptPoint::MCScriptPoint(MCExecContext &ctxt)
@@ -177,6 +181,8 @@ MCScriptPoint::MCScriptPoint(MCExecContext &ctxt)
     was_in_tag = False;
     token_nameref = MCValueRetain(kMCEmptyName);
     m_type = ST_UNDEFINED;
+    
+    m_static_ctxt = nullptr;
 }
 
 MCScriptPoint::MCScriptPoint(MCExecContext &ctxt, MCStringRef p_string)
@@ -203,6 +209,8 @@ MCScriptPoint::MCScriptPoint(MCExecContext &ctxt, MCStringRef p_string)
     token_nameref = MCValueRetain(kMCEmptyName);
     
     m_type = ST_UNDEFINED;
+    
+    m_static_ctxt = nullptr;
 }
 
 MCScriptPoint::MCScriptPoint(MCStringRef p_string)
@@ -229,6 +237,8 @@ MCScriptPoint::MCScriptPoint(MCStringRef p_string)
 	token_nameref = MCValueRetain(kMCEmptyName);
     
     m_type = ST_UNDEFINED;
+    
+    m_static_ctxt = nullptr;
 }
 
 MCScriptPoint& MCScriptPoint::operator =(const MCScriptPoint& sp)
@@ -249,6 +259,9 @@ MCScriptPoint& MCScriptPoint::operator =(const MCScriptPoint& sp)
 	pos = sp.pos;
     m_type = sp.m_type;
     MCValueAssign(token_nameref, sp.token_nameref);
+    
+    m_static_ctxt = sp.m_static_ctxt;
+    
 	return *this;
 }
 
@@ -1500,12 +1513,12 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 				return PS_ERROR;
 			}
 			else if (depth == 0)
-					return PS_NORMAL;
-				else
-				{
-					MCperror->add(PE_EXPRESSION_NORPAR, *this);
-					return PS_ERROR;
-				}
+                goto done;
+            else
+            {
+                MCperror->add(PE_EXPRESSION_NORPAR, *this);
+                return PS_ERROR;
+            }
 		}
 		if (!needfact && type != ST_OP && type != ST_MIN && type != ST_RP
 		        && !(type == ST_SEP && litems)
@@ -1514,8 +1527,8 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 		{
 			if (depth == 0)
 			{
-				backup();
-				return PS_NORMAL;
+                backup();
+                goto done;
 			}
 			else
 			{
@@ -1569,7 +1582,8 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 				if (needfact)
 					newfact = insertfactor(new MCLiteral(kMCEmptyName), curfact, top);
 				backup();
-				return PS_NORMAL;
+                
+                goto done;
 			}
 			break;
         case ST_LC:
@@ -1614,7 +1628,7 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 							return PS_ERROR;
 						}
 						backup();
-						return PS_NORMAL;
+                        goto done;
 					}
 					if (curfact->getright() == NULL)
 					{
@@ -1819,65 +1833,20 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 
 					if (lookupconstant(&newfact) == PS_NORMAL)
                     {
-                        MCAutoValueRef t_root_value;
-                        MCValueRef t_current_value = nullptr;
-                        for(;;)
+                        if (next(type) == PS_NORMAL)
                         {
-                            if (next(type) != PS_NORMAL)
-                                break;
-                            
-                            if (type != ST_LB)
+                            backup();
+                            if (type == ST_LB)
                             {
-                                backup();
-                                break;
-                            }
-                            
-                            if (t_current_value == nullptr)
-                            {
-                                if (!newfact->constant_eval(&t_root_value))
+                                MCLiteralWithPath *t_literal = 
+                                        new(nothrow) MCLiteralWithPath(newfact);
+                                if (t_literal->parsearray(*this) != PS_NORMAL)
                                 {
-                                    MCperror->add(PE_EXPRESSION_NOTCONSTANT, *this);
+                                    delete t_literal;
                                     return PS_ERROR;
                                 }
-                                t_current_value = *t_root_value;
+                                newfact = t_literal;
                             }
-                        
-                            if (!MCValueIsArray(t_current_value))
-                            {
-                                MCperror->add(PE_EXPRESSION_NOTCONSTANTARRAY, *this);
-                                return PS_ERROR;
-                            }
-                            
-                            MCAutoPointer<MCExpression> t_index_expr;
-                            MCNewAutoNameRef t_index;
-                            if (parseexp(False, True, &(&t_index_expr)) != PS_NORMAL ||
-                                !t_index_expr->getattrs().IsConstant() ||
-                                !t_index_expr->constant_eval(&t_index))
-                            {
-                                MCperror->add(PE_EXPRESSION_KEYNOTCONSTANT, *this);
-                                return PS_ERROR;
-                            }
-                            
-                            MCValueRef t_next_value;
-                            if (!MCArrayFetchValue((MCArrayRef)t_current_value, false, *t_index, t_next_value))
-                            {
-                                MCperror->add(PE_EXPRESSION_CONSTANTKEYNOTEXIST, *this);
-                                return PS_ERROR;
-                            }
-                            
-                            t_current_value = t_next_value;
-                            
-                            if (next(type) != PS_NORMAL || type != ST_RB)
-                            {
-                                MCperror->add(PE_VARIABLE_NORBRACE, *this);
-                                return PS_ERROR;
-                            }
-                        }
-                        
-                        if (t_current_value != nullptr)
-                        {
-                            delete newfact;
-                            newfact = new(nothrow) MCLiteral(t_current_value);
                         }
                     }
                     else
@@ -1950,7 +1919,53 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 		if (single && !needfact && depth == 0)
 			break;
 	}
+    
+done:
+    
+    /* TODO[MW]: Add an 'IsLiteral' attribute which is only true for nodes which
+     * are already static / don't require an exec context to eval. */
+    MCAutoValueRef t_constant_value;
+    if (staticevalexp(*top, &t_constant_value))
+    {
+        delete *top;
+        *top = new (nothrow) MCLiteral(*t_constant_value);
+    }
+    
 	return PS_NORMAL;
+}
+
+bool MCScriptPoint::staticevalexp_typed(MCExpression *p_expr, MCExecValueType p_type, void *r_value_ptr)
+{
+    if (m_static_ctxt == nullptr)
+    {
+        return false;
+    }
+    
+    if (!p_expr->getattrs().IsConstant())
+    {
+        return false;
+    }
+    
+    MCerrorlock++;
+    
+    bool t_has_error = false;
+    
+    MCExecValue t_value;
+    p_expr->eval_ctxt(*m_static_ctxt, t_value);
+    if (!m_static_ctxt->HasError())
+    {
+        MCExecTypeConvertAndReleaseAlways(*m_static_ctxt, t_value.type, &t_value, p_type, r_value_ptr);
+    }
+    else
+    {
+        ;
+    }
+    
+    t_has_error = m_static_ctxt->HasError();
+    
+    MCerrorlock--;
+    
+    return !t_has_error;
 }
 
 Parse_stat MCScriptPoint::findvar(MCNameRef p_name, MCVarref** r_var)

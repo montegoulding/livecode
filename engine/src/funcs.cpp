@@ -668,6 +668,20 @@ Parse_stat MCFormat::parse(MCScriptPoint &sp, Boolean the)
 #define PTR_VALUE 1
 #define DOUBLE_VALUE 2
 
+MCExpressionAttrs MCFormat::getattrs(void) const
+{
+    MCParameter *t_params = params;
+    while(t_params != nullptr)
+    {
+        if (!t_params->getattrs().IsConstant())
+        {
+            return {};
+        }
+        t_params = t_params->getnext();
+    }
+    return MCExpressionAttrs().SetIsConstant();
+}
+
 void MCFormat::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 {
     MCAutoValueRef t_format_valueref;

@@ -20,6 +20,10 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #ifndef	SCRIPTPOINT_H
 #define	SCRIPTPOINT_H
 
+#ifndef __MC_EXEC__
+#include "exec.h"
+#endif
+
 typedef struct
 {
 	const char *token;
@@ -49,6 +53,7 @@ class MCScriptPoint
     const unichar_t *endptr;
 	MCString token;
 	MCNameRef token_nameref;
+    MCExecContext *m_static_ctxt;
 	uint2 line;
 	uint2 pos;
 	Boolean escapes;
@@ -77,6 +82,13 @@ public:
 	~MCScriptPoint();
 	MCScriptPoint& operator=(const MCScriptPoint& sp);
 	
+    MCExecContext *setstaticctxt(MCExecContext* p_ctxt)
+    {
+        MCExecContext *t_old_ctxt = m_static_ctxt;
+        m_static_ctxt = p_ctxt;
+        return t_old_ctxt;
+    }
+    
 	void allowescapes(Boolean which)
 	{
 		escapes = which;
@@ -169,6 +181,16 @@ public:
 	MCExpression *insertbinop(MCExpression *nfact, MCExpression *&cfact,
 	                          MCExpression **top);
 	Parse_stat parseexp(Boolean single, Boolean items, MCExpression **);
+    
+    /* Attempt to evaluate an expression statically, returning true if a value
+     * was computed. Static evaluation requires that p_expr IsConstant, and
+     * that the ScriptPoint has been lent a MCExecContext. */
+    template<typename T>
+    bool staticevalexp(MCExpression* p_expr, T& r_value)
+    {
+        return staticevalexp_typed(p_expr, MCExecValueTraits<T>::type_enum, &r_value);
+    }
+    bool staticevalexp_typed(MCExpression* p_expr, MCExecValueType p_type,  void *r_value_ptr);
 	
 	// Search for an existing variable in scope, returning an error if it
 	// doesn't exist.

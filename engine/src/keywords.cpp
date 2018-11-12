@@ -179,17 +179,15 @@ Parse_stat MCLocaltoken::parse(MCScriptPoint &sp)
             }
             
             /* If the next token is not an id token, then parse an expression */
-            if (type != ST_ID)
+            if (type != ST_ID && type != ST_LIT && type != ST_NUM)
             {
-                MCLog("%@", sp.gettoken_nameref());
                 sp.backup();
                 
                 /* Parse an expression, check its constant, and try to evalute
                  * its constant value. */
                 MCAutoPointer<MCExpression> t_value_exp;
                 if (sp.parseexp(False, True, &(&t_value_exp)) != PS_NORMAL ||
-                    !t_value_exp->getattrs().IsConstant() ||
-                    !t_value_exp->constant_eval(&init))
+                    !sp.staticevalexp(*t_value_exp, &init))
                 {
                     MCperror->add(PE_INITIALIZER_NOTCONSTANT, sp);
                     return PS_ERROR;
@@ -221,7 +219,8 @@ Parse_stat MCLocaltoken::parse(MCScriptPoint &sp)
                     return PS_ERROR;
                 }
                 
-                init = sp.gettoken_stringref();
+                /* Initializers should be namerefs wherever possible */
+                init = sp.gettoken_nameref();
             }
             
             initialised = true;
@@ -1162,7 +1161,7 @@ Parse_stat MCSwitch::parse(MCScriptPoint &sp)
         for(uindex_t i = 0; i < dynamic_ncases; i++)
         {
             MCNewAutoNameRef t_case;
-            if (!dynamic_cases[i]->constant_eval(&t_case))
+            if (!sp.staticevalexp(dynamic_cases[i], &t_case))
             {
                 t_is_static = false;
                 break;

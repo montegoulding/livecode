@@ -139,7 +139,7 @@ class MCDeterministicUnaryFunctionCtxt: public MCUnaryFunctionCtxt<ParamType, Re
 public:
     virtual MCExpressionAttrs getattrs(void) const
     {
-        return MCUnaryFunctionCtxt<ParamType, ReturnType, EvalFunction, EvalError, ParseError>::m_expression->getattrs().template SetType<ReturnType>();
+        return MCUnaryFunctionCtxt<ParamType, ReturnType, EvalFunction, EvalError, ParseError>::m_expression->getattrs();
     }
 };
 
@@ -757,6 +757,7 @@ public:
 		params = NULL;
 	}
 	virtual ~MCFormat();
+    virtual MCExpressionAttrs getattrs(void) const;
 	virtual Parse_stat parse(MCScriptPoint &, Boolean the);
 	virtual void eval_ctxt(MCExecContext &, MCExecValue &);
 };

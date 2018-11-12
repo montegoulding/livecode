@@ -2797,6 +2797,18 @@ enum Exec_errors
 
     // {EE-0916} variable: no first or last value
     EE_VARIABLE_NOFIRSTORLAST,
+    
+    // {EE-0917} static: convertOctals not static
+    EE_STATIC_NOCONVERTOCTALS,
+    
+    // {EE-0918} static: useUnicode not static
+    EE_STATIC_NOUSEUNICODE,
+    
+    // {EE-0919} static: caseSensitive and formSensitive not static
+    EE_STATIC_NOSTRINGOPTIONS,
+    
+    // {EE-0920} static: numberFormat not static
+    EE_STATIC_NONUMBERFORMAT,
 };
 
 extern const char *MCexecutionerrors;

@@ -24,18 +24,38 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 class MCLiteral : public MCExpression
 {
-	MCValueRef value;
 public:
     MCLiteral(MCValueRef v);
-	~MCLiteral(void)
-	{
-		MCValueRelease(value);
-	}
+    ~MCLiteral(void);
 
     virtual MCExpressionAttrs getattrs(void) const;
     
-    virtual Parse_stat parse(MCScriptPoint &, Boolean the);
     virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
+    
+protected:
+    MCValueRef value;
+};
+
+class MCLiteralWithPath : public MCExpression
+{
+public:
+    MCLiteralWithPath(MCExpression *p_value);
+    ~MCLiteralWithPath(void);
+    
+    virtual MCExpressionAttrs getattrs(void) const;
+    
+    Parse_stat parsearray(MCScriptPoint& sp);
+    
+    virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
+    
+protected:
+    static void __MCExpressionDelete(MCExpression *p_expr)
+    {
+        delete p_expr;
+    }
+    
+    MCAutoPointer<MCExpression> m_value;
+    MCAutoCustomPointerArray<MCExpression*, __MCExpressionDelete> m_path;
 };
 
 /********/

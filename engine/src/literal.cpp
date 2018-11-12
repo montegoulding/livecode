@@ -37,83 +37,123 @@ MCLiteral::MCLiteral(MCValueRef p_value)
         MCValueInter(p_value, value);
     }
 }
-        
+     
+MCLiteral::~MCLiteral(void)
+{
+    MCValueRelease(value);
+}
+
 MCExpressionAttrs MCLiteral::getattrs(void) const
 {
-    MCExpressionAttrs t_attrs;
-    switch(MCValueGetTypeCode(value))
-    {
-        /* Boolean and Null are not numbers, but are constant strings */
-        case kMCValueTypeCodeBoolean:
-        case kMCValueTypeCodeNull:
-            t_attrs.SetIsConstantString();
-            break;
-        /* Strings and names and data constant strings, but are only constant numbers
-         * if conversion from string->number is not affected by convertOctals.
-         * This means the string must not start with '0<digit>'. */
-        case kMCValueTypeCodeString:
-            t_attrs.SetIsConstantString();
-            if (MCStringGetLength((MCStringRef)value) == 1 ||
-                __is_constant_number(MCStringGetNativeCharPtr((MCStringRef)value)))
-            {
-                t_attrs.SetIsConstantNumber();
-            }
-            break
-        case kMCValueTypeCodeName:
-            t_attrs.SetIsConstantString();
-            if (MCStringGetLength(MCNameGetString((MCNameRef)value)) == 1 ||
-                __is_constant_number(MCStringGetNativeCharPtr(MCNameGetString((MCNameRef)value))))
-            {
-                t_attrs.SetIsConstantNumber();
-            }
-            break
-        case kMCValueTypeCodeData:
-            t_attrs.SetIsConstantString();
-            if (MCDataGetLength((MCDataRef)value) == 1 ||
-                __is_constant_number((const char_t *)MCDataGetBytePtr((MCDataRef)value)))
-            {
-                t_attrs.SetIsConstantNumber();
-            }
-            break;
-        /* Numbers are always constant numbers in this context, but cannot be
-         * constant strings, as their conversion to string depends on the
-         * numberFormat. */
-        case kMCValueTypeCodeNumber:
-            t_attrs.SetIsConstantNumber();
-            break;
-        /* Arrays convert to the empty string, so are constant strings. */
-        case kMCValueTypeCodeArray:
-            t_attrs.SetIsConstantString();
-            break;
-        default:
-            break;
-    }
-    return t_attrs;
-}
-
-/* If the first char is not 0 then it cannot be an octal number.
- * If the first char is 0, but the second is not a digit, then it cannot be
- * an octal number.
- * Otherwise it could be an octal number. */
-static bool __is_constant_number(const char_t *p_chars)
-{
-    if (p_chars[0] != '0')
-        return true;
-    if (!isdigit(p_chars[1]))
-        return true;
-    return false;
-}
-
-Parse_stat MCLiteral::parse(MCScriptPoint &sp, Boolean the)
-{
-	initpoint(sp);
-	return PS_NORMAL;
+    return MCExpressionAttrs().SetIsConstant();
 }
 
 void MCLiteral::eval_ctxt(MCExecContext& ctxt, MCExecValue& r_value)
 {
+    r_value . type = kMCExecValueTypeValueRef;
+    r_value . valueref_value = MCValueRetain(value);
+}
+
+MCLiteralWithPath::MCLiteralWithPath(MCExpression *p_value)
+    : m_value(p_value)
+{
+}
+
+MCLiteralWithPath::~MCLiteralWithPath(void)
+{
+}
+
+MCExpressionAttrs MCLiteralWithPath::getattrs(void) const
+{
+    if (!(*m_value)->getattrs().IsConstant())
+    {
+        return {};
+    }
+    
+    for(uindex_t i = 0; i < m_path.Size(); i++)
+    {
+        if (m_path[i]->getattrs().IsConstant())
+        {
+            return {};
+        }
+    }
+    return MCExpressionAttrs().SetIsConstant();
+}
+
+Parse_stat MCLiteralWithPath::parsearray(MCScriptPoint& sp)
+{
+    Symbol_type type;
+        
+    for(;;)
+    {
+        if (sp.next(type) != PS_NORMAL)
+            return PS_NORMAL;
+        
+        if (type != ST_LB)
+        {
+            sp.backup();
+            return PS_NORMAL;
+        }
+        
+        /* TODO[MW]: Handle meta indicies */
+        MCAutoPointer<MCExpression> t_new_dimension;
+        if (!sp.parseexp(False, True, &(&t_new_dimension)))
+        {
+            MCperror->add(PE_VARIABLE_BADINDEX, sp);
+            return PS_ERROR;
+        }
+                
+        if (sp.next(type) != PS_NORMAL || type != ST_RB)
+        {
+            MCperror->add(PE_VARIABLE_NORBRACE, sp);
+            return PS_ERROR;
+        }
+        
+        if (!m_path.Push(*t_new_dimension))
+        {
+            MCperror->add(PE_OUTOFMEMORY, sp);
+            return PS_ERROR;
+        }
+        
+        t_new_dimension.Release();
+    }
+    
+    return PS_NORMAL;
+}
+
+void MCLiteralWithPath::eval_ctxt(MCExecContext& ctxt, MCExecValue& r_value)
+{
+    MCAutoValueRef t_root_value;
+    if (!ctxt.EvalExprAsValueRef(*m_value, EE_VARIABLE_BADINDEX, &t_root_value))
+    {
+        return;
+    }
+    
+    MCValueRef t_value = *t_root_value;
+    for(uindex_t i = 0; i < m_path.Size(); i++)
+    {
+        if (!MCValueIsArray(t_value))
+        {
+            t_value = kMCEmptyString;
+            break;
+        }
+        
+        /* TODO[MW]: Make this work with sequences */
+        MCNewAutoNameRef t_key_value;
+        if (!ctxt.EvalExprAsNameRef(m_path[i], EE_VARIABLE_BADINDEX, &t_key_value))
+        {
+            return;
+        }
+        
+        if (!MCArrayFetchValue((MCArrayRef)t_value, ctxt.GetCaseSensitive(), *t_key_value, t_value))
+        {
+            t_value = kMCEmptyString;
+            break;
+        }
+    }
+    
 	r_value . type = kMCExecValueTypeValueRef;
-	r_value . valueref_value = MCValueRetain(value);
+	r_value . valueref_value = MCValueRetain(t_value);
 }
 
 /**/
@@ -131,18 +171,15 @@ MCSequenceLiteral::~MCSequenceLiteral(void)
 
 MCExpressionAttrs MCSequenceLiteral::getattrs(void) const
 {
-    MCExpressionAttrs t_attrs;
-    t_attrs.SetIsArray();
-    
     /* If there are dynamic values, then the expression cannot be constant. */
     if (m_dynamic_values != nullptr)
     {
-        return t_attrs;
+        return {};
     }
     
     /* If there are no dynamic values, then the expression is constant and its
      * value is m_base_value. */
-    return t_attrs.SetIsConstant();
+    return MCExpressionAttrs().SetIsConstant();
 }
 
 Parse_stat MCSequenceLiteral::parse(MCScriptPoint& sp, Boolean the)
@@ -182,13 +219,9 @@ Parse_stat MCSequenceLiteral::parse(MCScriptPoint& sp, Boolean the)
          * can make it part of the base value. Otherwise we add it to the list
          * of dynamic values to be evaluated at runtime. */
         MCAutoValueRef t_constant_value;
-        if (t_value_exp->getattrs().IsConstant() &&
-            t_value_exp->constant_eval(&t_constant_value))
+        if (sp.staticevalexp(*t_value_exp, &t_constant_value))
         {
-            /* We must unique the constant value we get back as some constant
-             * exprs (e.g. MCConstant) use unboxed values if they can. */
-            if (!t_constant_value.MakeUnique() ||
-                !MCArrayStoreValueAtIndex(*t_base_value,
+            if (!MCArrayStoreValueAtIndex(*t_base_value,
                                           t_index,
                                           *t_constant_value))
             {
@@ -330,18 +363,15 @@ MCArrayLiteral::~MCArrayLiteral(void)
 
 MCExpressionAttrs MCArrayLiteral::getattrs(void) const
 {
-    MCExpressionAttrs t_attrs;
-    t_attrs.SetIsArray();
-    
     /* If there are dynamic values, then the expression cannot be constant. */
     if (m_dynamic_values != nullptr)
     {
-        return t_attrs;
+        return {};
     }
     
     /* If there are no dynamic values, then the expression is constant and its
      * value is m_base_value. */
-    return t_attrs.SetIsConstant();
+    return MCExpressionAttrs().SetIsConstant();
 }
 
 #ifndef __ALLOW_DYNAMIC_ARRAY_LITERAL_KEYS__
@@ -405,7 +435,10 @@ Parse_stat MCArrayLiteral::parse(MCScriptPoint& sp, Boolean the)
             return PS_ERROR;
         }
         
-        /* Keys must be caselessly unique. */
+        /* Keys must be caselessly unique.
+         * TODO: This requirement can be relaxed by use of the static context in
+         * sp - if the caseSensitive property is known, then we can add the key
+         * statically, otherwise it becomes a dynamic value. */
         MCValueRef t_unused_value;
         if (MCArrayFetchValue(*t_base_value, false, *t_constant_key, t_unused_value))
         {
@@ -415,16 +448,10 @@ Parse_stat MCArrayLiteral::parse(MCScriptPoint& sp, Boolean the)
         
         /* Evaluate the value as a constant, if possible. */
         MCAutoValueRef t_constant_value;
-        if (t_value_exp->getattrs().IsConstant() &&
-            t_value_exp->constant_eval(&t_constant_value))
+        if (sp.staticevalexp(*t_value_exp, &t_constant_value))
         {
-            /* We must unique the constant value we get back as some constant
-             * exprs (e.g. MCConstant) use unboxed values if they can. Notice
-             * that we store as if keys are case-insensitive - this is to ensure
-             * consistent behavior is generated at runtime regardless of the
-             * (runtime) setting of the case-sensitive property. */
-            if (!t_constant_value.MakeUnique() ||
-                !MCArrayStoreValue(*t_base_value,
+            /* TODO[MW]: Relax case-insensitive requirement. */
+            if (!MCArrayStoreValue(*t_base_value,
                                    false,
                                    *t_constant_key,
                                    *t_constant_value))
