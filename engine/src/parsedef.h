@@ -256,6 +256,7 @@ enum Factor_rank {
     FR_MULDIV,
     FR_POW,
     FR_UNARY,
+    FR_TYPE,
     FR_VALUE
 };
 
@@ -610,6 +611,9 @@ enum Functions {
     F_EVENT_SHIFT_KEY,
     
     F_TRY,
+    F_TYPE_OF,
+    F_STRICT_TYPE_OF,
+    F_TYPE_ERROR,
 };
 
 /* The HT_MIN and HT_MAX elements of the enum delimit the range of the handler
@@ -630,7 +634,15 @@ enum Handler_type {
 	//   lists in MCHandlerArray.
 	HT_BEFORE,
 	HT_AFTER,
-
+    
+    /* The maximum type of handler which needs sorting */
+    HT_MAX_SORT = HT_AFTER,
+    
+    HT_OPERATOR,
+    
+    /* The maximum type of handler which needs a handler array */
+    HT_MAX_ARRAY = HT_OPERATOR,
+    
     HT_PRIVATE,
 
     HT_MAX = HT_PRIVATE,
@@ -638,7 +650,7 @@ enum Handler_type {
     // HT_ON is only used at the point of parsing a handler to allow setting of
     // the is_on flag of the handler class. The actual Handler_type of the handler
     // is immediately set to HT_MESSAGE afterward.
-    HT_ON
+    HT_ON,
 };
 
 enum If_format {
@@ -712,6 +724,7 @@ enum Is_validation {
     IV_STRING,
     IV_BINARY_STRING,
     IV_REAL,
+    IV_SEQUENCE,
 };
 
 enum Lock_constants {
@@ -794,7 +807,16 @@ enum Operators {
     O_OR,
 	O_WRAP,
 	O_BEGINS_WITH,
-	O_ENDS_WITH
+	O_ENDS_WITH,
+    O_AS_TYPE,
+    O_IS_TYPE,
+    O_HAS_TYPE,
+    O_WITH_TYPE,
+    O_AS_BOOLEAN,
+    O_AS_NUMBER,
+    O_AS_STRING,
+    O_AS_DATA,
+    O_AS_ARRAY,
 };
 
 // return codes from parsers
@@ -1763,6 +1785,7 @@ enum Properties {
     P_LONG_NAME_NO_FILENAME,
     P_REV_SCRIPT_DESCRIPTION,
     P_REV_BEHAVIOR_USES,
+    P_REV_SCRIPT_SIGNATURES,
     
     P_REV_LIBRARY_MAPPING,
     
@@ -2005,6 +2028,16 @@ enum Sugar_constants {
     SG_VALUE,
 };
 
+enum Parameter_constants
+{
+    PA_COPY,
+    PA_REF,
+    PA_MAKE,
+    PA_DROP,
+    PA_MODIFY,
+    PA_VARIADIC
+};
+
 enum Statements {
     S_UNDEFINED,
     S_ACCEPT,
@@ -2225,7 +2258,8 @@ enum Token_type {
     TT_CLASS,
     TT_VARIABLE,
     TT_VISUAL,
-	TT_SERVER
+	TT_SERVER,
+    TT_PARAMETER
 };
 
 enum Tool {

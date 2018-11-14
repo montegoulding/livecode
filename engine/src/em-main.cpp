@@ -27,6 +27,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "variable.h"
 #include "stack.h"
 #include "dispatch.h"
+#include "type.h"
 
 #include <unistd.h>
 
@@ -62,7 +63,11 @@ platform_main(int argc, char *argv[], char *envp[])
 	if (!MCScriptInitialize())
 	{
 		MCEmscriptenBootError("LCB VM initialisation");
-	}
+    }
+    if (!MCTypeInitialize())
+    {
+        MCEmscriptenBootError("Type initialisation");
+    }
 
 	/* ---------- Process command-line arguments.
 	 * Emscripten usually passes fairly meaningless values here. */
@@ -165,6 +170,8 @@ platform_main(int argc, char *argv[], char *envp[])
 	/* ---------- Shutdown */
 	int t_exit_code = X_close();
 
+    MCTypeFinalize();
+    
 	MCFinalize();
 
 	exit(t_exit_code);

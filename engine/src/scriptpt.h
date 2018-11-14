@@ -89,6 +89,11 @@ public:
         return t_old_ctxt;
     }
     
+    MCExecContext *getstaticctxt(void) const
+    {
+        return m_static_ctxt;
+    }
+    
 	void allowescapes(Boolean which)
 	{
 		escapes = which;
@@ -225,6 +230,9 @@ public:
     codepoint_t getcodepointatindex(uindex_t index);
     
     void setcurptr(const unichar_t *ptr);
+    
+    Parse_stat outofmemory(void);
+    Parse_stat error(Parse_errors p_error);
 };
 #endif
 

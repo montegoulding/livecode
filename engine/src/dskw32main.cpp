@@ -29,6 +29,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "globals.h"
 #include "util.h"
 #include "libscript/script.h"
+#include "type.h"
 
 #include <msctf.h>
 
@@ -218,7 +219,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
 
     if (!MCInitialize() ||
         !MCSInitialize() ||
-        !MCScriptInitialize())
+        !MCScriptInitialize() ||
+        !MCTypeInitialize())
 		exit(-1);
 	
     // Ensure the command line variable gets set
@@ -327,6 +329,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     
     MCValueRelease(MCcmdline);
     
+    MCTypeFinalize();
     MCScriptFinalize();
 	MCFinalize();
 

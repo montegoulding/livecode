@@ -62,9 +62,41 @@ bool MCExecContext::ForceToBoolean(MCValueRef p_value, MCBooleanRef& r_boolean)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static inline void __GetTypeCodeAndTag(MCValueRef p_value, MCValueTypeCode& r_code, uindex_t& r_tag)
+{
+    uindex_t t_both = MCValueGetTypeCodeAndTag(p_value);
+    r_code = (MCValueTypeCode)(t_both & 0xff);
+    r_tag = t_both >> 8;
+}
+
 bool MCExecContext::ConvertToString(MCValueRef p_value, MCStringRef& r_string)
 {
-    switch(MCValueGetTypeCode(p_value))
+    MCValueTypeCode t_code;
+    uindex_t t_tag;
+    __GetTypeCodeAndTag(p_value, t_code, t_tag);
+    if (t_code != kMCValueTypeCodeString &&
+        t_tag != 0)
+    {
+        /* EvalTo String maybe either a name or a string */
+        MCValueRef t_maybe_name_or_string;
+        if (!MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindString, p_value, t_maybe_name_or_string))
+        {
+            return false;
+        }
+    
+        if (MCValueGetTypeCode(t_maybe_name_or_string) == kMCValueTypeCodeName)
+        {
+            r_string = MCValueRetain(MCNameGetString((MCNameRef)t_maybe_name_or_string));
+            MCValueRelease(t_maybe_name_or_string);
+            return true;
+        }
+        
+        r_string = (MCStringRef)t_maybe_name_or_string;
+        
+        return true;
+    }
+    
+    switch(t_code)
     {
     case kMCValueTypeCodeNull:
     case kMCValueTypeCodeArray:
@@ -104,7 +136,16 @@ bool MCExecContext::ConvertToString(MCValueRef p_value, MCStringRef& r_string)
 
 bool MCExecContext::ConvertToNumber(MCValueRef p_value, MCNumberRef& r_number)
 {
-    switch(MCValueGetTypeCode(p_value))
+    MCValueTypeCode t_code;
+    uindex_t t_tag;
+    __GetTypeCodeAndTag(p_value, t_code, t_tag);
+    if (t_code != kMCValueTypeCodeNumber &&
+        t_tag != 0)
+    {
+        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindNumber, p_value, (MCValueRef&)r_number);
+    }
+    
+    switch(t_code)
     {
     case kMCValueTypeCodeNull:
         return MCNumberCreateWithInteger(0, r_number);
@@ -179,13 +220,22 @@ bool MCExecContext::ConvertToReal(MCValueRef p_value, real64_t& r_double)
 // SN-2014-12-03: [[ Bug 14147 ]] Array conversion is not always permissive, neither always strict
 bool MCExecContext::ConvertToArray(MCValueRef p_value, MCArrayRef &r_array, bool p_strict)
 {
+    MCValueTypeCode t_code;
+    uindex_t t_tag;
+    __GetTypeCodeAndTag(p_value, t_code, t_tag);
+    if (t_code != kMCValueTypeCodeArray &&
+        t_tag != 0)
+    {
+        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindArray, p_value, (MCValueRef&)r_array);
+    }
+    
     if (MCValueIsEmpty(p_value))
     {
         r_array = MCValueRetain(kMCEmptyArray);
         return true;
     }
     
-	if (MCValueGetTypeCode(p_value) != kMCValueTypeCodeArray)
+	if (t_code != kMCValueTypeCodeArray)
     {
         // FG-2014-10-21: [[ Bugfix 13724 ]] The legacy behavior requires that
         // anything that can be converted to a string will convert to an empty
@@ -226,7 +276,16 @@ bool MCExecContext::ConvertToUnsignedInteger(MCValueRef p_value, uinteger_t& r_i
 
 bool MCExecContext::ConvertToBoolean(MCValueRef p_value, MCBooleanRef &r_boolean)
 {
-    switch(MCValueGetTypeCode(p_value))
+    MCValueTypeCode t_code;
+    uindex_t t_tag;
+    __GetTypeCodeAndTag(p_value, t_code, t_tag);
+    if (t_code != kMCValueTypeCodeBoolean &&
+        t_tag != 0)
+    {
+        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindBoolean, p_value, (MCValueRef&)r_boolean);
+    }
+    
+    switch(t_code)
     {
     case kMCValueTypeCodeBoolean:
         r_boolean = MCValueRetain((MCBooleanRef)p_value);
@@ -349,7 +408,16 @@ bool MCExecContext::ConvertToNumberOrArray(MCExecValue& x_value)
 
 bool MCExecContext::ConvertToData(MCValueRef p_value, MCDataRef& r_data)
 {
-    if (MCValueGetTypeCode(p_value) == kMCValueTypeCodeData)
+    MCValueTypeCode t_code;
+    uindex_t t_tag;
+    __GetTypeCodeAndTag(p_value, t_code, t_tag);
+    if (t_code != kMCValueTypeCodeData &&
+        t_tag != 0)
+    {
+        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindData, p_value, (MCValueRef&)r_data);
+    }
+    
+    if (t_code == kMCValueTypeCodeData)
     {
         r_data = MCValueRetain((MCDataRef)p_value);
         return true;
@@ -365,8 +433,33 @@ bool MCExecContext::ConvertToData(MCValueRef p_value, MCDataRef& r_data)
 
 bool MCExecContext::ConvertToName(MCValueRef p_value, MCNameRef& r_name)
 {
+    MCValueTypeCode t_code;
+    uindex_t t_tag;
+    __GetTypeCodeAndTag(p_value, t_code, t_tag);
+    if (t_tag != 0)
+    {
+        if (t_code != kMCValueTypeCodeString)
+        {
+            MCValueRef t_maybe_name_or_string;
+            if (!MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindString, p_value, t_maybe_name_or_string))
+            {
+                return false;
+            }
+            
+            if (MCValueGetTypeCode(t_maybe_name_or_string) == kMCValueTypeCodeString)
+            {
+                bool t_made_name = MCNameCreate((MCStringRef)t_maybe_name_or_string, r_name);
+                MCValueRelease(t_maybe_name_or_string);
+                return t_made_name;
+            }
+            
+            r_name = (MCNameRef)t_maybe_name_or_string;
+            
+            return false;
+        }
+    }
     
-    switch(MCValueGetTypeCode(p_value))
+    switch(t_code)
     {
         case kMCValueTypeCodeName:
         {
@@ -1085,14 +1178,29 @@ bool MCExecContext::EvalExprAsNonStrictBool(MCExpression *p_expr, Exec_errors p_
 {
     MCAssert(p_expr != nil);
 	
-	MCAutoStringRef t_value;
-    p_expr -> eval(*this, &t_value);
-
+    /* Handle tagged values */
+    MCAutoValueRef t_value;
+    p_expr->eval(*this, &t_value);
+    
     if (!HasError())
-	{
-		r_value = MCStringIsEqualTo(*t_value, kMCTrueString, kMCStringOptionCompareCaseless);
-		return true;
-	}
+    {
+        if (MCValueGetTag(*t_value) == 0)
+        {
+            MCAutoStringRef t_string_value;
+            if (ConvertToString(*t_value, &t_string_value))
+            {
+                r_value = MCStringIsEqualTo(*t_string_value, kMCTrueString, kMCStringOptionCompareCaseless);
+                return true;
+            }
+        }
+        else
+        {
+            if (ConvertToBool(*t_value, r_value))
+            {
+                return true;
+            }
+        }
+    }
 	
 	LegacyThrow(p_error);
 

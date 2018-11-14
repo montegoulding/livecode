@@ -388,6 +388,8 @@
 			'src/exec-strings-chunk.cpp',
 			'src/exec-text.cpp',
 			'src/exec-textmessaging.cpp',
+            'src/type.h',
+            'src/type.cpp',
 			
 			# Group "Foundation"
 			'src/foundation-legacy.h',

@@ -178,11 +178,6 @@ void MCHandlerlist::reset(void)
 	nconstants = 0;
 }
 
-MCObject *MCHandlerlist::getparent()
-{
-	return parent;
-}
-
 // MW-2011-08-23: [[ UQL ]] If 'ignore_url' is true, then any vars that have the
 //   UQL attribute will be ignore for the search.
 Parse_stat MCHandlerlist::findvar(MCNameRef p_name, bool p_ignore_uql, MCVarref **dptr)
@@ -429,7 +424,7 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 
     /* Create a default MCExecContext to use for static evaluation of top-level
      * constant declarations and initializers */
-    MCExecContext t_static_ctxt;
+    MCExecContext t_static_ctxt(objptr, this, nullptr);
     
 	// MW-2008-11-02: Its possible for the objptr to be NULL if this is inert execution
 	//   (for example 'getdefaultprinter()' on Linux) so don't indirect in this case.
@@ -490,10 +485,11 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
                     Handler_type t_type = static_cast<Handler_type>(te->which);
 					if (t_type == HT_PRIVATE)
 					{
-						sp.next(type);
-						if (sp.lookup(SP_HANDLER, te) != PS_NORMAL ||
+						if (sp.next(type) != PS_NORMAL ||
+                            sp.lookup(SP_HANDLER, te) != PS_NORMAL ||
 								te -> which == HT_GETPROP || te -> which == HT_SETPROP ||
-								te -> which == HT_BEFORE || te -> which == HT_AFTER)
+								te -> which == HT_BEFORE || te -> which == HT_AFTER ||
+                                te->which == HT_OPERATOR)
 						{
 							MCperror -> add(PE_HANDLERLIST_BADHANDLER, sp);
 							status = PS_ERROR;
@@ -510,24 +506,30 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
                     }
                     newhandler = new (nothrow) MCHandler(t_type, t_is_private, t_is_on);
                     
-                    /* Handlers must use their own static context */
-                    sp.setstaticctxt(nullptr);
-					
-					if (newhandler->parse(sp, t_type == HT_GETPROP || t_type == HT_SETPROP) != PS_NORMAL)
+                    /* Let handlers use our static context for the parameter list */
+                    sp.setstaticctxt(&t_static_ctxt);
+                    
+                    if (newhandler->parse(sp, t_type == HT_GETPROP || t_type == HT_SETPROP) != PS_NORMAL)
 					{
-						sp.sethandler(NULL);
+                        sp.sethandler(NULL);
+                        sp.setstaticctxt(nullptr);
 						delete newhandler;
 						MCperror->add(PE_HANDLERLIST_BADHANDLER, sp);
 						status = PS_ERROR;
 						break;
 					}
-
+                    
+                    sp.setstaticctxt(nullptr);
 					sp.sethandler(NULL);
 
 					// MW-2008-07-21: [[ Bug 6779 ]] If a handler of the given type already exists
 					//   with the same name then don't include it in the list. At some point we
 					//   probably want this to cause a warning.
-					if (!handlers[t_type - HT_MIN] . exists(newhandler -> getname()))
+                    /* If a handler is of operator type, then we don't do an existence
+                     * check as duplication is checked globally, and all operator
+                     * handlers for the same type have the same name. */
+					if (te->which == HT_OPERATOR ||
+                        !handlers[t_type - HT_MIN] . exists(newhandler -> getname()))
 						handlers[t_type - HT_MIN] . append(newhandler);
 					else
 						delete newhandler;
@@ -545,7 +547,8 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 						{
 							MCGlobal *gptr = new (nothrow) MCGlobal;
 							if (gptr->parse(sp) != PS_NORMAL)
-							{
+                            {
+                                sp.setstaticctxt(nullptr);
 								MCperror->add(PE_HANDLER_BADVAR, sp);
 								status = PS_ERROR;
 							}
@@ -556,7 +559,8 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 						{
 							MCLocalVariable *lptr = new (nothrow) MCLocalVariable;
 							if (lptr->parse(sp) != PS_NORMAL)
-							{
+                            {
+                                sp.setstaticctxt(nullptr);
 								MCperror->add(PE_HANDLER_BADVAR, sp);
 								status = PS_ERROR;
 							}
@@ -567,7 +571,8 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 						{
 							MCLocalConstant *cptr = new (nothrow) MCLocalConstant;
 							if (cptr->parse(sp) != PS_NORMAL)
-							{
+                            {
+                                sp.setstaticctxt(nullptr);
 								MCperror->add(PE_HANDLER_BADVAR, sp);
 								status = PS_ERROR;
 							}
@@ -580,7 +585,9 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 					break;
 				default:
 					break;
-				}
+                }
+                
+                sp.setstaticctxt(nullptr);
 			}
 			break;
 		case PS_EOF:
@@ -613,7 +620,7 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 	if (status != PS_ERROR)
 	{
 		// MW-2012-10-17: [[ Bug 10475 ]] Make sure we sort all the handler arrays!
-		for(uint32_t i = 0; i < 6; i++)
+		for(uint32_t i = 0; i < HT_MAX_SORT - 1; i++)
 			handlers[i] . sort();
 	}
 
@@ -828,6 +835,52 @@ bool MCHandlerlist::listlibraryhandlers(MCHandlerlistListLibraryHandlersCallback
         if (!p_callback(p_context, t_handler))
             return false;
     }
+    return true;
+}
+
+bool MCHandlerlist::copysignatures(MCArrayRef& r_array)
+{
+    MCAutoArrayRef t_signatures;
+    if (!MCArrayCreateMutable(&t_signatures))
+    {
+        return false;
+    }
+    
+    uindex_t t_signature_count = 1;
+    for(uindex_t i = 0; i < nconstants; i++)
+    {
+        MCAutoArrayRef t_constant;
+        if (!MCArrayCreateMutable(&t_constant) ||
+            !MCArrayStoreValue(*t_constant, true, MCNAME("kind"), MCNAME("constant")) ||
+            !MCArrayStoreValue(*t_constant, true, MCNAME("name"), cinfo[i].name) ||
+            !MCArrayStoreValue(*t_constant, true, MCNAME("value"), cinfo[i].value) ||
+            !t_constant.MakeImmutable() ||
+            !MCArrayStoreValueAtIndex(*t_signatures, t_signature_count++, *t_constant))
+        {
+            return false;
+        }
+    }
+    
+    for(uindex_t i = HT_MIN - 1; i < HT_MAX - 1; i++)
+    {
+        for(uindex_t j = 0; j < handlers[i].count(); j++)
+        {
+            MCAutoArrayRef t_handler;
+            if (!handlers[i].get()[j]->copysignature(&t_handler) ||
+                !MCArrayStoreValueAtIndex(*t_signatures, t_signature_count++, *t_handler))
+            {
+                return false;
+            }
+        }
+    }
+    
+    if (!t_signatures.MakeImmutable())
+    {
+        return false;
+    }
+    
+    r_array = t_signatures.Take();
+    
     return true;
 }
 

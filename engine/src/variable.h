@@ -152,6 +152,15 @@ public:
     // Converts the value to a (mutable) array.
 	bool converttomutablearray(void);
 
+    /* Take the exec value from the variable, resetting the variable's value
+     * to none. */
+    void take_exec_value(MCExecValue& r_value)
+    {
+        r_value = value;
+        value.type = kMCExecValueTypeNone;
+        value.valueref_value = nullptr;
+    }
+    
 	/////////
 
 	// Return whether the variable has been assigned a value. i.e. whether the
@@ -455,6 +464,8 @@ public:
     bool dofree(MCExecContext& ctxt);
     
 	bool getisplain(void) const { return isplain; }
+    
+    bool getisreadonly(void) const;
 	
 private:
     MCVariable *fetchvar(MCExecContext& ctxt);

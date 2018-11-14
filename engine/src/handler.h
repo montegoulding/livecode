@@ -19,6 +19,10 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 struct MCExecValue;
 
+#ifndef __MC_TYPE__
+#include "type.h"
+#endif
+
 // A single variable definition. If 'init' is nil then it means the var should
 // be created as a uql.
 struct MCHandlerVarInfo
@@ -27,10 +31,40 @@ struct MCHandlerVarInfo
 	MCValueRef init;
 };
 
+enum MCHandlerParamKind
+{
+    /* Normal - the traditional parameter kind - not typed, defaultable */
+    kMCHandlerParamKindNormal,
+    /* Reference - the traditional reference kind - not typed, not defaulted */
+    kMCHandlerParamKindReference,
+    /* Copy - typeable, defaultable - copies incoming value (currently read-only) */
+    kMCHandlerParamKindCopy,
+    /* Variadic - typeable, not-defaultable, must be last - accumulates remaining
+     * arguments into a sequence. (currently read-only) */
+    kMCHandlerParamKindVariadic,
+    
+#ifdef HANDLER_MUTABLE_PARAMS
+    /* Ref - not-typeable, not-defaultable - references incoming value */
+    kMCHandlerParamKindRef,
+    /* Make - typeable, not-defaultable - replaces referenced value on
+     * successful handler exit. */
+    kMCHandlerParamKindMake,
+    /* Drop - typeable, not-defaultable - replaces referenced value with
+     * undefined on successful handler exit. */
+    kMCHandlerParamKindDrop,
+    /* Modify - typeable, not-defaultable - takes referenced value, and returns
+     * on successful handler exit. */
+    kMCHandlerParamKindModify,
+#endif
+};
+
 struct MCHandlerParamInfo
 {
-	MCNameRef name;
-	bool is_reference : 1;
+    MCHandlerParamKind kind : 4;
+    bool default_value_not_converted;
+    MCNameRef name;
+    MCType *type;
+    MCValueRef default_value;
 };
 
 struct MCHandlerConstantInfo
@@ -48,7 +82,13 @@ class MCHandler
 	MCContainer **params;
 	MCHandlerVarInfo *vinfo;
 	MCHandlerParamInfo *pinfo;
-	MCHandlerConstantInfo *cinfo;
+    MCHandlerConstantInfo *cinfo;
+    MCNameRef name;
+    // MW-2013-11-08: [[ RefactorIt ]] The 'it' variable is now always defined
+    //   and this varref is used by things that want to set it.
+    MCVarref *m_it;    
+    /* If type is HT_FUNCTION, then they can have an optional return type. */
+    MCType *return_type;
 	uint2 nglobals;
 	uint2 npassedparams;
 	uint2 nparams;
@@ -61,16 +101,23 @@ class MCHandler
 	// MW-2011-06-22: [[ SERVER ]] This is the index of the file that this
 	//   handler came from, it was loaded in server-script mode.
 	uint2 fileindex;
-	MCNameRef name;
-	Boolean prop;
-	Boolean array;
-	Boolean is_private;
-    bool is_on;
-	uint1 type;
-	
-	// MW-2013-11-08: [[ RefactorIt ]] The 'it' variable is now always defined
-	//   and this varref is used by things that want to set it.
-	MCVarref *m_it;
+
+    /* If type is HT_OPERATOR, then operator contains the kind of operator it
+     * defines. */
+    MCTypeOperatorKind operator_kind : 8;
+    
+    unsigned type : 4;
+    bool prop : 1;
+    bool array : 1;
+    bool is_private : 1;
+    bool is_on : 1;
+    
+    /* Non lax handlers check the argument list conforms to signature. */
+    bool non_lax : 1;
+    
+    /* Unnamed variadic handlers allow arguments beyond the declared 
+     * list. */
+    bool unnamed_variadic : 1;
 	
 	static Boolean gotpass;
 public:
@@ -95,6 +142,7 @@ public:
     
 	integer_t getnparams(void);
     MCValueRef getparam(uindex_t p_index);
+    bool getparamreadonly(uindex_t p_index);
 	Parse_stat findvar(MCNameRef name, MCVarref **);
 	Parse_stat newvar(MCNameRef name, MCValueRef init, MCVarref **);
 	Parse_stat findconstant(MCNameRef name, MCExpression **);
@@ -170,6 +218,10 @@ public:
 		r_var_count = nglobals;
 	}
 	
+    MCHandlerlist *gethlist(void) const
+    {
+        return hlist;
+    }
 	void sethlist(MCHandlerlist *p_list)
 	{
 		hlist = p_list;
@@ -185,8 +237,13 @@ public:
 	{
 		return globals[p_index];
 	}
+    
+    bool copysignature(MCArrayRef& r_array);
 
 private:
 	Parse_stat newparam(MCScriptPoint& sp);
+    Exec_stat enter(MCExecContext& ctxt, MCParameter* params);
+    Exec_stat enter_non_lax(MCExecContext& ctxt, MCParameter* params);
+    Exec_stat leave(MCExecContext& ctxt, Exec_stat p_stat);
 };
 #endif

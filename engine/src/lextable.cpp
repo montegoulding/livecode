@@ -186,6 +186,7 @@ const uint8_t unicode_type_table[256] =
 
 const Cvalue constant_table[] =
 {
+    {"_nothing_", "", BAD_NUMERIC},
     {"arrow", "29", 29.0},
     {"backslash", "\\", BAD_NUMERIC},
     {"busy", "6", 6.0},
@@ -372,6 +373,7 @@ const LT command_table[] =
         {"next", TT_STATEMENT, S_NEXT},
         {"on", TT_STATEMENT, S_SCRIPT_ERROR},
         {"open", TT_STATEMENT, S_OPEN},
+        {"operator", TT_STATEMENT, S_SCRIPT_ERROR},
         {"option", TT_STATEMENT, S_OPTION},
         {"palette", TT_STATEMENT, S_PALETTE},
         {"pass", TT_STATEMENT, S_PASS},
@@ -540,13 +542,29 @@ const LT factor_table[] =
         {"=", TT_BINOP, O_EQ},
         {">", TT_BINOP, O_GT},
         {">=", TT_BINOP, O_GE},
-        {"^", TT_BINOP, O_POW},	
+        {"^", TT_BINOP, O_POW},
+        {"_as_array_", TT_BINOP, O_AS_ARRAY},
+        {"_as_boolean_", TT_BINOP, O_AS_BOOLEAN},
+        {"_as_data_", TT_BINOP, O_AS_DATA},
+        {"_as_number_", TT_BINOP, O_AS_NUMBER},
+        {"_as_string_", TT_BINOP, O_AS_STRING},
+        {"_as_type_", TT_BINOP, O_AS_TYPE},
+        {"_has_type_", TT_BINOP, O_HAS_TYPE},
 #ifdef MODE_DEVELOPMENT
 		{"_hscrollbarid", TT_PROPERTY, P_HSCROLLBARID},
-		{"_ideoverride", TT_PROPERTY, P_IDE_OVERRIDE},
+#endif
+        {"_ideoverride", TT_PROPERTY, P_IDE_OVERRIDE},
+        {"_is_type_", TT_BINOP, O_IS_TYPE},
+        {"_strict_type_of_", TT_FUNCTION, F_STRICT_TYPE_OF},
+        {"_type_error_", TT_FUNCTION, F_TYPE_ERROR},
+        {"_type_of_", TT_FUNCTION, F_TYPE_OF},
+#ifdef MODE_DEVELOPMENT
 		{"_unplacedgroupids", TT_PROPERTY, P_UNPLACED_GROUP_IDS},
+#endif
+#ifdef MODE_DEVELOPMENT
 		{"_vscrollbarid", TT_PROPERTY, P_VSCROLLBARID},
 #endif
+        {"_with_type_", TT_BINOP, O_WITH_TYPE},
         {"abbr", TT_PROPERTY, P_ABBREVIATE},
         {"abbrev", TT_PROPERTY, P_ABBREVIATE},
         {"abbreviated", TT_PROPERTY, P_ABBREVIATE},
@@ -1494,6 +1512,7 @@ const LT factor_table[] =
 #endif
 		{"revruntimebehaviour", TT_PROPERTY, P_REV_RUNTIME_BEHAVIOUR},
         {"revscriptdescription", TT_PROPERTY, P_REV_SCRIPT_DESCRIPTION},
+        {"revscriptsignatures", TT_PROPERTY, P_REV_SCRIPT_SIGNATURES},
 #ifdef MODE_DEVELOPMENT
 		{"revunplacedgroupids", TT_PROPERTY, P_UNPLACED_GROUP_IDS},
 #endif
@@ -1913,6 +1932,7 @@ const static LT handler_table[] =
         {"global", TT_VARIABLE, S_GLOBAL},
         {"local", TT_VARIABLE, S_LOCAL},
         {"on", TT_HANDLER, HT_ON},
+        {"operator", TT_HANDLER, HT_OPERATOR},
 		{"private", TT_HANDLER, HT_PRIVATE},
         {"setprop", TT_HANDLER, HT_SETPROP},
         {"var", TT_VARIABLE, S_LOCAL},
@@ -2126,7 +2146,9 @@ const static LT sugar_table[] =
         {"callback", TT_CHUNK, CT_UNDEFINED},
 		{"caller", TT_UNDEFINED, SG_CALLER},
 		{"closed", TT_UNDEFINED, SG_CLOSED},
+        {"copy", TT_PARAMETER, PA_COPY},
         {"data", TT_UNDEFINED, SG_DATA},
+        {"drop", TT_PARAMETER, PA_DROP},
 		{"effects", TT_UNDEFINED, SG_EFFECTS},
 		{"elevated", TT_UNDEFINED, SG_ELEVATED},
         {"empty", TT_CHUNK, CT_UNDEFINED},
@@ -2151,9 +2173,11 @@ const static LT sugar_table[] =
 		// MM-2012-09-05: [[ Property Listener ]] Syntax: cancel listener for [object]
 		{"listener", TT_UNDEFINED, SG_LISTENER},
 #endif
+        {"make", TT_PARAMETER, PA_MAKE},
 		// JS-2013-07-01: [[ EnhancedFilter ]] Token for 'matching'.
         {"matching", TT_UNDEFINED, SG_MATCHING},
         {"message", TT_CHUNK, CT_UNDEFINED},
+        {"modify", TT_PARAMETER, PA_MODIFY},
         {"new", TT_CHUNK, CT_UNDEFINED},
 		{"nothing", TT_UNDEFINED, SG_NOTHING},
         // MW-2014-09-30: [[ ScriptOnlyStack ]] Token for 'only'.
@@ -2169,6 +2193,7 @@ const static LT sugar_table[] =
 		// MERG-2013-08-26: [[ RecursiveArrayOp ]] Support nested arrays in union and intersect
 		// AL-2013-10-30: [[ Bug 11351 ]] Ensure table is in alphabetical order.
         {"recursively", TT_UNDEFINED, SG_RECURSIVELY},
+        {"ref", TT_PARAMETER, PA_REF},
 		// JS-2013-07-01: [[ EnhancedFilter ]] Token for 'regex'.
 		{"regex", TT_UNDEFINED, SG_REGEX},
 		{"replacing", TT_UNDEFINED, SG_REPLACING},
@@ -2186,6 +2211,7 @@ const static LT sugar_table[] =
 		{"url", TT_UNDEFINED, SG_URL},
         {"urlresult", TT_UNDEFINED, SG_URL_RESULT},
         {"value", TT_UNDEFINED, SG_VALUE},
+        {"variadic", TT_PARAMETER, PA_VARIADIC},
 		// JS-2013-07-01: [[ EnhancedFilter ]] Token for 'wildcard'.
 		{"wildcard", TT_UNDEFINED, SG_WILDCARD},
 		{"without", TT_PREP, PT_WITHOUT},
@@ -2305,6 +2331,7 @@ const static LT validation_table[] =
     {"point", TT_UNDEFINED, IV_POINT},
     {"rect", TT_UNDEFINED, IV_RECT},
     {"rectangle", TT_UNDEFINED, IV_RECT},
+    {"string", TT_UNDEFINED, IV_STRING},
 };
 
 const static LT visual_table[] =

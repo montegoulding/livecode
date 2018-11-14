@@ -1208,8 +1208,10 @@ bool MCStringFormatV(MCStringRef& r_string, const char *p_format, va_list p_args
                 t_string = MCSTR("(null)");
             else if (MCValueGetTypeCode(t_value) == kMCValueTypeCodeString)
 				t_string = (MCStringRef)t_value;
-            else
-				/* UNCHECKED */ MCValueCopyDescription (t_value, &t_string);
+            else if (!MCValueCopyDescription (t_value, &t_string))
+            {
+                t_string = MCSTR("(unknown)");
+            }
 
 			if (t_range == nil)
 				t_success = MCStringAppend(t_buffer, *t_string);
@@ -1285,6 +1287,8 @@ bool MCStringCopy(MCStringRef self, MCStringRef& r_new_string)
 		return true;
 	}
     
+    MCAssert(MCValueGetTag(self) == 0);
+    
     // If it is mutable and indirect then retain the referenced string
     if (__MCStringIsIndirect(self))
     {
@@ -1309,7 +1313,9 @@ bool MCStringCopyAndRelease(MCStringRef self, MCStringRef& r_new_string)
 		r_new_string = self;
 		return true;
 	}
-
+    
+    MCAssert(MCValueGetTag(self) == 0);
+    
     // If the string is indirect then retain its reference, and release
     if (__MCStringIsIndirect(self))
     {
@@ -1350,6 +1356,8 @@ bool MCStringMutableCopy(MCStringRef self, MCStringRef& r_new_string)
     if (!MCStringIsMutable(self))
         return __MCStringCreateIndirect(self, r_new_string);
 
+    MCAssert(MCValueGetTag(self) == 0);
+    
     // If the string is already indirect, we just create a new reference to its string
 	if (__MCStringIsIndirect(self))
 		return __MCStringCreateIndirect(self -> string, r_new_string);
@@ -1372,8 +1380,10 @@ bool MCStringMutableCopyAndRelease(MCStringRef self, MCStringRef& r_new_string)
 		if (!MCStringIsMutable(self))
         {
 			self -> flags |= kMCStringFlagIsMutable;
-            //self -> capacity = self -> char_count;
+            __MCValueSetTag(self, 0);
         }
+        
+        MCAssert(MCValueGetTag(self) == 0);
         
 		r_new_string = self;
 		return true;
@@ -5920,6 +5930,81 @@ bool __MCStringImmutableCopy(__MCString* self, bool p_release, __MCString*& r_im
 	return MCStringCopyAndRelease(self, r_immutable_value);
 }
 
+bool __MCStringTaggableCopy(__MCString *self, bool p_release, __MCString*& r_taggable_value)
+{
+    /* If we are releasing, and there is only one reference then we can reuse
+     * this string. */
+    if (p_release && self->references == 1)
+    {
+        /* If the string is indirect, and the indirect string has only 1
+         * reference we can use that. */
+        if (__MCStringIsIndirect(self) &&
+            self->string->references == 1)
+        {
+            r_taggable_value = MCValueRetain(self->string);
+            MCValueRelease(self);
+            return true;
+        }
+        
+        /* If the string is mutable, make it immutable. */
+        if (MCStringIsMutable(self))
+        {
+            if (!__MCStringMakeImmutable(self))
+            {
+                return false;
+            }
+            self->flags &= ~kMCStringFlagIsMutable;
+        }
+        
+        r_taggable_value = self;
+        
+        return true;
+    }
+    
+    /* There is more than reference to the string, so we will need a new
+     * indirect string which we can tag. */
+    __MCString *t_taggable_string;
+    if (!__MCValueCreate(kMCValueTypeCodeString, t_taggable_string))
+    {
+        return false;
+    }
+    
+    /* If the string is indirect, then the target string is the indirection. 
+     * If the string is mutable, then we must make an immutable copy to target.
+     * Otherwise self is the target string. */
+    __MCString *t_target_string;
+    if (__MCStringIsIndirect(self))
+    {
+        t_target_string = self->string;
+    }
+    else if (MCStringIsMutable(self))
+    {
+        if (!__MCStringCopyMutable(self, t_target_string))
+        {
+            MCMemoryDelete(t_taggable_string);
+            return false;
+        }
+    }
+    else
+    {
+        t_target_string = self;
+    }
+    
+    /* Setup the taggable (indirect) string. */
+    t_taggable_string->flags |= kMCStringFlagIsIndirect;
+    t_taggable_string->string = MCValueRetain(t_target_string);
+    
+    /* Release the original string, if requested */
+    if (p_release)
+    {
+        MCValueRelease(self);
+    }
+    
+    r_taggable_value = t_taggable_string;
+    
+    return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static void __MCStringClampRange(MCStringRef self, MCRange& x_range)
@@ -6960,6 +7045,12 @@ bool MCStringSetNumericValue(MCStringRef self, double p_value)
 {
 	__MCAssertIsString(self);
 
+    /* Tagged strings never have a numeric value currently, however this could
+     * be added later - tagged strings which are indirect should store their
+     * numeric value, not in the indirection */
+    if (__MCValueGetTag(self) != 0)
+        return false;
+    
     if (__MCStringIsIndirect(self))
         self = self -> string;
     
@@ -6976,7 +7067,13 @@ MC_DLLEXPORT_DEF
 bool MCStringGetNumericValue(MCStringRef self, double &r_value)
 {
 	__MCAssertIsString(self);
-
+    
+    /* Tagged strings never have a numeric value currently, however this could
+     * be added later - tagged strings which are indirect should store their
+     * numeric value, not in the indirection */
+    if (__MCValueGetTag(self) != 0)
+        return false;
+    
     if (__MCStringIsIndirect(self))
         self = self -> string;
     
@@ -7143,6 +7240,11 @@ static void __MCStringCheck(MCStringRef self)
 
 static bool __MCStringCreateIndirect(__MCString *string, __MCString*& r_string)
 {
+    if (__MCStringIsIndirect(string))
+    {
+        string = string->string;
+    }
+    
     MCStringRef self;
     if (!__MCValueCreate(kMCValueTypeCodeString, self))
         return false;
@@ -7286,6 +7388,8 @@ static bool __MCStringResolveIndirect(__MCString *self)
 
         self -> capacity = t_string -> char_count;
 	}
+    
+    MCAssert(MCValueGetTag(self) == 0);
     
 	self -> flags &= ~kMCStringFlagIsIndirect;
     

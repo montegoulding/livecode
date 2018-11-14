@@ -55,6 +55,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include <unistd.h>
 
 #include "libscript/script.h"
+#include "type.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -1268,7 +1269,8 @@ static void *mobile_main(void *arg)
     if (!MCSInitialize() ||
         !MCAndroidGetLibraryPath(&t_lib_path) ||
         !(MCSLibraryAndroidSetNativeLibPath(*t_lib_path), true) ||
-        !MCScriptInitialize())
+        !MCScriptInitialize() ||
+        !MCTypeInitialize())
     {
         co_leave_engine();
         return (void *)1;

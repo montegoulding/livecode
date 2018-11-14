@@ -45,6 +45,11 @@ enum
     // The mask for the typecode bits.
     kMCValueFlagsTypeCodeMask = 0xf0000000,
     
+    // The mask for type-tag bits - type-tags can be applied to any type but
+    // names - and occupy the second byte in the flags word.
+    kMCValueFlagsTypeTagMask = 0x00ff0000,
+    kMCValueFlagsTypeTagShift = 16,
+    
     // Names store the hash value in the flags word. We need to keep the IsInterred
     // flag clear (due to an implementation detail in ValueDestroy) so we have
     // 27 bits of hash.
@@ -458,9 +463,21 @@ void __MCValueDestroy(__MCValue *value);
 
 bool __MCValueImmutableCopy(__MCValue *value, bool release, __MCValue*& r_new_value);
 
+bool __MCValueTaggableCopy(__MCValue *value, bool release, __MCValue*& r_new_value);
+
 inline bool __MCValueIsTaggedNumber(__MCValue *self)
 {
     return (reinterpret_cast<uintptr_t>(self) & 1) == 1;
+}
+
+inline uindex_t __MCValueGetTag(__MCValue *self)
+{
+    return ((self->flags & kMCValueFlagsTypeTagMask) >> kMCValueFlagsTypeTagShift);
+}
+
+inline void __MCValueSetTag(__MCValue *self, uindex_t p_tag)
+{
+    self->flags = (self->flags & ~kMCValueFlagsTypeTagMask) | (p_tag << kMCValueFlagsTypeTagShift);
 }
 
 inline MCValueTypeCode __MCValueGetTypeCode(__MCValue *self)
@@ -510,6 +527,7 @@ hash_t __MCStringHash(__MCString *string);
 bool __MCStringIsEqualTo(__MCString *string, __MCString *other_string);
 bool __MCStringCopyDescription(__MCString *string, MCStringRef& r_string);
 bool __MCStringImmutableCopy(__MCString *string, bool release, __MCString*& r_immutable_value);
+bool __MCStringTaggableCopy(__MCString *string, bool release, __MCString*& r_tagged_value);
 
 bool __MCNameInitialize(void);
 void __MCNameFinalize(void);
@@ -522,6 +540,7 @@ void __MCNumberFinalize(void);
 hash_t __MCNumberHash(__MCNumber *number);
 bool __MCNumberIsEqualTo(__MCNumber *number, __MCNumber *other_number);
 bool __MCNumberCopyDescription(__MCNumber *number, MCStringRef& r_string);
+bool __MCNumberTaggableCopy(__MCNumber *number, bool release, __MCNumber*& r_tagged_value);
 
 bool __MCArrayInitialize(void);
 void __MCArrayFinalize(void);
@@ -530,6 +549,7 @@ hash_t __MCArrayHash(__MCArray *array);
 bool __MCArrayIsEqualTo(__MCArray *array, __MCArray *other_array);
 bool __MCArrayCopyDescription(__MCArray *array, MCStringRef& r_string);
 bool __MCArrayImmutableCopy(__MCArray *array, bool release, __MCArray*& r_immutable_value);
+bool __MCArrayTaggableCopy(__MCArray *array, bool release, __MCArray*& r_tagged_value);
 
 bool __MCListInitialize(void);
 void __MCListFinalize(void);
@@ -554,6 +574,7 @@ hash_t __MCDataHash(__MCData *self);
 bool __MCDataIsEqualTo(__MCData *self, __MCData *p_other_data);
 bool __MCDataCopyDescription(__MCData *self, MCStringRef &r_description);
 bool __MCDataImmutableCopy(__MCData *self, bool p_release, __MCData *&r_immutable_value);
+bool __MCDataTaggableCopy(__MCData *data, bool release, __MCData*& r_tagged_value);
 
 bool __MCProperListInitialize(void);
 void __MCProperListFinalize(void);

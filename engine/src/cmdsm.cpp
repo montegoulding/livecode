@@ -78,6 +78,12 @@ Parse_stat MCAdd::parse(MCScriptPoint &sp)
 	// MW-2013-08-01: [[ Bug 10925 ]] If the dest chunk is just a var, extract the varref.
 	if (dest != NULL && dest -> isvarchunk())
 		destvar = dest -> getrootvarref();
+    
+    if (destvar != nullptr &&
+        destvar->getisreadonly())
+    {
+        return sp.error(PE_CHUNK_READONLYVAR);
+    }
 
 	return PS_NORMAL;
 }
@@ -207,6 +213,12 @@ Parse_stat MCDivide::parse(MCScriptPoint &sp)
 	// MW-2013-08-01: [[ Bug 10925 ]] If the dest chunk is just a var, extract the varref.
 	if (dest != NULL && dest -> isvarchunk())
 		destvar = dest -> getrootvarref();
+    
+    if (destvar != nullptr &&
+        destvar->getisreadonly())
+    {
+        return sp.error(PE_CHUNK_READONLYVAR);
+    }
 
 	return PS_NORMAL;
 }
@@ -339,6 +351,12 @@ Parse_stat MCMultiply::parse(MCScriptPoint &sp)
 	// MW-2013-08-01: [[ Bug 10925 ]] If the dest chunk is just a var, extract the varref.
 	if (dest != NULL && dest -> isvarchunk())
 		destvar = dest -> getrootvarref();
+    
+    if (destvar != nullptr &&
+        destvar->getisreadonly())
+    {
+        return sp.error(PE_CHUNK_READONLYVAR);
+    }
 
 	return PS_NORMAL;
 }
@@ -471,6 +489,12 @@ Parse_stat MCSubtract::parse(MCScriptPoint &sp)
 	// MW-2013-08-01: [[ Bug 10925 ]] If the dest chunk is just a var, extract the varref.
 	if (dest != NULL && dest -> isvarchunk())
 		destvar = dest -> getrootvarref();
+    
+    if (destvar != nullptr &&
+        destvar->getisreadonly())
+    {
+        return sp.error(PE_CHUNK_READONLYVAR);
+    }
 
 	return PS_NORMAL;
 }
@@ -627,6 +651,12 @@ Parse_stat MCArrayOp::parse(MCScriptPoint &sp)
 		
 		form = FORM_SET;
 	}
+    
+    if (destvar != nullptr &&
+        destvar->getisreadonly())
+    {
+        return sp.error(PE_CHUNK_READONLYVAR);
+    }
 
 	return PS_NORMAL;
 }
@@ -814,6 +844,12 @@ Parse_stat MCSetOp::parse(MCScriptPoint &sp)
     {
         MCperror->add(PE_ARRAYOP_DSTNOTCONTAINER, sp);
         return PS_ERROR;
+    }
+    
+    if (destvar &&
+        destvar->getisreadonly())
+    {
+        return sp.error(PE_CHUNK_READONLYVAR);
     }
 
 	return PS_NORMAL;

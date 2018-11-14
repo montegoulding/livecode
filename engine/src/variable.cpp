@@ -1178,6 +1178,16 @@ MCVarref::~MCVarref()
     }
 }
 
+bool MCVarref::getisreadonly() const
+{
+    if (!isparam)
+    {
+        return false;
+    }
+    
+    return handler->getparamreadonly(index);
+}
+
 MCVariable *MCVarref::fetchvar(MCExecContext& ctxt)
 {
 	// MW-2009-01-28: [[ Inherited parentScripts ]]

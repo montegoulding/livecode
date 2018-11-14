@@ -79,7 +79,7 @@ class MCHandlerlist
 	//   in separate arrays - indices 4 and 5.
 	// Store the handlers in six parallel arrays. The correct array to use
 	// is given by (handlertype - 1).
-	MCHandlerArray handlers[6];
+	MCHandlerArray handlers[HT_MAX_ARRAY];
 
 	MCObject *parent;
 	MCVariable *vars;
@@ -115,7 +115,10 @@ public:
 	MCHandlerlist();
 	~MCHandlerlist();
 	void reset(void);
-	MCObject *getparent();
+	MCObject *getparent() const
+    {
+        return parent;
+    }
 	// MW-2011-08-23: [[ UQL ]] 'ignore_uql' ignores UQL vars when searching.
     //   This is used when going from handler to script scope for var searches.
 	Parse_stat findvar(MCNameRef name, bool ignore_uql, MCVarref **);
@@ -168,5 +171,7 @@ public:
 		return vars != NULL;
 	}
 	uint4 linecount();
+    
+    bool copysignatures(MCArrayRef& r_array);
 };
 #endif

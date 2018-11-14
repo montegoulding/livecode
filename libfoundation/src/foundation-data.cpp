@@ -997,6 +997,11 @@ bool __MCDataImmutableCopy(__MCData *self, bool p_release, __MCData *&r_immutabl
     return MCDataCopyAndRelease(self, r_immutable_value);
 }
 
+bool __MCDataTaggableCopy(__MCData *self, bool p_release, __MCData*& p_other_self)
+{
+    return false;
+}
+
 bool __MCDataIsEqualTo(__MCData *self, __MCData *p_other_data)
 {
     return MCDataIsEqualTo(self, p_other_data);

@@ -2342,6 +2342,7 @@ void MCObject::sendmessage(Handler_type htype, MCNameRef m, Boolean h)
 		"setprop",
 		"before",
 		"after",
+        "operator",
 		"private"
 	};
 	enum { max_htype = (sizeof(htypes)/sizeof(htypes[0])) - 1 };

@@ -25,6 +25,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "keywords.h"
 #include "funcs.h"
 #include "operator.h"
+#include "type.h"
 #include "newobj.h"
 #include "answer.h"
 #include "ask.h"
@@ -869,6 +870,14 @@ MCExpression *MCN_new_function(int2 which)
         return new MCNormalizeText;
     case F_CODEPOINT_PROPERTY:
         return new MCCodepointProperty;
+            
+    case F_TYPE_OF:
+        return new MCTypeOf;
+    case F_STRICT_TYPE_OF:
+        return new MCStrictTypeOf;
+    case F_TYPE_ERROR:
+        return new MCTypeError;
+            
     default:
 		break;
 	}
@@ -942,7 +951,27 @@ MCExpression *MCN_new_operator(int2 which)
 	case O_BEGINS_WITH:
 		return new MCBeginsWith;
 	case O_ENDS_WITH:
-		return new MCEndsWith;
+        return new MCEndsWith;
+    case O_AS_BOOLEAN:
+        return new MCAsStrictType(kMCExecValueTypeBool);
+    case O_AS_NUMBER:
+        /* This is double for now, as that is equivalent to 'X + 0', however in
+         * the future it should preserve ints as ints. */
+        return new MCAsStrictType(kMCExecValueTypeDouble);
+    case O_AS_STRING:
+        return new MCAsStrictType(kMCExecValueTypeStringRef);
+    case O_AS_DATA:
+        return new MCAsStrictType(kMCExecValueTypeDataRef);
+    case O_AS_ARRAY:
+        return new MCAsStrictType(kMCExecValueTypeArrayRef);
+    case O_AS_TYPE:
+        return new MCAsType;
+    case O_IS_TYPE:
+        return new MCIsType;
+    case O_WITH_TYPE:
+        return new MCWithType;
+    case O_HAS_TYPE:
+        return new MCHasType;
 	default:
 		return new MCExpression;
 	}

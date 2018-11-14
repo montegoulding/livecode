@@ -38,6 +38,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "cmds.h"
 #include "license.h"
 #include "redraw.h"
+#include "type.h"
 
 #include "exec.h"
 
@@ -72,12 +73,21 @@ MCHandler::MCHandler(uint1 htype, bool p_is_private, bool p_is_on)
       is_private(p_is_private ? True : False),
       is_on(p_is_on),
       type(htype),
-      m_it(nullptr)
+      m_it(nullptr),
+      non_lax(false),
+      unnamed_variadic(true),
+      operator_kind(kMCTypeOperatorKindUnknown),
+      return_type(nullptr)
 {
 }
 
 MCHandler::~MCHandler()
 {
+    if (operator_kind != kMCTypeOperatorKindUnknown)
+    {
+        MCTypeUndefineOperator(name, operator_kind);
+    }
+    
 	MCStatement *stmp;
 	while (statements != NULL)
 	{
@@ -94,7 +104,13 @@ MCHandler::~MCHandler()
 	delete[] vinfo; /* Allocated with new[] */
 
 	for(uint32_t i = 0; i < npnames; i++)
+    {
 		MCValueRelease(pinfo[i] . name);
+        if (pinfo[i].default_value != nullptr)
+        {
+            MCValueRelease(pinfo[i].default_value);
+        }
+    }
 	delete[] pinfo; /* Allocated with new[] */
 
 	delete[] globals; /* Allocated with new[] */
@@ -112,41 +128,300 @@ MCHandler::~MCHandler()
 	MCValueRelease(name);
 }
 
+/* The newparam() method parses a handler parameter. On entry, the sp will be
+ * looking at a literal token.
+ *
+ * Handler parameters have the following syntax:
+ *   <@literal> -> reference
+ *   <literal> [ default <value> ] -> normal
+ *   <literal> as <type> [ default <value> ] -> copy
+ *   <literal> ... [ as <type> ] -> variadic
+ *   ... -> allow unnamed parameters (accessed via param()).
+ *
+ * If there is an optional (has default clause), copy, variadic, or unnamed
+ * parameter marker then the handler becomes 'non-lax' - this means that the
+ * argument list must conform to the signature. i.e. missing parameters are
+ * not allowed unless they are optional, and unnamed parameters are not allowed
+ * unless the ... marker is present.
+ *
+ * Any default value expression is statically evaluated. It is an error to
+ * specify a default value which cannot be statically evaluated in the
+ * hander list static context.
+ *
+ * HANDLER_MUTABLE_PARAMS
+ *
+ * In the future the syntax might be extended to support a range of other
+ * parameter modes:
+ *   '@' '(' copy|ref|make|drop|modify|variadic ')' <literal> [ 'as' <literal> ] [ default <expression> ]
+ *
+ * A type clause is only allowed for copy, make, drop, modify and variadic modes (not ref)
+ * A default clause is only allowed for copy modes
+ * If a default expression is present, then it must be statically evaluatable.
+ *
+ */
 Parse_stat MCHandler::newparam(MCScriptPoint& sp)
 {
-	MCStringRef t_token;
-	t_token = sp . gettoken_stringref();
+    /* If there has already been a variadic parameter, then there can be no
+     * more. */
+    if ((non_lax && unnamed_variadic) ||
+        (npnames > 0 && pinfo[npnames - 1].kind == kMCHandlerParamKindVariadic))
+    {
+        return sp.error(PE_PARAM_CANTVARIADIC);
+    }
+    
+    /* If the name is '...' then we mark the handler as non_lax_variadic which
+     * gives the same behavior as current handlers with extra parameters. */
+    if (MCStringIsEqualToCString(sp.gettoken_stringref(), "...", kMCStringOptionCompareExact))
+    {
+        unnamed_variadic = true;
+        non_lax = true;
+        return PS_NORMAL;
+    }
+    
+    /* New style parameters are '@' followed by '('. */
+    bool t_new_style = false;
+    if (MCStringIsEqualToCString(sp.gettoken_stringref(), "@", kMCStringOptionCompareExact))
+    {
+        Symbol_type t_ttype;
+        if (sp.next(t_ttype) == PS_NORMAL)
+        {
+            if (t_ttype == ST_LP)
+            {
+                t_new_style = true;
+            }
+            else
+            {
+                sp.backup();
+            }
+        }
+    }
+    
+    MCNewAutoNameRef t_name;
+    MCHandlerParamKind t_kind;
+    MCType *t_type = nullptr;
+    MCAutoValueRef t_default_value;
+    if (t_new_style)
+    {
+        Symbol_type t_ttype;
+        const LT *te;
+        if (sp.next(t_ttype) != PS_NORMAL ||
+            t_ttype != ST_ID ||
+            sp.lookup(SP_SUGAR, te) == PS_NO_MATCH ||
+            te->type != TT_PARAMETER)
+        {
+            return sp.error(PE_PARAM_BADMODE);
+        }
+        
+        switch(te->which)
+        {
+        case PA_COPY:
+            t_kind = kMCHandlerParamKindCopy;
+            break;
+        case PA_VARIADIC:
+            t_kind = kMCHandlerParamKindVariadic;
+            break;
 
-	MCAutoStringRef t_token_name;
-	bool t_is_reference;
-	if (MCStringGetNativeCharAtIndex(t_token, 0) != '@')
-	{
-		t_is_reference = false;
-		t_token_name = t_token;
-	}
-	else
-	{
-		t_is_reference = true;
-		/* UNCHECKED */ MCStringCopySubstring(t_token, MCRangeMakeMinMax(1, MCStringGetLength(t_token)), &t_token_name);
-	}
+#ifndef HANDLER_MUTABLE_PARAMS
+        default:
+            return sp.error(PE_PARAM_BADMODE);
+            break;
+#else
+        case PA_REF:
+            t_kind = kMCHandlerParamKindRef;
+            break;
+        case PA_MAKE:
+            t_kind = kMCHandlerParamKindMake;
+            break;
+        case PA_DROP:
+            t_kind = kMCHandlerParamKindDrop;
+            break;
+        case PA_MODIFY:
+            t_kind = kMCHandlerParamKindModify;
+            break;
+        default:
+            MCUnreachableReturn(PS_ERROR);
+            break;
+#endif
+        }
+        
+        if (sp.next(t_ttype) != PS_NORMAL ||
+            t_ttype != ST_RP)
+        {
+            return sp.error(PE_PARAM_NORP);
+        }
+        
+        if (sp.next(t_ttype) != PS_NORMAL ||
+            t_ttype != ST_ID)
+        {
+            return sp.error(PE_PARAM_BADNAME);
+        }
+        
+        t_name = sp.gettoken_nameref();
+    }
+    else
+    {
+        MCStringRef t_token = sp.gettoken_stringref();
+        MCAutoStringRef t_token_name;
+        if (MCStringGetNativeCharAtIndex(t_token, 0) != '@')
+        {
+            t_kind = kMCHandlerParamKindNormal;
+            t_token_name = t_token;
+        }
+        else
+        {
+            t_kind = kMCHandlerParamKindReference;
+            if (!MCStringCopySubstring(t_token, MCRangeMakeMinMax(1, MCStringGetLength(t_token)), &t_token_name))
+            {
+                return sp.outofmemory();
+            }
+        }
+        
+        if (!MCNameCreate(*t_token_name, &t_name))
+        {
+            return sp.outofmemory();
+        }
+    }
+    
+    /* Parse the optional ... variadic marker */
+    {
+        Symbol_type t_ttype;
+        if (sp.next(t_ttype) == PS_NORMAL)
+        {
+            if (t_ttype == ST_NUM &&
+                MCStringIsEqualToCString(sp.gettoken_stringref(), "...", kMCStringOptionCompareExact))
+            {
+                /* To have a variadic marker, the parameter kind must be normal
+                 * or copy. */
+                if (t_kind != kMCHandlerParamKindNormal &&
+                    t_kind != kMCHandlerParamKindCopy)
+                {
+                    return sp.error(PE_PARAM_BADVARIADIC);
+                }
+                
+                /* The parameter now becomes variadic */
+                t_kind = kMCHandlerParamKindVariadic;
+            }
+            else
+            {
+                sp.backup();
+            }
+        }
+    }
+    
+    /* Parse the optional 'as' clause */
+    Symbol_type t_ttype;
+    if (sp.skip_token(SP_FACTOR, TT_PREP, PT_AS) == PS_NORMAL)
+    {
+        /* If there is a type clause, then a normal parameter becomes a
+         * copy parameter. */
+        if (t_kind == kMCHandlerParamKindNormal)
+        {
+            t_kind = kMCHandlerParamKindCopy;
+        }
+        
+        /* If there is a type clause, then the kind cannot be reference or
+         * ref. */
+        if (t_kind == kMCHandlerParamKindReference /* ||
+             t_kind == kMCHandlerParamKindRef*/)
+        {
+            return sp.error(PE_PARAM_BADTYPE);
+        }
+        
+        if (sp.next(t_ttype) != PS_NORMAL ||
+            t_ttype != ST_ID)
+        {
+            return sp.error(PE_PARAM_BADTYPENAME);
+        }
+        
+        if (!MCTypeDeclare(sp, sp.gettoken_nameref(), t_type))
+        {
+            return PS_ERROR;
+        }
+    }
+    
+    /* Parse the optional 'default' clause */
+    bool t_default_value_converted = true;
+    if (sp.skip_token(SP_COMMAND, TT_DEFAULT, TT_UNDEFINED) == PS_NORMAL)
+    {
+        /* If there is a default clause, then the parameter must be normal or
+         * copy. */
+        if (t_kind != kMCHandlerParamKindNormal &&
+             t_kind != kMCHandlerParamKindCopy)
+        {
+            return sp.error(PE_PARAM_BADDEFAULT);
+        }
 
-	MCNameRef t_name;
-	/* UNCHECKED */ MCNameCreate(*t_token_name, t_name);
-
+        /* Parse the expression */
+        MCAutoPointer<MCExpression> t_default_exp;
+        if (sp.parseexp(False, False, &(&t_default_exp)) != PS_NORMAL)
+        {
+            return sp.error(PE_PARAM_NODEFAULTEXP);
+        }
+        
+        /* Attempt to evaluate as static */
+        if (!sp.staticevalexp(*t_default_exp, &t_default_value))
+        {
+            return sp.error(PE_PARAM_DEFAULTEXPNONCONST);
+        }
+        
+        /* Now attempt to convert to type, if specified. */
+        if (t_type != nullptr)
+        {
+            bool t_is_type;
+            MCerrorlock++;
+            t_is_type = MCTypeEvalAs(*sp.getstaticctxt(), t_type, t_default_value);
+            MCerrorlock--;
+            
+            if (t_is_type)
+            {            
+                if (!t_default_value.MakeUnique())
+                {
+                    return sp.error(PE_OUTOFMEMORY);
+                }
+            }
+            else
+            {
+                t_default_value_converted = false;
+            }
+        }
+    }
+    
+    /* If non_lax then check that if this parameter is not optional, then
+     * the previous one is not optional. */
+    if (non_lax &&
+        (!t_default_value.IsSet() && t_kind != kMCHandlerParamKindVariadic) &&
+        npnames > 0 &&
+        pinfo[npnames - 1].default_value != nullptr)
+    {
+        return sp.error(PE_PARAM_NONOPTAFTEROPT);
+    }
+    
 	// OK-2010-01-11: [[Bug 7744]] - Check existing parsed parameters for duplicates.
 	for (uint2 i = 0; i < npnames; i++)
 	{
-		if (MCNameIsEqualToCaseless(pinfo[i] . name, t_name))
+		if (MCNameIsEqualToCaseless(pinfo[i] . name, *t_name))
 		{
-			MCValueRelease(t_name);
-			MCperror -> add(PE_HANDLER_DUPPARAM, sp);
-			return PS_ERROR;
+            return sp.error(PE_HANDLER_DUPPARAM);
 		}
 	}
-		
+
+    /* If the parameter is not normal or reference, or there is a default value
+     * then this is a non-lax handler */
+    if (t_default_value.IsSet() ||
+        (t_kind != kMCHandlerParamKindNormal &&
+         t_kind != kMCHandlerParamKindReference))
+    {
+        non_lax = true;
+        unnamed_variadic = false;
+    }
+    
+    /* Push the new parameter onto the parameter list */
 	MCU_realloc((char **)&pinfo, npnames, npnames + 1, sizeof(MCHandlerParamInfo));
-	pinfo[npnames] . is_reference = t_is_reference;
-	pinfo[npnames] . name = t_name;
+    pinfo[npnames].kind = t_kind;
+    pinfo[npnames].default_value_not_converted = !t_default_value_converted;
+	pinfo[npnames].name = t_name.Take();
+    pinfo[npnames].type = t_type;
+    pinfo[npnames].default_value = t_default_value.Take();
 	npnames++;
 
 	return PS_NORMAL;
@@ -154,22 +429,90 @@ Parse_stat MCHandler::newparam(MCScriptPoint& sp)
 
 Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 {
-	Parse_stat stat;
+    Parse_stat stat;
+    const LT *te;
 	Symbol_type t_type;
 	
 	firstline = sp.getline();
 	hlist = sp.gethlist();
 	prop = isprop;
-
-	if (sp.next(t_type) != PS_NORMAL)
-	{
-		MCperror->add(PE_HANDLER_NONAME, sp);
-		return PS_ERROR;
-	}
-
+    
+    /* If this is not an operator handler, then we must parse the operator name
+     * first - e.g. as, is, boolean, number, integer, string, data, array,
+     * sequence. */
+    MCTypeOperatorKind t_operator_kind = kMCTypeOperatorKindUnknown;
+    MCNewAutoNameRef t_operator_name;
+    if (type == HT_OPERATOR)
+    {
+        if (sp.next(t_type) != PS_NORMAL)
+        {
+            return sp.error(PE_HANDLER_NOOPERATOR);
+        }
+        
+        if (t_type == ST_ID)
+        {
+            if (sp.lookup(SP_VALIDATION, te) != PS_NO_MATCH)
+            {
+                switch(te->which)
+                {
+                case IV_LOGICAL:
+                    t_operator_kind = kMCTypeOperatorKindBoolean;
+                    break;
+                case IV_NUMBER:
+                    t_operator_kind = kMCTypeOperatorKindNumber;
+                    break;
+                case IV_STRING:
+                    t_operator_kind = kMCTypeOperatorKindString;
+                    break;
+                case IV_ARRAY:
+                    t_operator_kind = kMCTypeOperatorKindArray;
+                    break;
+                default:
+                    break;
+                }
+            }
+            else if (sp.lookup(SP_SUGAR, te) != PS_NO_MATCH &&
+                     te->which == SG_DATA)
+            {
+                t_operator_kind = kMCTypeOperatorKindData;
+            }
+            else if (sp.lookup(SP_FACTOR, te) != PS_NO_MATCH &&
+                     te->type == TT_BINOP)
+            {
+                switch(te->which)
+                {
+                case O_AS_TYPE:
+                    t_operator_kind = kMCTypeOperatorKindAsType;
+                    break;
+                case O_IS_TYPE:
+                    t_operator_kind = kMCTypeOperatorKindIsType;
+                    break;
+                default:
+                    break;
+                }
+            }
+        }
+        
+        if (t_operator_kind == kMCTypeOperatorKindUnknown)
+        {
+            return sp.error(PE_HANDLER_BADOPERATOR);
+        }
+        
+        t_operator_name = sp.gettoken_nameref();
+    }
+    
+    /* Now parse the name */
+    if (sp.next(t_type) != PS_NORMAL)
+    {
+        MCperror->add(PE_HANDLER_NONAME, sp);
+        return PS_ERROR;
+    }
+    
     name = MCValueRetain(sp . gettoken_nameref());
-	
-	const LT *te;
+    
+    /* At this point we continue to use the static context of the handlerlist
+     * as parameters might have default expressions. */
+    
 	// MW-2010-01-08: [[Bug 7792]] Check whether the handler name is a reserved function identifier
 	if (t_type != ST_ID ||
 			sp.lookup(SP_COMMAND, te) != PS_NO_MATCH ||
@@ -179,6 +522,7 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 		MCperror->add(PE_HANDLER_BADNAME, sp);
 		return PS_ERROR;
 	}
+    
 	if (prop)
 	{
 		if (sp.next(t_type) == PS_NORMAL)
@@ -205,34 +549,97 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 				sp.backup();
 		}
 	}
-    
+
     bool t_needs_it;
     t_needs_it = true;
     
+    /* If the type is HT_FUNCTION, and we encounter '(' then it is a non-lax
+     * handler with return type */
+    bool t_is_non_lax_function = false;
+    if (sp.next(t_type) == PS_NORMAL)
+    {
+        if (t_type == ST_LP)
+        {
+            t_is_non_lax_function = true;
+            
+            /* Mark as non lax from the start */
+            non_lax = true;
+            unnamed_variadic = false;
+        }
+        else
+        {
+            sp.backup();
+        }
+    }
+    
 	while (sp.next(t_type) == PS_NORMAL)
 	{
+        if (t_is_non_lax_function &&
+            t_type == ST_RP)
+            break;
+        
 		if (t_type == ST_SEP)
 			continue;
+        
 		const LT *t_te;
-		
         MCExpression *newfact = NULL;
-		if (t_type != ST_ID
-		        || sp.lookup(SP_FACTOR, t_te) != PS_NO_MATCH
-		        || sp.lookupconstant(&newfact) == PS_NORMAL)
-		{
+		if ((t_type == ST_NUM &&
+             MCStringIsEqualToCString(sp.gettoken_stringref(), "...", kMCStringOptionCompareExact)) ||
+            (t_type == ST_ID &&
+                sp.lookup(SP_FACTOR, t_te) == PS_NO_MATCH &&
+                sp.lookupconstant(&newfact) != PS_NORMAL))
+        {
+            if (newparam(sp) != PS_NORMAL)
+            {
+                return PS_ERROR;
+            }
+        }
+        else
+        {
 			delete newfact;
-			MCperror->add(PE_HANDLER_BADPARAM, sp);
-			return PS_ERROR;
+            return sp.error(PE_HANDLER_BADPARAM);
 		}
-
-		if (newparam(sp) != PS_NORMAL)
-            return PS_ERROR;
         
         // AL-2014-11-04: [[ Bug 13902 ]] Check if the param we just created was called 'it'.
-        if (MCNameIsEqualToCaseless(pinfo[npnames - 1] . name, MCN_it))
+        if (npnames > 0 &&
+            MCNameIsEqualToCaseless(pinfo[npnames - 1] . name, MCN_it))
             t_needs_it = false;
     }
-		
+    
+    /* If this is a non-lax function, then parse the return type */
+    if (t_is_non_lax_function)
+    {
+        /* ')' 'as' <id> */
+        if (t_type != ST_RP ||
+            sp.skip_token(SP_FACTOR, TT_PREP, PT_AS) != PS_NORMAL ||
+            sp.next(t_type) != PS_NORMAL ||
+            t_type != ST_ID)
+        {
+            return sp.error(PE_HANDLER_BADRETURNTYPE);
+        }
+        
+        if (!MCTypeDeclare(sp, sp.gettoken_nameref(), return_type))
+        {
+            return PS_ERROR;
+        }
+    }
+    
+    /* If this is an operator handler, check that the parameter list conforms to
+     * requirements. */
+    if (t_operator_kind != kMCTypeOperatorKindUnknown)
+    {
+        if (npnames != 1 ||
+            pinfo[0].type != nullptr ||
+            pinfo[0].kind != kMCHandlerParamKindNormal ||
+            pinfo[0].default_value != nullptr)
+        {
+            return sp.error(PE_HANDLER_BADOPPARAMS);
+        }
+        
+        non_lax = true;
+        unnamed_variadic = false;
+    }
+
     // AL-2014-11-04: [[ Bug 13902 ]] Only define it as a var if it wasn't one of the parameter names.
     if (t_needs_it)
         /* UNCHECKED */ newvar(MCN_it, kMCEmptyName, &m_it);
@@ -241,13 +648,13 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 	{
 		MCperror->add(PE_HANDLER_BADPARAMEOL, sp);
 		return PS_ERROR;
-	}
+    }
     
-    /* Whilst parsing the body of a handler, provide a static context. */
-    MCExecContext t_static_ctxt;
+    /* Now handler parsing is done, provide our own static context. */
+    MCExecContext t_static_ctxt(hlist->getparent(), hlist, this);
     sp.setstaticctxt(&t_static_ctxt);
     
-	sp.sethandler(this);
+    sp.sethandler(this);
 	MCStatement *curstatement = NULL;
 	MCStatement *newstatement = NULL;
 	while (True)
@@ -288,20 +695,25 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 			case TT_STATEMENT:
 				newstatement = MCN_new_statement(te->which);
 				break;
-			case TT_END:
-				if ((stat = sp.next(t_type)) != PS_NORMAL)
+            case TT_END:
+                if ((stat = sp.next(t_type)) != PS_NORMAL)
+                {
+                    return sp.error(PE_HANDLER_NOEND);
+                }
+                    
+                /* Operator handlers have the operator name before the type name
+                 * after end. */
+				if ((t_operator_kind != kMCTypeOperatorKindUnknown &&
+                     (!MCNameIsEqualToCaseless(*t_operator_name, sp.gettoken_nameref())||
+                      ((stat = sp.next(t_type)) != PS_NORMAL))) ||
+                    !MCNameIsEqualToCaseless(name, sp.gettoken_nameref()))
 				{
-					MCperror->add(PE_HANDLER_NOEND, sp);
-					return PS_ERROR;
+                    return sp.error(PE_HANDLER_BADEND);
 				}
-				if (!MCNameIsEqualToCaseless(name, sp.gettoken_nameref()))
-				{
-					MCperror->add(PE_HANDLER_BADEND, sp);
-					return PS_ERROR;
-				}
+                    
 				lastline = sp.getline();
 				sp.skip_eol();
-				return PS_NORMAL;
+                goto done;
 			default:
 				MCperror->add(PE_HANDLER_NOTCOMMAND, sp);
 				return PS_ERROR;
@@ -321,103 +733,464 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
 			curstatement = newstatement;
 		}
 	}
-	return PS_NORMAL;
+
+done:
+    /* If parsing succeeded, and this is an operator handler - declare it */
+    if (t_operator_kind != kMCTypeOperatorKindUnknown)
+    {
+        if (!MCTypeDefineOperator(sp, name, t_operator_kind, this))
+        {
+            return PS_ERROR;
+        }
+    
+        operator_kind = t_operator_kind;
+    }
+        
+    return PS_NORMAL;
 }
 
-Exec_stat MCHandler::exec(MCExecContext& ctxt, MCParameter *plist)
+/* Called on entry to a non-lax handler. */
+Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
 {
-	uint2 i;
-	MCParameter *tptr = plist;
-	if (prop && !array && plist != NULL)
-		plist = plist->getnext();
-	for (npassedparams = 0 ; tptr != NULL ; npassedparams++)
-		tptr = tptr->getnext();
-	uint2 newnparams = MCU_max(npassedparams, npnames);
+    /* Compute the number of passed parameters - used by the params function */
+    npassedparams = 0;
+    for (MCParameter *tptr = p_params; tptr != NULL; tptr = tptr->getnext())
+        npassedparams++;
     
-    // AL-2014-08-20: [[ ArrayElementRefParams ]] All handler params are now containers
-	MCContainer **newparams;
-	if (newnparams == 0)
-		newparams = NULL;
-	else
-		newparams = new (nothrow) MCContainer *[newnparams];
+    /* If this is not an unnamed_variadic handler, then the number of needed
+     * parameters is npnames, otherwise it is npassedparams. */
+    uindex_t t_arg_count;
+    /* If the number of passed arguments is less than the number of named
+     * parameters, then there must be either optional, or a variadic
+     * parameter after. */
+    if (npassedparams < npnames &&
+        pinfo[npassedparams].default_value == nullptr &&
+        pinfo[npassedparams].kind != kMCHandlerParamKindVariadic)
+    {
+        MCeerror->add(EE_HANDLER_TOOFEWARGS, firstline - 1, 1, name);
+        return ES_ERROR;
+    }
+        
+    /* If not unnamed_variadic and the number of passed arguments is greater
+     * than the number of named parameters, then the last named parameter
+     * must be variadic. */
+    if (!unnamed_variadic)
+    {
+        if (npassedparams > npnames &&
+            pinfo[npnames - 1].kind != kMCHandlerParamKindVariadic)
+        {
+            MCeerror->add(EE_HANDLER_TOOMANYARGS, firstline - 1, 1, name);
+            return ES_ERROR;
+        }
+        
+        t_arg_count = npnames;
+    }
+    else
+    {
+        t_arg_count = npassedparams;
+    }
     
-	Boolean err = False;
-	for (i = 0 ; i < newnparams ; i++)
-	{
-		if (plist != NULL)
-		{
-			if (i < npnames && pinfo[i].is_reference)
-			{
-				if ((newparams[i] = plist->eval_argument_container()) == NULL)
-				{
-					err = True;
-					break;
-				}
-			}
-			else
-			{
+    /* Allocate the container argument array. */
+    MCContainer **t_args;
+    if (t_arg_count != 0)
+    {
+        t_args = new (nothrow) MCContainer *[t_arg_count];
+    }
+    else
+    {
+        t_args = nullptr;
+    }
+    
+    /* Now process the parameter list into arguments - first the named
+     * parameters. */
+    Exec_errors t_error = EE_UNDEFINED;
+    uindex_t t_arg;
+    for(t_arg = 0; t_arg < t_arg_count; t_arg++)
+    {
+        /* This holds the name of the argument */
+        MCNameRef t_name;
+        
+        /* This holds the value of a non-reference argument */
+        MCExecValue t_value;
+
+        /* This holds the value of the container for a reference argument. */
+        MCContainer *t_reference = nullptr;
+        
+        /* What happens depends on whether the argument exists or not and
+         * whether we are in the named parameters or not */
+        if (p_params != nullptr)
+        {
+            if (t_arg < npnames)
+            {
+                /* Named parameter */
+                
+                switch(pinfo[t_arg].kind)
+                {
+                case kMCHandlerParamKindNormal:
+                case kMCHandlerParamKindCopy:
+                    if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                    {
+                        t_error = EE_HANDLER_BADPARAM;
+                        break;
+                    }
+                    
+                    if (pinfo[t_arg].type != nullptr &&
+                        !MCTypeEvalAs(ctxt, pinfo[t_arg].type, t_value))
+                    {
+                        MCExecTypeRelease(t_value);
+                        t_error = EE_HANDLER_BADPARAMTYPE;
+                        break;
+                    } 
+                    break;
+                case kMCHandlerParamKindReference:
+                    /* For reference parameters, evaluate the container */
+                    t_args[t_arg] = p_params->eval_argument_container();
+                    if (t_args[t_arg] == nullptr)
+                    {
+                        t_error = EE_HANDLER_BADPARAM;
+                    }
+                    break;
+                case kMCHandlerParamKindVariadic:
+                    /* For variadic parameters, evaluate the remaining arguments. */
+                    {
+                        MCAutoArrayRef t_arg_seq;
+                        if (!MCArrayCreateMutable(&t_arg_seq))
+                        {
+                            t_error = EE_NO_MEMORY;
+                            break;
+                        }
+                        
+                        uindex_t t_arg_index = 1;
+                        while(p_params != nullptr)
+                        {
+                            MCAutoValueRef t_arg_value;
+                            if (!p_params->eval_argument(ctxt, &t_arg_value))
+                            {
+                                t_error = EE_HANDLER_BADPARAM;
+                                break;
+                            }
+                            
+                            if (pinfo[t_arg].type != nullptr &&
+                                !MCTypeEvalAs(ctxt, pinfo[t_arg].type, t_arg_value))
+                            {
+                                t_error = EE_HANDLER_BADPARAM;
+                                break;
+                            }
+                            
+                            if (!MCArrayStoreValueAtIndex(*t_arg_seq,
+                                                          t_arg_index,
+                                                          *t_arg_value))
+                            {
+                                t_error = EE_NO_MEMORY;
+                                break;
+                            }
+                            
+                            t_arg_index += 1;
+                            
+                            p_params = p_params->getnext();
+                        }
+                                
+                        if (t_error == EE_UNDEFINED)
+                        {
+                            t_value.type = kMCExecValueTypeArrayRef;
+                            t_value.arrayref_value = t_arg_seq.Take();
+                        }
+                    }
+                    break;
+                default:
+                    MCUnreachableReturn(ES_ERROR);
+                    break;
+                }
+                
+                t_name = pinfo[t_arg].name;
+            }
+            else
+            {
+                /* Unnamed parameter */
+                
+                if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                {
+                    t_error = EE_HANDLER_BADPARAM;
+                    break;
+                }
+                
+                t_name = kMCEmptyName;
+            }
+            
+            if (p_params != nullptr)
+            {
+                p_params = p_params->getnext();
+            }
+        }
+        else
+        {
+            /* The parameter must be either optional or variadic. */
+            switch(pinfo[t_arg].kind)
+            {
+            case kMCHandlerParamKindNormal:
+            case kMCHandlerParamKindCopy:
+                /* In the optional case, the argument value is the default. */
+                MCAssert(pinfo[t_arg].default_value != nullptr);
+                MCExecTypeSetValueRef(t_value, MCValueRetain(pinfo[t_arg].default_value));
+                    
+                if (pinfo[t_arg].default_value_not_converted)
+                {
+                    if (!MCTypeEvalAs(ctxt, pinfo[t_arg].type, t_value))
+                    {
+                        t_error = EE_HANDLER_BADDEFAULTTYPE;
+                        break;
+                    }
+                }
+                break;
+            case kMCHandlerParamKindVariadic:
+                /* In the variadic case, the argument value is the empty array. */
+                t_value.type = kMCExecValueTypeArrayRef;
+                t_value.valueref_value = MCValueRetain(kMCEmptyArray);
+                break;
+            default:
+                MCUnreachableReturn(ES_ERROR);
+                break;
+            }
+        }
+        
+        /* If there was an error, then stop processing */
+        if (t_error != EE_UNDEFINED)
+        {
+            break;
+        }
+        
+        /* Create the argument */
+        if (t_reference == nullptr)
+        {
+            MCAutoPointer<MCVariable> t_arg_var;
+            if (!MCVariable::createwithname(t_name, &t_arg_var))
+            {
+                t_error = EE_NO_MEMORY;
+                break;
+            }
+            
+            MCAutoPointer<MCContainer> t_arg_container =
+                        new(nothrow) MCContainer(*t_arg_var);
+            if (!t_arg_container)
+            {
+                t_error = EE_NO_MEMORY;
+                break;
+            }
+            
+            if (!t_arg_container->give_value(ctxt, t_value))
+            {
+                t_error = EE_NO_MEMORY;
+                break;
+            }
+            
+            t_arg_var.Release();
+            
+            t_args[t_arg] = t_arg_container.Release();
+        }
+        else
+        {
+            t_args[t_arg] = t_reference;
+        }
+    }
+    
+    /* Handle any error and cleanup */
+    if (t_error != EE_UNDEFINED)
+    {
+        if (t_arg < npnames)
+        {
+            MCeerror->add(t_error, firstline - 1, 1, pinfo[t_arg].name);
+        }
+        else
+        {
+            MCeerror->add(t_error, firstline - 1, 1, t_arg);
+        }
+            
+        while(t_arg--)
+        {
+            if (t_arg >= npnames ||
+                pinfo[t_arg].kind != kMCHandlerParamKindReference)
+            {
+                delete t_args[t_arg]->getvar();
+                delete t_args[t_arg];
+            }
+        }
+        delete[] t_args;
+        
+        return ES_ERROR;
+    }
+    
+    /* Otherwise give the MCHandler the new param list. */
+    params = t_args;
+    nparams = t_arg_count;
+    
+    return ES_NORMAL;
+}
+
+/* Called on entry to a handler to handle arguments appropriately. */
+Exec_stat MCHandler::enter(MCExecContext& ctxt, MCParameter *p_params)
+{
+    /* Compute the number of passed parameters - used by the params function */
+    npassedparams = 0;
+    for (MCParameter *tptr = p_params; tptr != NULL; tptr = tptr->getnext())
+        npassedparams++;
+    
+    /* The number of new parameters is the max of the defined params and passed
+     * params. */
+    uint2 newnparams = MCU_max(npassedparams, npnames);
+    
+    /* Allocate an array of containers for the total number of needed parameters. */
+    MCContainer **newparams;
+    if (newnparams == 0)
+        newparams = NULL;
+    else
+        newparams = new (nothrow) MCContainer *[newnparams];
+    
+    /* Process the parameter list into the containers appropriately. */
+    Boolean err = False;
+    for (uint2 i = 0 ; i < newnparams ; i++)
+    {
+        if (p_params != NULL)
+        {
+            if (i < npnames && pinfo[i].kind == kMCHandlerParamKindReference)
+            {
+                if ((newparams[i] = p_params->eval_argument_container()) == NULL)
+                {
+                    err = True;
+                    break;
+                }
+            }
+            else
+            {
                 MCExecValue t_value;
-				if (!plist->eval_argument_ctxt(ctxt, t_value))
-				{
-					err = True;
-					break;
-				}
+                if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                {
+                    err = True;
+                    break;
+                }
                 
                 MCVariable *t_new_var;
                 /* UNCHECKED */ MCVariable::createwithname(i < npnames ? pinfo[i] . name : kMCEmptyName, t_new_var);
                 /* UNCHECKED */ newparams[i] = new(nothrow) MCContainer(t_new_var);
                 
-				newparams[i]->give_value(ctxt, t_value);
-			}
+                newparams[i]->give_value(ctxt, t_value);
+            }
             
             // AL-2014-11-04: [[ Bug 13902 ]] If 'it' was this parameter's name then create the MCVarref as a
             //  param type, with this handler and param index, so that use of the get command syncs up correctly.
             if (i < npnames && MCNameIsEqualToCaseless(pinfo[i] . name, MCN_it))
                 m_it = new (nothrow) MCVarref(this, i, True);
             
-			plist = plist->getnext();
-		}
-		else
-		{
-			if (i < npnames && pinfo[i].is_reference)
-			{
-				err = True;
-				break;
-			}
+            p_params = p_params->getnext();
+        }
+        else
+        {
+            if (i < npnames && pinfo[i].kind == kMCHandlerParamKindReference)
+            {
+                err = True;
+                break;
+            }
             MCVariable *t_new_var;
             /* UNCHECKED */ MCVariable::createwithname(i < npnames ? pinfo[i] . name : kMCEmptyName, t_new_var);
             /* UNCHECKED */ newparams[i] = new(nothrow) MCContainer(t_new_var);
-		}
-	}
-	if (err)
-	{
-		while (i--)
+        }
+    }
+    
+    /* If an error occurred, clean up and return an error. */
+    if (err)
+    {
+        while (newnparams--)
         {
             // AL-2014-09-16: [[ Bug 13454 ]] Delete created variables before deleting containers to prevent memory leak
-            if (i >= npnames || !pinfo[i].is_reference)
+            if (newnparams >= npnames || pinfo[newnparams].kind != kMCHandlerParamKindReference)
             {
-				delete newparams[i] -> getvar();
-                delete newparams[i];
+                delete newparams[newnparams] -> getvar();
+                delete newparams[newnparams];
             }
         }
-		delete newparams;
-		MCeerror->add(EE_HANDLER_BADPARAM, firstline - 1, 1, name);
-		return ES_ERROR;
-	}
+        delete newparams;
+        MCeerror->add(EE_HANDLER_BADPARAM, firstline - 1, 1, name);
+        return ES_ERROR;
+    }
     
+    /* Otherwise give the MCHandler the new param list. */
+    params = newparams;
+    nparams = newnparams;
+    
+    return ES_NORMAL;
+}
+
+/* Called on exit of a handler to handle arguments appropriately. */
+Exec_stat MCHandler::leave(MCExecContext& ctxt, Exec_stat p_exec_stat)
+{
+    if (params != NULL)
+    {
+        uint2 i = nparams;
+        // AL-2014-08-20: [[ ArrayElementRefParams ]] A container is always created for each parameter,
+        //  so delete them all when the handler has finished executing
+        while (i--)
+        {
+            // AL-2014-09-16: [[ Bug 13454 ]] Delete created variables before deleting containers to prevent memory leak
+            if (i >= npnames || pinfo[i].kind != kMCHandlerParamKindReference)
+            {
+                delete params[i] -> getvar();
+                delete params[i];
+            }
+        }
+        delete[] params; /* Allocated with new[] */
+    }
+    
+    /* If the handler has a return type - perform an implicit as type. */
+    if (return_type != nullptr)
+    {
+        MCExecValue t_return_value;
+        MCresult->take_exec_value(t_return_value);
+        if (!MCTypeEvalAs(ctxt, return_type, t_return_value))
+        {
+            MCExecTypeRelease(t_return_value);
+            ctxt.LegacyThrow(EE_HANDLER_BADRETURNTYPE);
+            p_exec_stat = ES_ERROR;
+        }
+        else
+        {
+            MCresult->give_value(ctxt, t_return_value);
+        }
+    }
+    
+    return p_exec_stat;
+}
+
+Exec_stat MCHandler::exec(MCExecContext& ctxt, MCParameter *plist)
+{
+    /* If this is a non-array property handler then skip past the (empty valued)
+     * index parameter. */
+    if (prop && !array && plist != NULL)
+        plist = plist->getnext();
+    
+    /* Setup the arguments */
 	MCContainer **oldparams = params;
-	MCVariable **oldvars = vars;
 	uint2 oldnparams = nparams;
-	uint2 oldnvnames = nvnames;
+    if (non_lax)
+    {
+        if (enter_non_lax(ctxt, plist) != ES_NORMAL)
+        {
+            return ES_ERROR;
+        }
+    }
+    else if (enter(ctxt, plist) != ES_NORMAL)
+    {
+        return ES_ERROR;
+    }
+    
+    /* Setup a new copy of the local variables. */
 	uint2 oldnconstants = nconstants;
-	params = newparams;
-	nparams = newnparams;
+    MCVariable **oldvars = vars;
+    uint2 oldnvnames = nvnames;
 	if (nvnames == 0)
 		vars = NULL;
 	else
 	{
 		vars = new (nothrow) MCVariable *[nvnames];
-		i = nvnames;
+		uint2 i = nvnames;
 		while (i--)
 		{
 			/* UNCHECKED */ MCVariable::createwithname(vinfo[i] . name, vars[i]);
@@ -436,11 +1209,15 @@ Exec_stat MCHandler::exec(MCExecContext& ctxt, MCParameter *plist)
 		}
 	}
     
+    /* Mark the handler as executing. */
 	executing++;
+    
+    /* Reset the result to empty */
 	ctxt . SetTheResultToEmpty();
+    
+    /* Execute the handler's body */
 	Exec_stat stat = ES_NORMAL;
 	MCStatement *tspr = statements;
-    
 	if ((MCtrace || MCnbreakpoints) && tspr != NULL)
 	{
 		MCB_trace(ctxt, firstline, 0);
@@ -519,46 +1296,39 @@ Exec_stat MCHandler::exec(MCExecContext& ctxt, MCParameter *plist)
 	if (!MCexitall && (MCtrace || MCnbreakpoints))
 		MCB_trace(ctxt, lastline, 0);
     
+    /* Mark the handler as not executing */
 	executing--;
-	if (params != NULL)
-	{
-		i = newnparams;
-        // AL-2014-08-20: [[ ArrayElementRefParams ]] A container is always created for each parameter,
-        //  so delete them all when the handler has finished executing
-		while (i--)
+    
+    /* Teardown the local copy of variables. */
+    if (vars != NULL)
+    {
+        while (nvnames--)
         {
-            // AL-2014-09-16: [[ Bug 13454 ]] Delete created variables before deleting containers to prevent memory leak
-            if (i >= npnames || !pinfo[i].is_reference)
+            if (nvnames >= oldnvnames)
             {
-				delete params[i] -> getvar();
-                delete params[i];
+                MCValueRelease(vinfo[nvnames] . name);
+                MCValueRelease(vinfo[nvnames] . init);
             }
+            delete vars[nvnames];
         }
-		delete[] params; /* Allocated with new[] */
-	}
-	if (vars != NULL)
-	{
-		while (nvnames--)
-		{
-			if (nvnames >= oldnvnames)
-			{
-				MCValueRelease(vinfo[nvnames] . name);
-				MCValueRelease(vinfo[nvnames] . init);
-			}
-			delete vars[nvnames];
-		}
-		delete[] vars; /* Allocated with new[] */
-	}
+        delete[] vars; /* Allocated with new[] */
+    }
+    vars = oldvars;
+    nvnames = oldnvnames;
+    nconstants = oldnconstants;
+    
+    /* Set a static var so MCObject::timer can distinguish pass from not handled. */
+    if (stat == ES_PASS)
+        gotpass = True;
+    
+    /* Teardown the arguments - this might change 'stat' if there is an error
+     * whilst processing the argument list. */
+    stat = leave(ctxt, stat);
 	params = oldparams;
 	nparams = oldnparams;
-	vars = oldvars;
-	nvnames = oldnvnames;
-	nconstants = oldnconstants;
-	if (stat == ES_PASS)
-		gotpass = True;  // so MCObject::timer can distinguish pass from not handled
+    
 	return stat;
 }
-
 
 MCVariable *MCHandler::getvar(uint2 index, Boolean isparam)
 {
@@ -585,6 +1355,13 @@ MCValueRef MCHandler::getparam(uindex_t p_index)
         return kMCEmptyString;
     else
         return params[p_index - 1]->get_valueref();
+}
+
+bool MCHandler::getparamreadonly(uindex_t p_index)
+{
+    if (p_index >= npnames)
+        return false;
+    return pinfo[p_index].type != nullptr;
 }
 
 // MW-2013-11-08: [[ RefactorIt ]] Changed to return the 'm_it' varref we always have now.
@@ -871,4 +1648,120 @@ uint4 MCHandler::linecount()
 	return count;
 }
 
+/* The signature of a handler is an array with the following keys:
+ *   - kind: one of
+ *       event
+ *       command / function
+ *       get / set
+ *       before / after
+ *       is type / as type
+ *       boolean / number / string / data / array
+ *   - name: the name of the handler
+ *   - scope: public or private
+ *   - parameters: a sequence of parameter arrays
+ *   - type: the (function) return type
+ * 
+ * A parameter array has keys:
+ *   - kind: one of normal, reference, strict in, strict out, variadic
+ *   - name: the name of the parameter, maybe empty if it is an unnamed variadic
+ *   - type: (only present if typed) the type of the handler
+ *   - default: (only present if optional) the default value
+ */
+bool MCHandler::copysignature(MCArrayRef& r_signature)
+{
+    static const char *kHandlerKindNames[] =
+    {
+        "",
+        "command",
+        "function",
+        "get",
+        "set",
+        "before",
+        "after"
+    };
+    
+    static const char *kOperatorKindNames[] =
+    {
+        "is type",
+        "as type",
+        "boolean",
+        "number",
+        "string",
+        "data",
+        "array"
+    };
+    
+    const char *t_kind;
+    if (is_on)
+        t_kind = "event";
+    else if (type == HT_OPERATOR)
+        t_kind = kOperatorKindNames[operator_kind];
+    else
+        t_kind = kHandlerKindNames[type];
+    
+    const char *t_scope;
+    t_scope = is_private ? "private" : "public";
+    
+    MCAutoArrayRef t_parameters;
+    if (!MCArrayCreateMutable(&t_parameters))
+    {
+        return false;
+    }
+    
+    for(uindex_t i = 0; i < npnames; i++)
+    {
+        static const char *kParameterKindNames[] =
+        {
+            "normal",
+            "reference",
+            "strict in",
+            "variadic"
+        };
+        
+        MCAutoArrayRef t_parameter;
+        if (!MCArrayCreateMutable(&t_parameter) ||
+            !MCArrayStoreValue(*t_parameter, true, MCNAME("kind"), MCNAME(kParameterKindNames[pinfo[i].kind])) ||
+            !MCArrayStoreValue(*t_parameter, true, MCNAME("name"), pinfo[i].name) ||
+            (pinfo[i].type != nullptr &&
+                !MCArrayStoreValue(*t_parameter, true, MCNAME("type"), MCTypeGetName(pinfo[i].type))) ||
+            (pinfo[i].default_value != nullptr &&
+                !MCArrayStoreValue(*t_parameter, true, MCNAME("default"), pinfo[i].default_value)) ||
+            !t_parameter.MakeImmutable() ||
+            !MCArrayStoreValueAtIndex(*t_parameters, i + 1, *t_parameter))
+        {
+            return false;
+        }
+    }
+    
+    if (unnamed_variadic)
+    {
+        MCAutoArrayRef t_parameter;
+        if (!MCArrayCreateMutable(&t_parameter) ||
+            !MCArrayStoreValue(*t_parameter, true, MCNAME("kind"), MCNAME("variadic")) ||
+            !t_parameter.MakeImmutable() ||
+            !MCArrayStoreValueAtIndex(*t_parameters, npnames + 1, *t_parameter))
+        {
+            return false;
+        }
+    }
+    
+    MCAutoArrayRef t_signature;
+    if (!MCArrayCreateMutable(&t_signature) ||
+        !MCArrayStoreValue(*t_signature, true, MCNAME("kind"), MCNAME(t_kind)) ||
+        !MCArrayStoreValue(*t_signature, true, MCNAME("name"), name) ||
+        !MCArrayStoreValue(*t_signature, true, MCNAME("scope"), MCNAME(t_scope)) ||
+        !t_parameters.MakeImmutable() ||
+        !MCArrayStoreValue(*t_signature, true, MCNAME("parameters"), *t_parameters) ||
+        (return_type != nullptr &&
+            !MCArrayStoreValue(*t_signature, true, MCNAME("type"), MCTypeGetName(return_type))) ||
+        !t_signature.MakeImmutable())
+    {
+        return false;
+    }
+    
+    r_signature = t_signature.Take();
+    
+    return true;
+}
+    
 ////////////////////////////////////////////////////////////////////////////////

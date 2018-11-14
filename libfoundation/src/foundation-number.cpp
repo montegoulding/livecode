@@ -79,6 +79,19 @@ static inline void *__MCNumberFetchAlignedPointer(MCNumberRef p_number)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+static bool __MCNumberCreateWithUntaggedInteger(integer_t p_value, MCNumberRef& r_number)
+{
+    __MCNumber *self;
+    if (!__MCValueCreate(kMCValueTypeCodeNumber, self))
+        return false;
+    
+    self -> integer = p_value;
+    
+    r_number = self;
+    
+    return true;
+}
+
 MC_DLLEXPORT_DEF
 bool MCNumberCreateWithInteger(integer_t p_value, MCNumberRef& r_number)
 {
@@ -87,15 +100,7 @@ bool MCNumberCreateWithInteger(integer_t p_value, MCNumberRef& r_number)
         return true;
     }
     
-	__MCNumber *self;
-	if (!__MCValueCreate(kMCValueTypeCodeNumber, self))
-		return false;
-
-	self -> integer = p_value;
-
-	r_number = self;
-
-	return true;
+    return __MCNumberCreateWithUntaggedInteger(p_value, r_number);
 }
 
 MC_DLLEXPORT_DEF
@@ -511,6 +516,29 @@ hash_t __MCNumberHash(__MCNumber *self)
 bool __MCNumberIsEqualTo(__MCNumber *self, __MCNumber *p_other_self)
 {
 	return MCNumberCompareTo(self, p_other_self) == 0;
+}
+
+bool __MCNumberTaggableCopy(__MCNumber *self, bool p_release, __MCNumber*& p_other_self)
+{
+    /* Tagged numbers need to be boxed to be taggable. */
+    if (__MCValueIsTaggedNumber(self))
+    {
+        return __MCNumberCreateWithUntaggedInteger(__MCNumberFetchTaggedInteger(self), p_other_self);
+    }
+    
+    if (p_release &&
+        self->references == 1)
+    {
+        p_other_self = self;
+        return true;
+    }
+    
+    if (MCNumberIsInteger(self))
+    {
+        return __MCNumberCreateWithUntaggedInteger(self->integer, p_other_self);
+    }
+    
+    return MCNumberCreateWithReal(self->real, p_other_self);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

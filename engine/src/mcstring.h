@@ -635,3 +635,11 @@ extern MCNameRef MCN_font_content;          // Control contents
 extern MCNameRef MCN_font_message;          // Message boxes and status messages
 extern MCNameRef MCN_font_tooltip;          // Tooltip text
 extern MCNameRef MCN_font_system;           // Anything else not covered above
+
+/* STRICT TYPE NAMES */
+extern MCNameRef MCN_nothing;
+extern MCNameRef MCN_boolean;
+extern MCNameRef MCN_number;
+extern MCNameRef MCN_array;
+extern MCNameRef MCN_data;
+extern MCNameRef MCN_string;

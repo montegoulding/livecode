@@ -1843,6 +1843,69 @@ enum Parse_errors
     
     // {PE-0599} expression: constant key not present
     PE_EXPRESSION_CONSTANTKEYNOTEXIST,
+    
+    // {PE-0560} type operator: no type name,
+    PE_TYPEOP_NONAME,
+    
+    // {PE-0561} type operator: invalid type name,
+    PE_TYPEOP_BADNAME,
+    
+    // {PE-0562} type function: bad parameters
+    PE_TYPEFUNC_BADPARAM,
+    
+    // {PE-0563} type operator: no tags left
+    PE_TYPEOP_NOTAGSLEFT,
+    
+    // {PE-0564} type operator: already defined
+    PE_TYPEOP_ALREADYDEFINED,
+    
+    // {PE-0565} param: invalid mode
+    PE_PARAM_BADMODE,
+    
+    // {PE-0566} param: ')' missing
+    PE_PARAM_NORP,
+    
+    // {PE-0567} param: invalid name
+    PE_PARAM_BADNAME,
+    
+    // {PE-0568} param: invalid typename
+    PE_PARAM_BADTYPENAME,
+    
+    // {PE-0569} param: no default expression
+    PE_PARAM_NODEFAULTEXP,
+    
+    // {PE-0570} param: default expression not constant
+    PE_PARAM_DEFAULTEXPNONCONST,
+    
+    // {PE-0571} param: reference and ref parameters cannot be typed
+    PE_PARAM_BADTYPE,
+    
+    // {PE-0572} param: only normal and copy parameters can be defaulted
+    PE_PARAM_BADDEFAULT,
+    
+    // {PE-0573} handler: no operator name
+    PE_HANDLER_NOOPERATOR,
+    
+    // {PE-0574} handler: bad operator name
+    PE_HANDLER_BADOPERATOR,
+    
+    // {PE-0575} handler: invalid parameter list for operator
+    PE_HANDLER_BADOPPARAMS,
+    
+    // {PE-0576} handler: variadic parameter must be the last
+    PE_PARAM_CANTVARIADIC,
+    
+    // {PE-0577} handler: variadic parameters must be normal or copy
+    PE_PARAM_BADVARIADIC,
+    
+    // {PE-0578} handler: only optional or variadic parameters allowed after optional
+    PE_PARAM_NONOPTAFTEROPT,
+    
+    // {PE-0579} chunk: read only var cannot be destination
+    PE_CHUNK_READONLYVAR,
+    
+    // {PE-0560} handler: bad return type
+    PE_HANDLER_BADRETURNTYPE,
 };
 
 extern const char *MCparsingerrors;

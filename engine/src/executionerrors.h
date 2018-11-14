@@ -2809,6 +2809,39 @@ enum Exec_errors
     
     // {EE-0920} static: numberFormat not static
     EE_STATIC_NONUMBERFORMAT,
+    
+    // {EE-0921} typeError: bad hint
+    EE_TYPEERR_BADHINT,
+    
+    // {EE-0922} typeError: type error
+    EE_TYPEERR_ERROR,
+    
+    // {EE-0923} typeFunc: bad operand
+    EE_TYPEFUNC_BADOPERAND,
+    
+    // {EE-0924} type operator: bad operand
+    EE_TYPEOP_BADOPERAND,
+    
+    // {EE-0925} with type: cannot tag
+    EE_WITHTYPE_CANNOTTAG,
+    
+    // {EE-0926} handler: too many args
+    EE_HANDLER_TOOMANYARGS,
+    
+    // {EE-0927} handler: too few args
+    EE_HANDLER_TOOFEWARGS,
+    
+    // {EE-0928} type operator: bad return type
+    EE_TYPEOP_BADRETURNTYPE,
+    
+    // {EE-0929} handler: type error in parameter
+    EE_HANDLER_BADPARAMTYPE,
+    
+    // {EE-0930} handler: type error in result
+    EE_HANDLER_BADRETURNTYPE,
+    
+    // {PE-0931} handler: default not correct type
+    EE_HANDLER_BADDEFAULTTYPE,
 };
 
 extern const char *MCexecutionerrors;

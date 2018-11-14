@@ -190,8 +190,7 @@ bool MCArrayMutableCopy(MCArrayRef self, MCArrayRef& r_new_array)
 	__MCAssertIsArray(self);
 
 	// If the array is immutable, then the new mutable array will be indirect
-	// referencing it. [ non-mutable arrays cannot be indirect so self does not
-	// need resolving ].
+	// referencing it.
 	if (!MCArrayIsMutable(self))
 		return __MCArrayCreateIndirect(self, r_new_array);
 
@@ -778,10 +777,93 @@ bool __MCArrayImmutableCopy(__MCArray *self, bool p_release, __MCArray*& r_immut
 	return MCArrayCopyAndRelease(self, r_immutable_self);
 }
 
+bool __MCArrayTaggableCopy(__MCArray *self, bool p_release, __MCArray*& r_taggable_value)
+{
+    /* If we are releasing, and there is only one reference then we can reuse
+     * this array. */
+    if (p_release && self->references == 1)
+    {
+        /* If the string is indirect, and the indirect string has only 1
+         * reference we can use that. */
+        if (__MCArrayIsIndirect(self) &&
+            self->contents->references == 1)
+        {
+            r_taggable_value = MCValueRetain(self->contents);
+            MCValueRelease(self);
+            return true;
+        }
+        
+        /* If the array is mutable, make it immutable. */
+        if (MCArrayIsMutable(self))
+        {
+            if (!__MCArrayMakeContentsImmutable(self))
+            {
+                return false;
+            }
+            self->flags &= ~kMCArrayFlagIsMutable;
+        }
+        
+        r_taggable_value = self;
+        
+        return true;
+    }
+    
+    /* There is more than reference to the array, so we will need a new
+     * indirect array which we can tag. */
+    __MCArray *t_taggable_array;
+    if (!__MCValueCreate(kMCValueTypeCodeArray, t_taggable_array))
+    {
+        return false;
+    }
+    
+    /* If the array is indirect, then the target array is the indirection. 
+     * If the array is mutable, then we must make an immutable copy to target.
+     * Otherwise self is the target array. */
+    __MCArray *t_target_array;
+    if (__MCArrayIsIndirect(self))
+    {
+        t_target_array = self->contents;
+    }
+    else if (MCArrayIsMutable(self))
+    {
+        if (!__MCArrayMakeContentsImmutable(self) ||
+            !__MCArrayMakeIndirect(self))
+        {
+            MCMemoryDelete(t_taggable_array);
+            return false;
+        }
+        t_target_array = self->contents;
+    }
+    else
+    {
+        t_target_array = self;
+    }
+    
+    /* Setup the taggable (indirect) string. */
+    t_taggable_array->flags |= kMCArrayFlagIsIndirect;
+    t_taggable_array->contents = MCValueRetain(t_target_array);
+    
+    /* Release the original string, if requested */
+    if (p_release)
+    {
+        MCValueRelease(self);
+    }
+    
+    r_taggable_value = t_taggable_array;
+    
+    return true;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 static bool __MCArrayCreateIndirect(__MCArray *p_contents, __MCArray*& r_array)
 {
+    /* Tagged arrays are immutable and indirect, so resolve any indirection */
+    if (__MCArrayIsIndirect(p_contents))
+    {
+        p_contents = p_contents->contents;
+    }
+    
 	MCArrayRef self;
 	if (!__MCValueCreate(kMCValueTypeCodeArray, self))
 		return false;

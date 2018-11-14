@@ -128,6 +128,45 @@ uindex_t MCValueGetRetainCount(MCValueRef p_value)
 }
 
 MC_DLLEXPORT_DEF
+uindex_t MCValueGetTag(MCValueRef p_value)
+{
+    __MCValue *self = (__MCValue *)p_value;
+    
+    MCAssert(self != nil);
+    __MCAssertIsValue(self);
+    
+    if (__MCValueIsTaggedNumber(self))
+    {
+        return 0;
+    }
+    
+    switch(MCValueGetTypeCode(p_value))
+    {
+        case kMCValueTypeCodeNumber:
+        case kMCValueTypeCodeString:
+        case kMCValueTypeCodeData:
+        case kMCValueTypeCodeArray:
+            return __MCValueGetTag(self);
+            
+        default:
+            break;
+    }
+    
+    return 0;
+}
+
+MC_DLLEXPORT_DEF
+uindex_t MCValueGetTypeCodeAndTag(MCValueRef p_value)
+{
+    __MCValue *self = (__MCValue *)p_value;
+    
+    MCAssert(self != nil);
+    __MCAssertIsValue(self);
+
+    return MCValueGetTypeCode(p_value) | MCValueGetTag(p_value) << 8;
+}
+
+MC_DLLEXPORT_DEF
 MCValueRef MCValueRetain(MCValueRef p_value)
 {
 	__MCValue *self = (__MCValue *)p_value;
@@ -203,6 +242,62 @@ bool MCValueCopyAndRelease(MCValueRef p_value, MCValueRef& r_immutable_copy)
 	}
 	
 	return false;
+}
+
+MC_DLLEXPORT_DEF
+bool MCValueCopyWithTag(MCValueRef p_value, uindex_t p_tag, MCValueRef& r_tagged_copy)
+{
+    MCAssert(p_value != nil);
+    __MCAssertIsValue(p_value);
+    
+    if (p_tag > 255)
+    {
+        return false;
+    }
+    
+    if (MCValueGetTag(p_value) == p_tag)
+    {
+        r_tagged_copy = MCValueRetain(p_value);
+        return true;
+    }
+    
+    __MCValue *t_copy;
+    if (!__MCValueTaggableCopy((__MCValue *)p_value, false, t_copy))
+    {
+        return false;
+    }
+    
+    __MCValueSetTag((__MCValue *)t_copy, p_tag);
+    r_tagged_copy = (MCValueRef)t_copy;
+    return true;
+}
+
+MC_DLLEXPORT_DEF
+bool MCValueCopyWithTagAndRelease(MCValueRef p_value, uindex_t p_tag, MCValueRef& r_tagged_copy)
+{
+    MCAssert(p_value != nil);
+    __MCAssertIsValue(p_value);
+    
+    if (p_tag > 255)
+    {
+        return false;
+    }
+    
+    if (MCValueGetTag(p_value) == p_tag)
+    {
+        r_tagged_copy = p_value;
+        return true;
+    }
+    
+    __MCValue *t_copy;
+    if (!__MCValueTaggableCopy((__MCValue *)p_value, true, t_copy))
+    {
+        return false;
+    }
+    
+    __MCValueSetTag((__MCValue *)t_copy, p_tag);
+    r_tagged_copy = (MCValueRef)t_copy;
+    return true;
 }
 
 MC_DLLEXPORT_DEF
@@ -820,7 +915,9 @@ static uindex_t __MCValueFindUniqueValueBucket(__MCValue *p_value, hash_t p_hash
 			// If the slot has a value and it is equal to the one we are looking
 			// for, we are done.
 			if (p_value == (__MCValue *)t_bucket -> value ||
-				(p_hash == t_bucket -> hash && MCValueIsEqualTo(p_value, (__MCValue *)t_bucket -> value)))
+				(p_hash == t_bucket -> hash &&
+                 MCValueGetTag(p_value) == MCValueGetTag((__MCValue *)t_bucket -> value) &&
+                 MCValueIsEqualTo(p_value, (__MCValue *)t_bucket -> value)))
 				return t_probe;
 		}
 
@@ -1005,7 +1102,7 @@ static bool __MCValueInter(__MCValue *self, bool p_release, MCValueRef& r_unique
 
 		t_target_slot = __MCValueFindUniqueValueBucketAfterRehash(self, t_hash);
 	}
-
+    
 	// If we still don't have a slot then just fail (this could happen if
 	// memory is exhausted).
 	if (t_target_slot == UINDEX_MAX)
@@ -1149,6 +1246,86 @@ bool __MCValueImmutableCopy(__MCValue *self, bool p_release, __MCValue*& r_new_v
 	r_new_value = self;
 
 	return true;
+}
+
+bool __MCValueTaggableCopy(__MCValue *self, bool p_release, __MCValue*& r_new_value)
+{
+    switch(__MCValueGetTypeCode(self))
+    {
+        case kMCValueTypeCodeBoolean:
+            return false;
+            
+        case kMCValueTypeCodeNumber:
+        {
+            __MCNumber *t_new_value;
+            if (__MCNumberTaggableCopy((__MCNumber *)self, p_release, t_new_value))
+                return r_new_value = t_new_value, true;
+        }
+        return false;
+
+        case kMCValueTypeCodeString:
+        {
+            __MCString *t_new_value;
+            if (__MCStringTaggableCopy((__MCString *)self, p_release, t_new_value))
+                return r_new_value = t_new_value, true;
+        }
+        return false;
+            
+        case kMCValueTypeCodeName:
+        {
+            __MCString *t_new_value;
+            if (__MCStringTaggableCopy((__MCString *)(((__MCName *)self) -> string), false, t_new_value))
+            {
+                if (p_release)
+                {
+                    MCValueRelease(self);
+                }
+                return r_new_value = t_new_value, true;
+            }
+        }
+        return false;
+            
+        case kMCValueTypeCodeArray:
+        {
+            __MCArray *t_new_value;
+            if (__MCArrayTaggableCopy((__MCArray *)self, p_release, t_new_value))
+                return r_new_value = t_new_value, true;
+        }
+        return false;
+            
+        case kMCValueTypeCodeList:
+            return false;
+            
+        case kMCValueTypeCodeSet:
+            return false;
+            
+        case kMCValueTypeCodeData:
+        {
+            __MCData *t_new_value;
+            if (__MCDataTaggableCopy((__MCData*)self, p_release, t_new_value))
+                return r_new_value = t_new_value, true;
+        }
+        return false;
+            
+        case kMCValueTypeCodeProperList:
+            return false;
+            
+        case kMCValueTypeCodeCustom:
+            return false;
+            
+        case kMCValueTypeCodeRecord:
+            return false;
+            
+        default:
+            break;
+    }
+    
+    if (!p_release)
+        MCValueRetain(self);
+    
+    r_new_value = self;
+    
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

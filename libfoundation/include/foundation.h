@@ -1458,6 +1458,12 @@ MC_DLLEXPORT MCValueTypeCode MCValueGetTypeCode(MCValueRef value);
 // Fetch the typeinfo of the given value.
 MC_DLLEXPORT MCTypeInfoRef MCValueGetTypeInfo(MCValueRef value);
 
+// Fetch the tag of the given value.
+MC_DLLEXPORT uindex_t MCValueGetTag(MCValueRef value);
+
+// Fetch the typecode and tag of the given value.
+MC_DLLEXPORT uinteger_t MCValueGetTypeCodeAndTag(MCValueRef value);
+    
 // Fetch the retain count.
 MC_DLLEXPORT uindex_t MCValueGetRetainCount(MCValueRef value);
 
@@ -1479,6 +1485,10 @@ MC_DLLEXPORT MCValueRef MCValueRetain(MCValueRef value);
 // why it can fail).
 MC_DLLEXPORT bool MCValueCopy(MCValueRef value, MCValueRef& r_immutable_copy);
 MC_DLLEXPORT bool MCValueCopyAndRelease(MCValueRef value, MCValueRef& r_immutable_copy);
+
+// Copies the given value but with a type tag.
+MC_DLLEXPORT bool MCValueCopyWithTag(MCValueRef value, uindex_t p_tag, MCValueRef& r_typed_value);
+MC_DLLEXPORT bool MCValueCopyWithTagAndRelease(MCValueRef value, uindex_t p_tag, MCValueRef& r_typed_value);
 
 // Copies the given value as a mutable value - only works for custom valuerefs at the moment.
 MC_DLLEXPORT bool MCValueMutableCopy(MCValueRef value, MCValueRef& r_immutable_copy);

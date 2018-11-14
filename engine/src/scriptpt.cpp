@@ -1381,7 +1381,11 @@ Parse_stat MCScriptPoint::lookupconstant(MCExpression **dest)
 				low = mid + 1;
 			else
 			{
-				if (token.getlength() == 4 && MCU_strncasecmp(token_cstring, "null", 4) == 0)
+                if (token.getlength() == 9 && MCU_strncasecmp(token_cstring, "_nothing_", 9) == 0)
+                {
+                    *dest = new (nothrow) MCLiteral(kMCNull);
+                }
+				else if (token.getlength() == 4 && MCU_strncasecmp(token_cstring, "null", 4) == 0)
 				{
 					// Create a stringref that contains an explicit nul character
                     MCAutoStringRef t_nul_string;
@@ -1607,10 +1611,32 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 			{
 				extern bool lookup_property_override(const LT&p_lt, Properties &r_property);
 				Properties t_property;
-				
-				Token_type t_type;
-				t_type = te->type;
-				if (doingthe && lookup_property_override(*te, t_property))
+                
+                Token_type t_type;
+                uint2 t_which;
+                t_type = te->type;
+                t_which = te->which;
+                /*if ((te->type == TT_PREP && te->which == PT_AS) ||
+                    (te->type == TT_BINOP && te->which == O_IS))
+                {
+                    if (skip_token(SP_COMMAND, TT_STATEMENT, S_TYPE) == PS_NORMAL)
+                    {
+                        if (te->type == TT_PREP)
+                            t_which = O_AS_TYPE;
+                        else if (te->type == TT_BINOP)
+                            t_which = O_IS_TYPE;
+                        t_type = TT_UNOP;
+                    }
+                }
+                else if (te->type == TT_UNOP && te->which == O_WITH_TYPE)
+                {
+                    if (skip_token(SP_FACTOR, TT_PREP, PT_AS) != PS_NORMAL)
+                    {
+                        t_type = TT_NO_MATCH;
+                    }
+                }
+				else*/
+                if (doingthe && lookup_property_override(*te, t_property))
 				{
 					t_type = TT_PROPERTY;
 				}
@@ -1648,7 +1674,7 @@ Parse_stat MCScriptPoint::parseexp(Boolean single, Boolean items,
 					depth++;
 					litems = True;
 				case TT_UNOP:
-					newfact = MCN_new_operator(te->which);
+					newfact = MCN_new_operator(t_which);
 					if ((pstat = newfact->parse(*this, doingthe)) == PS_ERROR)
 					{
 						delete newfact;
@@ -1962,6 +1988,7 @@ bool MCScriptPoint::staticevalexp_typed(MCExpression *p_expr, MCExecValueType p_
     }
     
     t_has_error = m_static_ctxt->HasError();
+    m_static_ctxt->IgnoreLastError();
     
     MCerrorlock--;
     
@@ -2014,3 +2041,16 @@ Parse_stat MCScriptPoint::finduqlvar(MCNameRef p_name, MCVarref** r_var)
 
 	return PS_ERROR;
 }
+
+Parse_stat MCScriptPoint::outofmemory(void)
+{
+    MCperror->add(PE_OUTOFMEMORY, *this);
+    return PS_ERROR;
+}
+
+Parse_stat MCScriptPoint::error(Parse_errors p_error)
+{
+    MCperror->add(p_error, *this);
+    return PS_ERROR;
+}
+

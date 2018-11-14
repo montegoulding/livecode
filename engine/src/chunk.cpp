@@ -262,6 +262,11 @@ Parse_stat MCChunk::parse(MCScriptPoint &sp, Boolean doingthe)
 							MCperror->add(PE_CHUNK_NOVARIABLE, sp);
 							return PS_ERROR;
 						}
+                        if (destvar->getisreadonly())
+                        {
+                            delete newfact;
+                            return sp.error(PE_CHUNK_READONLYVAR);
+                        }
 						destvar->parsearray(sp);
 						desttype = DT_VARIABLE;
 						return PS_NORMAL;

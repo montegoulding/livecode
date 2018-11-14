@@ -142,10 +142,16 @@ void MCConcat::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
     
     MCAutoStringRef t_left_string, t_right_string;
     if (!ctxt . ConvertToString(*t_left, &t_left_string))
+    {
+        ctxt.Throw();
         return;
+    }
     
     if (!ctxt . ConvertToString(*t_right, &t_right_string))
+    {
+        ctxt.Throw();
         return;
+    }
     
     MCAutoStringRef t_result;
     MCStringsEvalConcatenate(ctxt, *t_left_string, *t_right_string, &t_result);
@@ -662,6 +668,11 @@ void MCIs::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
                 MCStringsEvalIsAscii(ctxt, *t_value, t_result);
             else
                 MCStringsEvalIsNotAscii(ctxt, *t_value, t_result);
+            break;
+                
+        case IV_STRING:
+        case IV_SEQUENCE:
+            ctxt.LegacyThrow(EE_IS_BADOPS);
             break;
 
 		default:

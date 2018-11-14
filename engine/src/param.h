@@ -62,7 +62,17 @@ public:
     }
     
 	void setvalueref_argument(MCValueRef name);
+    
 	void give_exec_argument(MCExecValue name);
+    
+    /* Take the exec argument, resetting its value to none */
+    void take_exec_argument(MCExecValue& r_value)
+    {
+        r_value = value;
+        value.type = kMCExecValueTypeNone;
+        value.valueref_value = nullptr;
+    }
+    
 	void setn_argument(real8 n);
     void setrect_argument(MCRectangle rect);
 	void clear_argument(void);

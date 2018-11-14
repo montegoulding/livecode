@@ -41,6 +41,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #include "font.h"
 #include "libscript/script.h"
 #include "eventqueue.h"
+#include "type.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -647,7 +648,8 @@ int platform_main(int argc, char *argv[], char *envp[])
 {
 	if (!MCInitialize() ||
         !MCSInitialize() ||
-	    !MCScriptInitialize())
+	    !MCScriptInitialize() ||
+        !MCTypeInitialize())
 		exit(-1);
     
 // THIS IS MAC SPECIFIC AT THE MOMENT BUT SHOULD WORK ON LINUX
@@ -705,6 +707,7 @@ int platform_main(int argc, char *argv[], char *envp[])
 	}
 	MCMemoryDeleteArray(t_new_envp);
 
+    MCTypeFinalize();
     MCScriptFinalize();
 	MCFinalize();
 

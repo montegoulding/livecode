@@ -4847,3 +4847,18 @@ void MCObject::GetRevBehaviorUses(MCExecContext& ctxt, MCArrayRef& r_objects)
     }
 }
 
+void MCObject::GetRevScriptSignatures(MCExecContext& ctxt, MCArrayRef& r_signatures)
+{
+    if (!getstack() -> iskeyed())
+    {
+        ctxt . LegacyThrow(EE_STACK_NOKEY);
+        return;
+    }
+    
+    parsescript(False);
+    
+    if (!hlist->copysignatures(r_signatures))
+    {
+        ctxt . LegacyThrow(EE_NO_MEMORY);
+    }
+}

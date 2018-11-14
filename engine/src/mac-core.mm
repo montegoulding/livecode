@@ -27,6 +27,8 @@
 
 #include "libscript/script.h"
 
+#include "type.h"
+
 #include <objc/objc-runtime.h>
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2060,7 +2062,8 @@ int platform_main(int argc, char *argv[], char *envp[])
     
 	if (!MCInitialize() ||
         !MCSInitialize() ||
-	    !MCScriptInitialize())
+	    !MCScriptInitialize() ||
+        !MCTypeInitialize())
 		exit(-1);
     
 	// On OSX, argv and envp are encoded as UTF8
@@ -2111,6 +2114,7 @@ int platform_main(int argc, char *argv[], char *envp[])
 	// Drain the autorelease pool.
 	[t_pool release];
 	
+    MCTypeFinalize();
     MCScriptFinalize();
 	MCFinalize();
 	

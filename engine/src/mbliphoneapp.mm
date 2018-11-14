@@ -30,6 +30,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #import <sys/utsname.h>
 
 #include "libscript/script.h"
+#include "type.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2029,7 +2030,8 @@ MC_DLLEXPORT_DEF int platform_main(int argc, char *argv[], char *envp[])
 	
     if (!MCInitialize() ||
         !MCSInitialize() ||
-        !MCScriptInitialize())
+        !MCScriptInitialize() ||
+        !MCTypeInitialize())
         return -1;
     
 	int t_exit_code;

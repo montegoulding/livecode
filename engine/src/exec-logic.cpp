@@ -37,9 +37,12 @@ static bool MCLogicIsEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef 
 		return true;
 	}
     
+    MCValueTypeCode t_left_typecode = MCValueGetTypeCode(p_left);
+    MCValueTypeCode t_right_typecode = MCValueGetTypeCode(p_right);
+    
 	bool t_left_array, t_right_array;
-	t_left_array = MCValueGetTypeCode(p_left) == kMCValueTypeCodeArray && !MCArrayIsEmpty((MCArrayRef)p_left);
-	t_right_array = MCValueGetTypeCode(p_right) == kMCValueTypeCodeArray &&	!MCArrayIsEmpty((MCArrayRef)p_right);
+	t_left_array = t_left_typecode == kMCValueTypeCodeArray && !MCArrayIsEmpty((MCArrayRef)p_left);
+	t_right_array = t_right_typecode == kMCValueTypeCodeArray &&	!MCArrayIsEmpty((MCArrayRef)p_right);
 	
 	// MW-2012-12-11: [[ ArrayComp ]] If both are arrays and non-empty then
 	//   compare as arrays; otherwise if either is an array they become empty
@@ -142,13 +145,53 @@ static bool MCLogicIsEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef 
     }
     
     // AL-2014-06-12: [[ Bug 12195 ]] If left and right are data, compare as data
-    if (MCValueGetTypeCode(p_left) == kMCValueTypeCodeData &&
-        MCValueGetTypeCode(p_right) == kMCValueTypeCodeData)
+    
+    if (t_left_typecode == kMCValueTypeCodeData &&
+        t_right_typecode == kMCValueTypeCodeData)
     {
         r_result = MCDataIsEqualTo((MCDataRef)p_left, (MCDataRef)p_right);
         return true;
     }
     
+    if (t_left_typecode == kMCValueTypeCodeName)
+    {
+        if (t_right_typecode == kMCValueTypeCodeName)
+        {
+            r_result = MCNameIsEqualTo((MCNameRef)p_left, (MCNameRef)p_right, ctxt.GetStringComparisonType());
+            return true;
+        }
+        
+        MCAutoStringRef t_right_string;
+        if (ctxt.ForceToString(p_right, &t_right_string))
+        {
+            r_result = MCStringIsEqualTo(MCNameGetString((MCNameRef)p_left), *t_right_string, ctxt.GetStringComparisonType());
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if (t_right_typecode == kMCValueTypeCodeName)
+    {
+        if (t_left_typecode == kMCValueTypeCodeName)
+        {
+            r_result = MCNameIsEqualTo((MCNameRef)p_left, (MCNameRef)p_right, ctxt.GetStringComparisonType());
+            return true;
+        }
+        
+        MCAutoStringRef t_left_string;
+        if (ctxt.ForceToString(p_left, &t_left_string))
+        {
+            r_result = MCStringIsEqualTo(*t_left_string, MCNameGetString((MCNameRef)p_right), ctxt.GetStringComparisonType());
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+        
 	// Otherwise, convert both to strings and compare.
 	MCAutoStringRef t_left_str, t_right_str;
 	if (ctxt . ForceToString(p_left, &t_left_str) &&

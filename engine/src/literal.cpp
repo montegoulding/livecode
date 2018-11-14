@@ -28,7 +28,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 MCLiteral::MCLiteral(MCValueRef p_value)
 {
-    if (MCValueGetTypeCode(p_value) == kMCValueTypeCodeString)
+    if (MCValueGetTypeCode(p_value) == kMCValueTypeCodeString &&
+        MCValueGetTag(p_value) == 0)
     {
         MCNameCreate((MCStringRef)p_value, (MCNameRef&)value);
     }
@@ -72,7 +73,7 @@ MCExpressionAttrs MCLiteralWithPath::getattrs(void) const
     
     for(uindex_t i = 0; i < m_path.Size(); i++)
     {
-        if (m_path[i]->getattrs().IsConstant())
+        if (!m_path[i]->getattrs().IsConstant())
         {
             return {};
         }

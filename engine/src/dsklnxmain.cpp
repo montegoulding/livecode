@@ -69,6 +69,12 @@ int platform_main(int argc, char *argv[], char *envp[])
 		fprintf(stderr, "Fatal: script initialization failed\n");
 		exit(-1);
 	}
+    
+    if (!MCTypeInitialize())
+    {
+        fprintf(stderr, "Fatal: type initialization failed\n");
+        exit(-1);
+    }
 	
 	// Linux needs the platform layer to be initialised early so that it can
 	// use it to load the weakly-linked dynamic libraries that the engine
@@ -137,6 +143,7 @@ int platform_main(int argc, char *argv[], char *envp[])
 	
 	int t_exit_code = X_close();
 
+    MCTypeFinalize();
 	MCScriptFinalize();
 	MCFinalize();
 

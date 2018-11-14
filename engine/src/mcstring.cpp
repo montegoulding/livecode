@@ -632,6 +632,14 @@ MCNameRef MCN_font_message;
 MCNameRef MCN_font_tooltip;
 MCNameRef MCN_font_system;
 
+/* STRICT TYPE NAMES */
+MCNameRef MCN_nothing;
+MCNameRef MCN_boolean;
+MCNameRef MCN_number;
+MCNameRef MCN_array;
+MCNameRef MCN_data;
+MCNameRef MCN_string;
+
 const struct { const char *cstring; MCNameRef *name_var; } kInitialNames[] =
 {
 	{ "msg", &MCN_msg },
@@ -1077,6 +1085,14 @@ const struct { const char *cstring; MCNameRef *name_var; } kInitialNames[] =
     { "(Message)", &MCN_font_message },
     { "(Tooltip)", &MCN_font_tooltip },
     { "(System)", &MCN_font_system },
+    
+    /* STRICT TYPE NAMES */
+    { "nothing", &MCN_nothing },
+    { "boolean", &MCN_boolean },
+    { "number", &MCN_number },
+    { "string", &MCN_string },
+    { "data", &MCN_data },
+    { "array", &MCN_array },
 };
 
 void X_initialize_names(void)
