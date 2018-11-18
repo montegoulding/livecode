@@ -49,19 +49,29 @@ on TestStrictlyBoolean
    __TestIsStrictly false and true, "a boolean"
 end TestStrictlyBoolean
 
+on TestStrictlyNumber
+   TestAssert "nothing is not strictly a number", __GenerateNothing() is not strictly a number
+   TestAssert "true is not strictly a number", (true or false) is not strictly a number
+   TestAssert "false is not strictly a number", (false or false) is not strictly a number
+   TestAssert "integer is strictly a number", (the number of items in "_") is strictly a number
+   TestAssert "real is strictly a number", (1/2) is strictly a number
+   TestAssert "string is not strictly a number", "100" is not strictly a number
+   TestAssert "binary string is not strictly a number", numToByte(48) is not strictly a number
+end TestStrictlyNumber
+
 on TestStrictlyInteger
    __TestIsStrictly the number of items in "_", "an integer"
 end TestStrictlyInteger
 
 on TestStrictlyReal
-   __TestIsStrictly infinity + 0.0, "a real"
+   __TestIsStrictly "infinity" + 0.0, "a real"
 end TestStrictlyReal
 
 on TestStrictlyString
    __TestIsStrictly "nothing", "a string"
    __TestIsStrictly 1, "a string"
    __TestIsStrictly 1.0, "a string"
-   __TestIsStrictly infinity, "a string"
+   __TestIsStrictly "infinity", "a string"
    __TestIsStrictly true, "a string"
 end TestStrictlyString
 

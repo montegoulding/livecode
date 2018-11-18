@@ -3136,6 +3136,8 @@ void MCEngineEvalIsStrictlyNothing(MCExecContext& ctxt, MCValueRef value, bool& 
 void MCEngineEvalIsNotStrictlyNothing(MCExecContext& ctxt, MCValueRef value, bool& r_result);
 void MCEngineEvalIsStrictlyABoolean(MCExecContext& ctxt, MCValueRef value, bool& r_result);
 void MCEngineEvalIsNotStrictlyABoolean(MCExecContext& ctxt, MCValueRef value, bool& r_result);
+void MCEngineEvalIsStrictlyANumber(MCExecContext& ctxt, MCValueRef value, bool& r_result);
+void MCEngineEvalIsNotStrictlyANumber(MCExecContext& ctxt, MCValueRef value, bool& r_result);
 void MCEngineEvalIsStrictlyAnInteger(MCExecContext& ctxt, MCValueRef value, bool& r_result);
 void MCEngineEvalIsNotStrictlyAnInteger(MCExecContext& ctxt, MCValueRef value, bool& r_result);
 void MCEngineEvalIsStrictlyAReal(MCExecContext& ctxt, MCValueRef value, bool& r_result);

@@ -298,6 +298,8 @@ Parse_stat MCIs::parse(MCScriptPoint &sp, Boolean the)
                     valid = IV_ARRAY;
                 else if (sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_STRING) == PS_NORMAL)
                     valid = IV_STRING;
+                else if (sp . skip_token(SP_VALIDATION, TT_UNDEFINED, IV_NUMBER) == PS_NORMAL)
+                    valid = IV_NUMBER;
                 else if (sp . skip_token(SP_VALIDATION, TT_UNDEFINED, IV_INTEGER) == PS_NORMAL)
                     valid = IV_INTEGER;
                 else if (sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_REAL) == PS_NORMAL)
@@ -518,6 +520,12 @@ void MCIs::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
                     MCEngineEvalIsStrictlyABoolean(ctxt, *t_value, t_result);
                 else
                     MCEngineEvalIsNotStrictlyABoolean(ctxt, *t_value, t_result);
+                break;
+            case IV_NUMBER:
+                if (form == IT_STRICTLY)
+                    MCEngineEvalIsStrictlyANumber(ctxt, *t_value, t_result);
+                else
+                    MCEngineEvalIsNotStrictlyANumber(ctxt, *t_value, t_result);
                 break;
             case IV_INTEGER:
                 if (form == IT_STRICTLY)

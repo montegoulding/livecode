@@ -2049,6 +2049,16 @@ void MCEngineEvalIsNotStrictlyABoolean(MCExecContext& ctxt, MCValueRef value, bo
     r_result = MCValueGetTypeCode(value) != kMCValueTypeCodeBoolean;
 }
 
+void MCEngineEvalIsStrictlyANumber(MCExecContext& ctxt, MCValueRef value, bool& r_result)
+{
+    r_result = MCValueGetTypeCode(value) == kMCValueTypeCodeNumber;
+}
+
+void MCEngineEvalIsNotStrictlyANumber(MCExecContext& ctxt, MCValueRef value, bool& r_result)
+{
+    r_result = MCValueGetTypeCode(value) != kMCValueTypeCodeNumber;
+}
+
 void MCEngineEvalIsStrictlyAnInteger(MCExecContext& ctxt, MCValueRef value, bool& r_result)
 {
     r_result = MCValueGetTypeCode(value) == kMCValueTypeCodeNumber &&
