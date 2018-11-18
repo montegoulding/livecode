@@ -1808,6 +1808,8 @@ void MCKeywordsExecCommandOrFunction(MCExecContext& ctxt, bool resolved, MCHandl
 
 void MCLogicEvalIsEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
 void MCLogicEvalIsNotEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
+void MCLogicEvalIsStrictlyEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
+void MCLogicEvalIsNotStrictlyEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
 void MCLogicEvalIsGreaterThan(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
 void MCLogicEvalIsGreaterThanOrEqualTo(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
 void MCLogicEvalIsLessThan(MCExecContext& ctxt, MCValueRef p_left, MCValueRef p_right, bool& r_result);
