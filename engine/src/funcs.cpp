@@ -746,10 +746,18 @@ void MCHostNtoA::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 
 void MCInsertScripts::eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
 {
-	if (front)
+	if (where == IP_FRONT)
+    {
 		MCEngineEvalFrontScripts(ctxt, r_value .stringref_value);
-	else
+    }
+	else if (where == IP_BACK)
+    {
 		MCEngineEvalBackScripts(ctxt, r_value . stringref_value);
+    }
+    else
+    {
+        MCEngineEvalLibraryScripts(ctxt, r_value . stringref_value);
+    }
     
     r_value . type = kMCExecValueTypeStringRef;
 }

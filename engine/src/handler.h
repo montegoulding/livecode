@@ -65,6 +65,7 @@ class MCHandler
 	Boolean prop;
 	Boolean array;
 	Boolean is_private;
+    bool is_on;
 	uint1 type;
 	
 	// MW-2013-11-08: [[ RefactorIt ]] The 'it' variable is now always defined
@@ -73,7 +74,7 @@ class MCHandler
 	
 	static Boolean gotpass;
 public:
-	MCHandler(uint1 htype, bool p_is_private = false);
+	MCHandler(uint1 htype, bool p_is_private = false, bool p_is_on = false);
 	~MCHandler();
 
 	MCNameRef getname(void)
@@ -146,7 +147,17 @@ public:
 	{
 		return is_private == True;
 	}
+    
+    bool ison(void) const
+    {
+        return is_on;
+    }
 
+    MCHandlerlist* gethandlerlist(void) const
+    {
+        return hlist;
+    }
+    
 	void getvarlist(MCVariable**& r_vars, uint32_t& r_var_count)
 	{
 		r_vars = vars;

@@ -368,6 +368,9 @@ int4 MCrandomseed;
 Boolean MCshowinvisibles;
 MCObjectList *MCbackscripts;
 MCObjectList *MCfrontscripts;
+MCObjectList *MClibraryscripts;
+MCArrayRef MClibrarycommandmap;
+MCArrayRef MClibraryfunctionmap;
 
 // MW-2011-09-24: [[ Effects ]] Add support for rect restriction on lock/unlock screen with effects.
 MCRectangle MCcur_effects_rect;
@@ -756,6 +759,9 @@ void X_clear_globals(void)
 	MCshowinvisibles = False;
 	MCbackscripts = nil;
 	MCfrontscripts = nil;
+    MClibraryscripts = nil;
+    MClibrarycommandmap = MCValueRetain(kMCEmptyArray);
+    MClibraryfunctionmap = MCValueRetain(kMCEmptyArray);
 	MCcur_effects = nil;
 	MCperror = nil;
 	MCeerror = nil;
@@ -1397,6 +1403,8 @@ int X_close(void)
 
 	delete[] MCusing; /* Allocated with new[] */
 	MCValueRelease(MChttpheaders);
+    MCValueRelease(MClibrarycommandmap);
+    MCValueRelease(MClibraryfunctionmap);
 	MCValueRelease(MCscriptfont);
 	MCValueRelease(MClinkatts . colorname);
 	MCValueRelease(MClinkatts . hilitecolorname);

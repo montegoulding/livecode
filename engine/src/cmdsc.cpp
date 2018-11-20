@@ -1590,25 +1590,35 @@ Parse_stat MCRemove::parse(MCScriptPoint &sp)
 		}
 	if (script || all)
 	{
-		if (sp.skip_token(SP_FACTOR, TT_FROM) != PS_NORMAL)
+		if (sp.skip_token(SP_FACTOR, TT_FROM) == PS_NORMAL)
 		{
-			MCperror->add
-			(PE_REMOVE_NOFROM, sp);
+            if (sp.next(type) != PS_NORMAL)
+            {
+                MCperror->add(PE_REMOVE_NOPLACE, sp);
+                return PS_ERROR;
+            }
+            if (sp.lookup(SP_INSERT, te) != PS_NORMAL)
+            {
+                MCperror->add(PE_REMOVE_NOPLACE, sp);
+                return PS_ERROR;
+            }
+            where = (Insert_point)te->which;
+        }
+        else if (sp.skip_token(SP_FACTOR, TT_PREP, PT_AS) == PS_NORMAL)
+        {
+            if (sp.skip_token(SP_COMMAND, TT_STATEMENT, S_LIBRARY) != PS_NORMAL)
+            {
+                MCperror->add(PE_REMOVE_NOFROM, sp);
+                return PS_ERROR;
+            }
+            where = IP_LIBRARY;
+        }
+        else
+        {
+			MCperror->add(PE_REMOVE_NOFROM, sp);
 			return PS_ERROR;
 		}
-		if (sp.next(type) != PS_NORMAL)
-		{
-			MCperror->add
-			(PE_REMOVE_NOPLACE, sp);
-			return PS_ERROR;
-		}
-		if (sp.lookup(SP_INSERT, te) != PS_NORMAL)
-		{
-			MCperror->add
-			(PE_REMOVE_NOPLACE, sp);
-			return PS_ERROR;
-		}
-		where = (Insert_point)te->which;
+
 		return PS_NORMAL;
 	}
 
@@ -1634,7 +1644,16 @@ Parse_stat MCRemove::parse(MCScriptPoint &sp)
 void MCRemove::exec_ctxt(MCExecContext& ctxt)
 {
     if (all)
-		MCEngineExecRemoveAllScriptsFrom(ctxt, where == IP_FRONT);
+    {
+        if (where == IP_LIBRARY)
+        {
+            MCEngineExecRemoveAllLibraryScripts(ctxt);
+        }
+        else
+        {
+            MCEngineExecRemoveAllScriptsFrom(ctxt, where == IP_FRONT);
+        }
+    }
 	else
 	{
 		MCObjectPtr optr;
@@ -1646,7 +1665,21 @@ void MCRemove::exec_ctxt(MCExecContext& ctxt)
         }
 		
 		if (script)
-			MCEngineExecRemoveScriptOfObjectFrom(ctxt, optr . object, where == IP_FRONT);
+        {
+            if (where == IP_LIBRARY)
+            {
+                if (optr.object->gettype() != CT_STACK)
+                {
+                    ctxt . LegacyThrow(EE_REMOVE_NOOBJECT);
+                    return;
+                }
+                MCEngineExecRemoveScriptOfStackAsLibrary(ctxt, static_cast<MCStack *>(optr . object));
+            }
+            else
+            {
+                MCEngineExecRemoveScriptOfObjectFrom(ctxt, optr . object, where == IP_FRONT);
+            }
+        }
 		else
 		{
 			if (optr . object->gettype() != CT_GROUP)

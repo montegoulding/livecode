@@ -249,6 +249,24 @@ Exec_stat MCDispatch::handle(Handler_type htype, MCNameRef mess, MCParameter *pa
 		}
 		while (optr != MCbackscripts);
 	}
+    
+    if ((stat == ES_NOT_HANDLED || stat == ES_PASS) && MClibraryscripts != NULL)
+    {
+        MCObjectList *optr = MClibraryscripts;
+        do
+        {
+            if (!optr->getremoved())
+            {
+                stat = optr->getobject()->handle(htype, mess, params, nil);
+                if (stat != ES_NOT_HANDLED && stat != ES_PASS)
+                    return stat;
+                if (stat == ES_PASS)
+                    t_has_passed = true;
+            }
+            optr = optr->next();
+        }
+        while (optr != MClibraryscripts);
+    }
 
 	if ((stat == ES_NOT_HANDLED || stat == ES_PASS) && m_externals != nil)
 	{

@@ -47,30 +47,33 @@ Boolean MCHandler::gotpass;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-MCHandler::MCHandler(uint1 htype, bool p_is_private)
-    : hlist(),
-      npassedparams(),
-      firstline(),
-      lastline()
+MCHandler::MCHandler(uint1 htype, bool p_is_private, bool p_is_on)
+    : hlist(nullptr),
+      statements(nullptr),
+      vars(nullptr),
+      globals(nullptr),
+      params(nullptr),
+      vinfo(nullptr),
+      pinfo(nullptr),
+      cinfo(nullptr),
+      nglobals(0),
+      npassedparams(0),
+      nparams(0),
+      nvnames(0),
+      npnames(0),
+      nconstants(0),
+      executing(0),
+      firstline(0),
+      lastline(0),
+      fileindex(0),
+      name(nullptr),
+      prop(False),
+      array(False),
+      is_private(p_is_private ? True : False),
+      is_on(p_is_on),
+      type(htype),
+      m_it(nullptr)
 {
-	statements = NULL;
-	vars = NULL;
-	params = NULL;
-	pinfo = NULL;
-	vinfo = NULL;
-	cinfo = NULL;
-	nglobals = nparams = nvnames = npnames = nconstants = executing = 0;
-	globals = NULL;
-	nglobals = 0;
-	prop = False;
-	array = False;
-	type = htype;
-	fileindex = 0;
-	is_private = p_is_private ? True : False;
-	name = nil;
-
-	// MW-2013-11-08: [[ RefactorIt ]] The it varref is created on parsing.
-	m_it = nil;
 }
 
 MCHandler::~MCHandler()

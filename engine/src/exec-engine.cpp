@@ -521,6 +521,16 @@ void MCEngineEvalFrontScripts(MCExecContext& ctxt, MCStringRef& r_string)
 	ctxt.Throw();
 }
 
+void MCEngineEvalLibraryScripts(MCExecContext& ctxt, MCStringRef& r_string)
+{
+    MCAutoListRef t_list;
+    if (MCEngineListObjectIds(ctxt, MClibraryscripts, &t_list) &&
+        MCListCopyAsString(*t_list, r_string))
+        return;
+    
+    ctxt.Throw();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void MCEngineEvalPendingMessages(MCExecContext& ctxt, MCStringRef& r_string)
@@ -923,6 +933,114 @@ void MCEngineExecInsertScriptOfObjectInto(MCExecContext& ctxt, MCObject *p_scrip
 	olptr->insertto(listptr);
 }
 
+struct MCLibraryHandlers {
+    MCArrayRef commands;
+    MCArrayRef functions;
+};
+
+static bool map_library_handlers(void *p_context, MCHandler* p_handler)
+{
+    MCLibraryHandlers *t_handler_maps = static_cast<MCLibraryHandlers *>(p_context);
+    
+    MCArrayRef t_map = p_handler->gettype() == HT_MESSAGE ? t_handler_maps->commands : t_handler_maps->functions;
+    
+    // If we have already mapped this handler, just continue - earlier
+    // added handlers take precedence.
+    MCValueRef t_value;
+    if (MCArrayFetchValue(t_map, false, p_handler->getname(), t_value))
+    {
+        return true;
+    }
+    MCAutoValueRef t_ptr;
+    if (!MCNumberCreateWithAlignedPointer(p_handler, (MCNumberRef&)t_ptr))
+        return false;
+    
+    MCArrayStoreValue(t_map, false, p_handler->getname(), *t_ptr);
+    return true;
+}
+
+void MCEngineLibraryHandlersChanged(MCExecContext& ctxt)
+{
+    if (MClibraryscripts == nullptr)
+    {
+        MCValueAssign(MClibrarycommandmap, kMCEmptyArray);
+        MCValueAssign(MClibraryfunctionmap, kMCEmptyArray);
+        return;
+    }
+    
+    MCArrayRef t_new_command_map;
+    if (!MCArrayCreateMutable(t_new_command_map))
+    {
+        ctxt.Throw();
+        return;
+    }
+    
+    MCArrayRef t_new_function_map;
+    if (!MCArrayCreateMutable(t_new_function_map))
+    {
+        ctxt.Throw();
+        return;
+    }
+    
+    MCLibraryHandlers t_library_handlers{t_new_command_map, t_new_function_map};
+
+    MCObjectList *t_object_list = MClibraryscripts;
+    
+    MCHandlerlistListLibraryHandlersCallback t_callback =
+        static_cast<MCHandlerlistListLibraryHandlersCallback>(map_library_handlers);
+    do
+    {
+        if (!t_object_list->getremoved())
+        {
+            MCHandlerlist *t_handler_list = t_object_list->getobject()->gethandlers();
+            if (t_handler_list != nullptr)
+            {
+                if (!t_handler_list->listlibraryhandlers(t_callback, &t_library_handlers))
+                {
+                    MCValueRelease(t_new_command_map);
+                    MCValueRelease(t_new_function_map);
+                    ctxt.Throw();
+                    return;
+                }
+            }
+        }
+        t_object_list = t_object_list->next();
+    }
+    while (t_object_list != MClibraryscripts);
+    
+    MCValueRelease(MClibrarycommandmap);
+    MCValueRelease(MClibraryfunctionmap);
+    if (!MCArrayCopyAndRelease(t_new_command_map, MClibrarycommandmap))
+    {
+        MCValueRelease(t_new_command_map);
+        MCValueRelease(t_new_function_map);
+        ctxt.Throw();
+        return;
+    }
+    
+    if (!MCArrayCopyAndRelease(t_new_function_map, MClibraryfunctionmap))
+    {
+        MCValueRelease(MClibrarycommandmap);
+        MCValueRelease(t_new_function_map);
+        ctxt.Throw();
+        return;
+    }
+}
+
+void MCEngineExecInsertScriptOfStackAsLibrary(MCExecContext& ctxt, MCStack *p_script)
+{
+    if (!p_script->parsescript(True))
+    {
+        ctxt . LegacyThrow(EE_INSERT_BADTARGET);
+        return;
+    }
+
+    MCObjectList *olptr = new (nothrow) MCObjectList(p_script);
+    olptr->insertto(MClibraryscripts);
+    p_script->setextendedstate(true, ECS_IS_LIBRARY_SCRIPT);
+    MCEngineLibraryHandlersChanged(ctxt);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 void MCEngineExecRemoveAllScriptsFrom(MCExecContext& ctxt, bool p_in_front)
@@ -937,9 +1055,29 @@ void MCEngineExecRemoveAllScriptsFrom(MCExecContext& ctxt, bool p_in_front)
 	while (lptr != listptr);
 }
 
+void MCEngineExecRemoveAllLibraryScripts(MCExecContext& ctxt)
+{
+    MCObjectList *lptr = MClibraryscripts;
+    do
+    {
+        lptr->setremoved(True);
+        static_cast<MCStack *>(lptr->getobject())->setextendedstate(false, ECS_IS_LIBRARY_SCRIPT);
+        lptr = lptr->next();
+    }
+    while (lptr != MClibraryscripts);
+    MCEngineLibraryHandlersChanged(ctxt);
+}
+
 void MCEngineExecRemoveScriptOfObjectFrom(MCExecContext& ctxt, MCObject *p_script, bool p_in_front)
 {
 	p_script->removefrom(p_in_front ? MCfrontscripts : MCbackscripts);
+}
+
+void MCEngineExecRemoveScriptOfStackAsLibrary(MCExecContext& ctxt, MCStack *p_script)
+{
+    p_script->removefrom(MClibraryscripts);
+    p_script->setextendedstate(false, ECS_IS_LIBRARY_SCRIPT);
+    MCEngineLibraryHandlersChanged(ctxt);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

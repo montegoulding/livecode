@@ -3005,6 +3005,7 @@ void MCEngineEvalResult(MCExecContext& ctxt, MCValueRef& r_value);
 
 void MCEngineEvalBackScripts(MCExecContext& ctxt, MCStringRef& r_string);
 void MCEngineEvalFrontScripts(MCExecContext& ctxt, MCStringRef& r_string);
+void MCEngineEvalLibraryScripts(MCExecContext& ctxt, MCStringRef& r_string);
 void MCEngineEvalPendingMessages(MCExecContext& ctxt, MCStringRef& r_string);
 void MCEngineEvalInterrupt(MCExecContext& ctxt, bool& r_bool);
 
@@ -3037,6 +3038,7 @@ void MCEngineExecPutOutputUnicode(MCExecContext& ctxt, MCDataRef value);
 void MCEngineExecDo(MCExecContext& ctxt, MCStringRef p_script, int p_line, int p_pos);
 void MCEngineExecDoInCaller(MCExecContext& ctxt, MCStringRef p_script, int p_line, int p_pos);
 void MCEngineExecInsertScriptOfObjectInto(MCExecContext& ctxt, MCObject *p_script, bool p_in_front);
+void MCEngineExecInsertScriptOfStackAsLibrary(MCExecContext& ctxt, MCStack *p_script);
 void MCEngineExecQuit(MCExecContext& ctxt, integer_t p_retcode);
 
 void MCEngineExecCancelMessage(MCExecContext& ctxt, integer_t p_id);
@@ -3045,6 +3047,8 @@ void MCEngineExecDeleteVariable(MCExecContext& ctxt, MCVarref *p_target);
 void MCEngineExecDeleteVariableChunks(MCExecContext& ctxt, MCVariableChunkPtr *chunk, uindex_t chunk_count);
 
 void MCEngineExecRemoveAllScriptsFrom(MCExecContext& ctxt, bool p_in_front);
+void MCEngineExecRemoveAllLibraryScripts(MCExecContext& ctxt);
+void MCEngineExecRemoveScriptOfStackAsLibrary(MCExecContext& ctxt, MCStack *p_script);
 void MCEngineExecRemoveScriptOfObjectFrom(MCExecContext& ctxt, MCObject *p_script, bool p_in_front);
 
 void MCEngineExecWaitFor(MCExecContext& ctxt, double p_delay, int p_units, bool p_messages);

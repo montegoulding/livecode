@@ -485,9 +485,10 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 				{
 				case TT_HANDLER:
 				{
-					bool t_is_private;
-					t_is_private = false;
-					if (te -> which == HT_PRIVATE)
+					bool t_is_private = false;
+                    bool t_is_on = false;
+                    Handler_type t_type = static_cast<Handler_type>(te->which);
+					if (t_type == HT_PRIVATE)
 					{
 						sp.next(type);
 						if (sp.lookup(SP_HANDLER, te) != PS_NORMAL ||
@@ -500,13 +501,19 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 						}
 
 						t_is_private = true;
+                        t_type = static_cast<Handler_type>(te->which);
 					}
-                    newhandler = new (nothrow) MCHandler((uint1)te->which, t_is_private);
+                    if (t_type == HT_ON)
+                    {
+                        t_is_on = true;
+                        t_type = HT_MESSAGE;
+                    }
+                    newhandler = new (nothrow) MCHandler(t_type, t_is_private, t_is_on);
                     
                     /* Handlers must use their own static context */
                     sp.setstaticctxt(nullptr);
-                    
-					if (newhandler->parse(sp, te->which == HT_GETPROP || te->which == HT_SETPROP) != PS_NORMAL)
+					
+					if (newhandler->parse(sp, t_type == HT_GETPROP || t_type == HT_SETPROP) != PS_NORMAL)
 					{
 						sp.sethandler(NULL);
 						delete newhandler;
@@ -520,8 +527,8 @@ Parse_stat MCHandlerlist::parse(MCObject *objptr, MCStringRef script)
 					// MW-2008-07-21: [[ Bug 6779 ]] If a handler of the given type already exists
 					//   with the same name then don't include it in the list. At some point we
 					//   probably want this to cause a warning.
-					if (!handlers[te -> which - 1] . exists(newhandler -> getname()))
-						handlers[te -> which - 1] . append(newhandler);
+					if (!handlers[t_type - HT_MIN] . exists(newhandler -> getname()))
+						handlers[t_type - HT_MIN] . append(newhandler);
 					else
 						delete newhandler;
 				}
@@ -801,6 +808,27 @@ bool MCHandlerlist::listhandlers(MCHandlerlistListHandlersCallback p_callback, v
 	}
 	
 	return true;
+}
+
+bool MCHandlerlist::listlibraryhandlers(MCHandlerlistListLibraryHandlersCallback p_callback, void *p_context)
+{
+    for(uint2 i = 0; i < handlers[HT_MESSAGE - HT_MIN].count(); i++)
+    {
+        MCHandler *t_handler = handlers[HT_MESSAGE - HT_MIN].get()[i];
+        if (t_handler->isprivate() || t_handler->ison())
+            continue;
+        if (!p_callback(p_context, t_handler))
+            return false;
+    }
+    for(uint2 i = 0; i < handlers[HT_FUNCTION - HT_MIN].count(); i++)
+    {
+        MCHandler *t_handler = handlers[HT_FUNCTION - HT_MIN].get()[i];
+        if (t_handler->isprivate())
+            continue;
+        if (!p_callback(p_context, t_handler))
+            return false;
+    }
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

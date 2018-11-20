@@ -548,6 +548,8 @@ MCExpression *MCN_new_function(int2 which)
 		return new MCKeysDown;
 	case F_LENGTH:
 		return new MCLength;
+    case F_LIBRARY_SCRIPTS:
+        return new MCLibraryScripts;
 	case F_LICENSED:
 		return new MCLicensed;
 	case F_LINE_OFFSET:

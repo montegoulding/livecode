@@ -416,6 +416,7 @@ enum Functions {
     F_KEYS,
     F_KEYS_DOWN,
     F_LENGTH,
+    F_LIBRARY_SCRIPTS,
     F_LICENSED,
     F_LINE_OFFSET,
     F_LN,
@@ -632,7 +633,12 @@ enum Handler_type {
 
     HT_PRIVATE,
 
-    HT_MAX = HT_PRIVATE
+    HT_MAX = HT_PRIVATE,
+    
+    // HT_ON is only used at the point of parsing a handler to allow setting of
+    // the is_on flag of the handler class. The actual Handler_type of the handler
+    // is immediately set to HT_MESSAGE afterward.
+    HT_ON
 };
 
 enum If_format {
@@ -657,7 +663,8 @@ enum Try_state {
 
 enum Insert_point {
     IP_BACK,
-    IP_FRONT
+    IP_FRONT,
+    IP_LIBRARY
 };
 
 enum Is_type {

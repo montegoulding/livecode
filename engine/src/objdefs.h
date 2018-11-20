@@ -506,6 +506,9 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 // MERG-2014-06-02: [[ IgnoreMouseEvents ]] If this is set then the stack is transparent to mouse events
 #define ECS_IGNORE_MOUSE_EVENTS (1UL << 17)
 
+// If set, the object's script is being used as a library script
+#define ECS_IS_LIBRARY_SCRIPT (1UL << 16)
+
 // Has handlers
 #define HH_IDLE                 (1UL << 0)
 #define HH_MOUSE_WITHIN         (1UL << 1)

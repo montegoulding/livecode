@@ -382,18 +382,31 @@ Parse_stat MCInsert::parse(MCScriptPoint &sp)
 		MCperror->add(PE_INSERT_BADOBJECT, sp);
 		return PS_ERROR;
 	}
-	if (sp.skip_token(SP_FACTOR, TT_PREP, PT_INTO) != PS_NORMAL)
+    
+	if (sp.skip_token(SP_FACTOR, TT_PREP, PT_INTO) == PS_NORMAL)
 	{
+        if (sp.next(type) != PS_NORMAL
+            || sp.lookup(SP_INSERT, te) != PS_NORMAL)
+        {
+            MCperror->add(PE_INSERT_NOPLACE, sp);
+            return PS_ERROR;
+        }
+        where = (Insert_point)te->which;
+    }
+    else if (sp.skip_token(SP_FACTOR, TT_PREP, PT_AS) == PS_NORMAL)
+    {
+        if (sp.skip_token(SP_COMMAND, TT_STATEMENT, S_LIBRARY) != PS_NORMAL)
+        {
+            MCperror->add(PE_INSERT_NOINTO, sp);
+            return PS_ERROR;
+        }
+        where = IP_LIBRARY;
+    }
+    else
+    {
 		MCperror->add(PE_INSERT_NOINTO, sp);
 		return PS_ERROR;
 	}
-	if (sp.next(type) != PS_NORMAL
-	        || sp.lookup(SP_INSERT, te) != PS_NORMAL)
-	{
-		MCperror->add(PE_INSERT_NOPLACE, sp);
-		return PS_ERROR;
-	}
-	where = (Insert_point)te->which;
 	return PS_NORMAL;
 }
 
@@ -407,7 +420,19 @@ void MCInsert::exec_ctxt(MCExecContext &ctxt)
         return;
     }
 
-    MCEngineExecInsertScriptOfObjectInto(ctxt, optr, where == IP_FRONT);
+    if (where == IP_LIBRARY)
+    {
+        if (optr->gettype() != CT_STACK)
+        {
+            ctxt . LegacyThrow(EE_REMOVE_NOOBJECT);
+            return;
+        }
+        MCEngineExecInsertScriptOfStackAsLibrary(ctxt, static_cast<MCStack *>(optr));
+    }
+    else
+    {
+        MCEngineExecInsertScriptOfObjectInto(ctxt, optr, where == IP_FRONT);
+    }
 }
 
 // MW-2008-11-05: [[ Dispatch Command ]] Implementation for the dispatch command.

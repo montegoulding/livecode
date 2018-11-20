@@ -859,6 +859,7 @@ void MCObject::removereferences()
     MCscreen->cancelmessageobject(this, NULL);
     removefrom(MCfrontscripts);
     removefrom(MCbackscripts);
+    removefrom(MClibraryscripts);
     
     // MW-2009-11-03: Clear all current breakpoints for this object
     MCB_clearbreaks(this);
@@ -2512,7 +2513,15 @@ Boolean MCObject::parsescript(Boolean report, Boolean force)
 			
 			Parse_stat t_stat;
 			t_stat = hlist -> parse(this, _script);
-			
+		
+            MCExecContext ctxt(this, nil, nil);
+            if (gettype() == CT_STACK &&
+                static_cast<MCStack *>(this)->getextendedstate(ECS_IS_LIBRARY_SCRIPT))
+            {
+                extern void MCEngineLibraryHandlersChanged(MCExecContext&);
+                MCEngineLibraryHandlersChanged(ctxt);
+            }
+
 			getstack() -> securescript(this);
 			
 			if (t_stat != PS_NORMAL)
@@ -2520,7 +2529,6 @@ Boolean MCObject::parsescript(Boolean report, Boolean force)
 				hashandlers |= HH_DEAD_SCRIPT;
 				if (report && parent)
                 {
-                    MCExecContext ctxt(this, nil, nil);
                     MCAutoStringRef t_id;
 					getstringprop(ctxt, 0, P_LONG_ID, False, &t_id);
                     MCperror->add(PE_OBJECT_NAME, 0, 0, *t_id);

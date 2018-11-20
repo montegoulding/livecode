@@ -105,6 +105,20 @@ static Exec_stat MCKeywordsExecuteStatements(MCExecContext& ctxt, MCStatement *p
     return stat;
 }
 
+static MCHandler* check_library_cache(MCNameRef p_name, bool p_is_function)
+{
+    MCHandler *t_handler = nullptr;
+    MCValueRef t_handler_ptr;
+    MCArrayRef t_map = p_is_function ? MClibraryfunctionmap : MClibrarycommandmap;
+    if (MCArrayFetchValue(t_map, false, p_name, t_handler_ptr))
+    {
+        void *t_handler_contents =
+            MCNumberFetchAsAlignedPointer(static_cast<MCNumberRef>(t_handler_ptr));
+        t_handler = static_cast<MCHandler *>(t_handler_contents);
+    }
+    return t_handler;
+}
+
 void MCKeywordsExecCommandOrFunction(MCExecContext& ctxt, bool resolved, MCHandler *handler, MCParameter *params, MCNameRef name, uint2 line, uint2 pos, bool global_handler, bool is_function)
 {    
 	if (MCscreen->abortkey())
@@ -204,12 +218,29 @@ void MCKeywordsExecCommandOrFunction(MCExecContext& ctxt, bool resolved, MCHandl
         }
 	}
 	else
-	{
-		stat = MCU_dofrontscripts(is_function ? HT_FUNCTION : HT_MESSAGE, name, params);
-		Boolean olddynamic = MCdynamicpath;
-		MCdynamicpath = MCdynamiccard.IsValid();
+    {
+        if (MClibraryscripts != nullptr)
+        {
+            MCHandler *t_library_handler = check_library_cache(name, is_function);
+            if (t_library_handler != nullptr)
+            {
+                stat = t_library_handler->gethandlerlist()->getparent()-> exechandler(t_library_handler, params);
+                if (stat == ES_PASS)
+                {
+                    stat = ES_NORMAL;
+                }
+            }
+        }
+        
+        if (stat == ES_NOT_HANDLED)
+        {
+            stat = MCU_dofrontscripts(is_function ? HT_FUNCTION : HT_MESSAGE, name, params);
+        }
+        
 		if (stat == ES_PASS || stat == ES_NOT_HANDLED)
         {
+            Boolean olddynamic = MCdynamicpath;
+            MCdynamicpath = MCdynamiccard.IsValid();
             if (is_function)
             {
                 // PASS STATE FIX
@@ -252,9 +283,8 @@ void MCKeywordsExecCommandOrFunction(MCExecContext& ctxt, bool resolved, MCHandl
                     stat = ES_NORMAL;
 #endif
             }
+            MCdynamicpath = olddynamic;
         }
-		
-		MCdynamicpath = olddynamic;
 	}
 	MCECptr = oldctxt;
 	if (added)

@@ -607,7 +607,7 @@ void X_main_loop(void)
 			t_handlerlist = new (nothrow) MCHandlerlist;
 			
 			MCHandler *t_handler;
-			t_handler = new (nothrow) MCHandler(HT_MESSAGE, true);
+			t_handler = new (nothrow) MCHandler(HT_MESSAGE, true, true);
 			
 			MCScriptPoint sp(MCserverscript, t_handlerlist, MCSTR(s_default_error_handler));
 			

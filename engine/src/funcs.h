@@ -853,7 +853,7 @@ public:
 class MCInsertScripts : public MCConstantFunction
 {
 protected:
-	Boolean front;
+	Insert_point where;
 public:
 	virtual void eval_ctxt(MCExecContext &, MCExecValue &);
 };
@@ -863,7 +863,7 @@ class MCBackScripts : public MCInsertScripts
 public:
 	MCBackScripts()
 	{
-		front = False;
+		where = IP_BACK;
 	}
 };
 
@@ -872,8 +872,17 @@ class MCFrontScripts : public MCInsertScripts
 public:
 	MCFrontScripts()
 	{
-		front = True;
+		where = IP_FRONT;
 	}
+};
+
+class MCLibraryScripts : public MCInsertScripts
+{
+public:
+    MCLibraryScripts()
+    {
+        where = IP_LIBRARY;
+    }
 };
 
 class MCInterrupt : public MCConstantFunctionCtxt<bool, MCEngineEvalInterrupt>

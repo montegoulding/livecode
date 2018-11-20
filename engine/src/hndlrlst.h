@@ -71,6 +71,7 @@ private:
 typedef bool (*MCHandlerlistListConstantsCallback)(void *p_context, MCHandlerConstantInfo *info);
 typedef bool (*MCHandlerlistListVariablesCallback)(void *p_context, MCVariable *p_variable);
 typedef bool (*MCHandlerlistListHandlersCallback)(void *p_context, Handler_type p_type, MCHandler* p_handler, bool p_include_all);
+typedef bool (*MCHandlerlistListLibraryHandlersCallback)(void *p_context, MCHandler* p_handler);
 
 class MCHandlerlist
 {
@@ -141,6 +142,7 @@ public:
 	bool listhandlers(MCHandlerlistListHandlersCallback p_callback, void *p_context, bool p_include_all);
     bool listvariables(MCHandlerlistListVariablesCallback p_callback, void *p_context);
     bool listglobals(MCHandlerlistListVariablesCallback p_callback, void *p_context);
+    bool listlibraryhandlers(MCHandlerlistListLibraryHandlersCallback p_callback, void *p_context);
     
 	uint2 getnvars(void)
 	{

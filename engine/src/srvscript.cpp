@@ -203,27 +203,35 @@ Parse_stat MCServerScript::ParseNextStatement(MCScriptPoint& sp, MCStatement*& r
 				// Its a handler or variable definition
 				if (t_symbol -> type == TT_HANDLER)
 				{
-					bool t_is_private;
-					t_is_private = false;
+                    Handler_type t_handler_type = static_cast<Handler_type>(t_symbol->which);
+					bool t_is_private = false;
+                    bool t_is_on = false;
 					
-					if (t_symbol -> which == HT_PRIVATE)
+					if (t_handler_type == HT_PRIVATE)
 					{
 						t_is_private = true;
 						
 						sp . next(t_type);
 						if (sp . lookup(SP_HANDLER, t_symbol) != PS_NORMAL)
 							t_symbol = nil;
+                        else
+                            t_handler_type = static_cast<Handler_type>(t_symbol->which);
 							
 					}
-					if (t_symbol != nil && (t_symbol -> which == HT_MESSAGE || t_symbol -> which == HT_FUNCTION))
+                    if (t_handler_type == HT_ON)
+                    {
+                        t_is_on = true;
+                        t_handler_type = HT_MESSAGE;
+                    }
+					if (t_symbol != nil && (t_handler_type == HT_MESSAGE || t_handler_type == HT_FUNCTION))
 					{
 						MCHandler *t_new_handler;
-						t_new_handler = new (nothrow) MCHandler((uint1)t_symbol -> which, t_is_private);
+						t_new_handler = new (nothrow) MCHandler(t_handler_type, t_is_private, t_is_on);
 						t_new_handler -> setfileindex(m_current_file -> index);
-						if (t_new_handler -> parse(sp, false) == PS_NORMAL && !hlist -> hashandler((Handler_type)t_symbol -> which, t_new_handler -> getname()))
+						if (t_new_handler -> parse(sp, false) == PS_NORMAL && !hlist -> hashandler(t_handler_type, t_new_handler -> getname()))
 						{
 							sp . sethandler(NULL);
-							hlist -> addhandler((Handler_type)t_symbol -> which, t_new_handler);
+							hlist -> addhandler(t_handler_type, t_new_handler);
 						}
 						else
 						{

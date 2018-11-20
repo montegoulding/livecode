@@ -289,6 +289,9 @@ extern int4 MCrandomseed;
 extern Boolean MCshowinvisibles;
 extern MCObjectList *MCbackscripts;
 extern MCObjectList *MCfrontscripts;
+extern MCObjectList *MClibraryscripts;
+extern MCArrayRef MClibrarycommandmap;
+extern MCArrayRef MClibraryfunctionmap;
 
 // MW-2011-09-24: [[ Effects ]] Add support for rect restriction on lock/unlock screen with effects.
 extern MCRectangle MCcur_effects_rect;
