@@ -2840,8 +2840,11 @@ enum Exec_errors
     // {EE-0930} handler: type error in result
     EE_HANDLER_BADRETURNTYPE,
     
-    // {PE-0931} handler: default not correct type
+    // {EE-0931} handler: default not correct type
     EE_HANDLER_BADDEFAULTTYPE,
+    
+    // {EE-0932} handler: invalid trailing argument
+    EE_HANDLER_BADTRAILING,
 };
 
 extern const char *MCexecutionerrors;

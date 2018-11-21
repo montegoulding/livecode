@@ -207,7 +207,7 @@ MCBinaryDecode::~MCBinaryDecode()
 
 Parse_stat MCBinaryDecode::parse(MCScriptPoint &sp, Boolean the)
 {
-	if (getparams(sp, &params) != PS_NORMAL || params == NULL)
+	if (getparams(sp, false, &params) != PS_NORMAL || params == NULL)
 	{
 		MCperror->add(PE_BINARYD_BADPARAM, line, pos);
 		return PS_ERROR;
@@ -295,7 +295,7 @@ MCBinaryEncode::~MCBinaryEncode()
 
 Parse_stat MCBinaryEncode::parse(MCScriptPoint &sp, Boolean the)
 {
-	if (getparams(sp, &params) != PS_NORMAL || params == NULL)
+	if (getparams(sp, false, &params) != PS_NORMAL || params == NULL)
 	{
 		MCperror->add(PE_BINARYE_BADPARAM, line, pos);
 		return PS_ERROR;
@@ -654,7 +654,7 @@ MCFormat::~MCFormat()
 Parse_stat MCFormat::parse(MCScriptPoint &sp, Boolean the)
 {
 	sp.allowescapes(True);
-	if (getparams(sp, &params) != PS_NORMAL || params == NULL)
+	if (getparams(sp, false, &params) != PS_NORMAL || params == NULL)
 	{
 		MCperror->add
 		(PE_FORMAT_BADPARAM, line, pos);
@@ -967,7 +967,7 @@ MCMatch::~MCMatch()
 Parse_stat MCMatch::parse(MCScriptPoint &sp, Boolean the)
 {
 	sp.allowescapes(True);
-	if (getparams(sp, &params) != PS_NORMAL || params == NULL
+	if (getparams(sp, false, &params) != PS_NORMAL || params == NULL
 	        || params->getnext() == NULL)
 	{
 		MCperror->add(PE_MATCH_BADPARAM, line, pos);

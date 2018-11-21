@@ -759,10 +759,29 @@ done:
 /* Called on entry to a non-lax handler. */
 Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
 {
+    MCAutoArrayRef t_trailing;
+    
     /* Compute the number of passed parameters - used by the params function */
     npassedparams = 0;
     for (MCParameter *tptr = p_params; tptr != NULL; tptr = tptr->getnext())
-        npassedparams++;
+    {
+        if (!tptr->istrailing())
+        {
+            npassedparams++;
+        }
+        else
+        {
+            MCAutoValueRef t_trailing_value;
+            if (!tptr->eval_argument(ctxt, &t_trailing_value) ||
+                !ctxt.ConvertToArray(*t_trailing_value, &t_trailing))
+            {
+                MCeerror->add(EE_HANDLER_BADTRAILING, firstline - 1, 1, name);
+                return ES_ERROR;
+            }
+            
+            npassedparams += MCArrayGetCount(*t_trailing);
+        }
+    }
     
     /* If this is not an unnamed_variadic handler, then the number of needed
      * parameters is npnames, otherwise it is npassedparams. */
@@ -798,9 +817,15 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
         t_args = nullptr;
     }
     
-    /* Now process the parameter list into arguments - first the named
-     * parameters. */
+    /* Now process the parameter list into arguments. */
     Exec_errors t_error = EE_UNDEFINED;
+    uindex_t t_trailing_arg = 0;
+    if (p_params != nullptr &&
+        p_params->istrailing())
+    {
+        p_params = nullptr;
+        t_trailing_arg = 1;
+    }
     uindex_t t_arg;
     for(t_arg = 0; t_arg < t_arg_count; t_arg++)
     {
@@ -818,7 +843,7 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
         
         /* What happens depends on whether the argument exists or not and
          * whether we are in the named parameters or not */
-        if (p_params != nullptr)
+        if (p_params != nullptr || t_trailing_arg != 0)
         {
             if (t_arg < npnames)
             {
@@ -828,19 +853,33 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                 {
                 case kMCHandlerParamKindNormal:
                 case kMCHandlerParamKindCopy:
-                    /* If the parameter has a default value, and there is no
-                     * expression in the parameter, then take the default */
-                    if (!p_params->hasexp() &&
-                        pinfo[t_arg].default_value != nullptr)
+                    if (t_trailing_arg == 0)
                     {
-                        t_take_default = true;
-                        break;
+                        /* If the parameter has a default value, and there is no
+                         * expression in the parameter, then take the default */
+                        if (!p_params->hasexp() &&
+                            pinfo[t_arg].default_value != nullptr)
+                        {
+                            t_take_default = true;
+                            break;
+                        }
+                            
+                        if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                        {
+                            t_error = EE_HANDLER_BADPARAM;
+                            break;
+                        }
                     }
-                        
-                    if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                    else
                     {
-                        t_error = EE_HANDLER_BADPARAM;
-                        break;
+                        MCValueRef t_trailing_value;
+                        if (!MCArrayFetchValueAtIndex(*t_trailing, t_trailing_arg, t_trailing_value))
+                        {
+                            t_error = EE_HANDLER_BADTRAILING;
+                            break;
+                        }
+                        
+                        MCExecTypeSetValueRef(t_value, MCValueRetain(t_trailing_value));
                     }
                     
                     if (pinfo[t_arg].type != nullptr &&
@@ -852,10 +891,18 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                     } 
                     break;
                 case kMCHandlerParamKindReference:
-                    /* For reference parameters, evaluate the container */
-                    t_args[t_arg] = p_params->eval_argument_container();
-                    if (t_args[t_arg] == nullptr)
+                    if (t_trailing_arg == 0)
                     {
+                        /* For reference parameters, evaluate the container */
+                        t_args[t_arg] = p_params->eval_argument_container();
+                        if (t_args[t_arg] == nullptr)
+                        {
+                            t_error = EE_HANDLER_BADPARAM;
+                        }
+                    }
+                    else
+                    {
+                        /* Reference parameters can't be trailing currently. */
                         t_error = EE_HANDLER_BADPARAM;
                     }
                     break;
@@ -870,13 +917,27 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                         }
                         
                         uindex_t t_arg_index = 1;
-                        while(p_params != nullptr)
+                        while(p_params != nullptr || t_trailing_arg != 0)
                         {
                             MCAutoValueRef t_arg_value;
-                            if (!p_params->eval_argument(ctxt, &t_arg_value))
+                            if (p_params != nullptr)
                             {
-                                t_error = EE_HANDLER_BADPARAM;
-                                break;
+                                if (!p_params->eval_argument(ctxt, &t_arg_value))
+                                {
+                                    t_error = EE_HANDLER_BADPARAM;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                MCValueRef t_fetched_arg_value;
+                                if (!MCArrayFetchValueAtIndex(*t_trailing, t_trailing_arg, t_fetched_arg_value))
+                                {
+                                    t_error = EE_HANDLER_BADTRAILING;
+                                    break;
+                                }
+                                
+                                t_arg_value = t_fetched_arg_value;
                             }
                             
                             if (pinfo[t_arg].type != nullptr &&
@@ -896,7 +957,27 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                             
                             t_arg_index += 1;
                             
-                            p_params = p_params->getnext();
+                            if (t_trailing_arg == 0)
+                            {
+                                p_params = p_params->getnext();
+                                
+                                /* If the parameter list is empty, or it is trailing then move to
+                                 * trailing */
+                                if (p_params != nullptr && p_params->istrailing())
+                                {
+                                    p_params = nullptr;
+                                    t_trailing_arg = 1;
+                                }
+                            }
+                            else
+                            {
+                                t_trailing_arg += 1;
+                                
+                                if (MCArrayGetCount(*t_trailing) < t_trailing_arg)
+                                {
+                                    break;
+                                }
+                            }
                         }
                                 
                         if (t_error == EE_UNDEFINED)
@@ -917,10 +998,24 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
             {
                 /* Unnamed parameter */
                 
-                if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                if (t_trailing_arg == 0)
                 {
-                    t_error = EE_HANDLER_BADPARAM;
-                    break;
+                    if (!p_params->eval_argument_ctxt(ctxt, t_value))
+                    {
+                        t_error = EE_HANDLER_BADPARAM;
+                        break;
+                    }
+                }
+                else
+                {
+                    MCValueRef t_trailing_value;
+                    if (!MCArrayFetchValueAtIndex(*t_trailing, t_trailing_arg, t_trailing_value))
+                    {
+                        t_error = EE_HANDLER_BADTRAILING;
+                        break;
+                    }
+                    
+                    MCExecTypeSetValueRef(t_value, MCValueRetain(t_trailing_value));
                 }
                 
                 t_name = kMCEmptyName;
@@ -1020,6 +1115,18 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
         if (p_params != nullptr)
         {
             p_params = p_params->getnext();
+            
+            /* If the parameter list is empty, or it is trailing then move to
+             * trailing */
+            if (p_params != nullptr && p_params->istrailing())
+            {
+                p_params = nullptr;
+                t_trailing_arg = 1;
+            }
+        }
+        else if (t_trailing_arg != 0)
+        {
+            t_trailing_arg += 1;
         }
     }
     
@@ -1062,7 +1169,16 @@ Exec_stat MCHandler::enter(MCExecContext& ctxt, MCParameter *p_params)
     /* Compute the number of passed parameters - used by the params function */
     npassedparams = 0;
     for (MCParameter *tptr = p_params; tptr != NULL; tptr = tptr->getnext())
+    {
+        /* Trailing arguments on lax handlers are not currently supported. */
+        if (tptr->istrailing())
+        {
+            MCeerror->add(EE_HANDLER_BADTRAILING, firstline - 1, 1, name);
+            return ES_ERROR;
+        }
+        
         npassedparams++;
+    }
     
     /* The number of new parameters is the max of the defined params and passed
      * params. */

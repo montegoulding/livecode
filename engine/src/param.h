@@ -26,7 +26,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 class MCParameter
 {
 public:
-	MCParameter(void)
+	MCParameter(bool p_is_trailing = false)
 	{
 		exp = nil;
 		next = nil;
@@ -34,6 +34,7 @@ public:
         container = nil;
 		value . type = kMCExecValueTypeNone;
         value . valueref_value = nil;
+        is_trailing = p_is_trailing;
 	}
 
 	~MCParameter(void)
@@ -107,10 +108,20 @@ public:
         return exp != nullptr;
     }
     
+    /* Returns true if the parameter is trailing */
+    bool istrailing(void) const
+    {
+        return is_trailing;
+    }
+        
 private:
-	// Parameter as syntax (i.e. location of the expression
-	// being passed to a function/command).
-	uint2 line, pos;
+    /* A trailing parameter expression allows the rest of the argument list
+     * to be fetched from a sequence. */
+    bool is_trailing : 1;
+    
+    // Parameter as syntax (i.e. location of the expression
+    // being passed to a function/command).
+    uint2 line, pos;
 	MCExpression *exp;
 	
 	// Linkage for the parameter list.

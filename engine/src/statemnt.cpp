@@ -182,11 +182,20 @@ Parse_stat MCStatement::getparams(MCScriptPoint &sp, MCParameter **params)
         
         bool t_noexp = false;
         bool t_done = false;
+        bool t_is_trailing = false;
         
 		Symbol_type type;
 		switch (sp.next(type))
 		{
 		case PS_NORMAL:
+            /* If the next token is '...' then we the next argument is trailing */
+            if (type == ST_DOTS)
+            {
+                t_is_trailing = true;
+                t_done = true;
+                break;
+            }
+                
             /* If the next token is ',', then this is an unspecified parameter
              * so we don't want an expression. */
             if (type == ST_SEP)
@@ -214,7 +223,7 @@ Parse_stat MCStatement::getparams(MCScriptPoint &sp, MCParameter **params)
 			sp.backup();
 			return PS_NORMAL;
 		}
-		MCParameter *newptr = new (nothrow) MCParameter;
+		MCParameter *newptr = new (nothrow) MCParameter(t_is_trailing);
         
         /* Only parse an expression if this is not an empty one (i.e. ',' is
          * not the next token */

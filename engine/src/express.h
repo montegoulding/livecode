@@ -156,7 +156,7 @@ public:
 	                      MCExpression **exp4, MCExpression **exp5,
 	                      MCExpression **exp6);
 	Parse_stat getvariableparams(MCScriptPoint &sp, uint32_t p_min_params, uint32_t p_param_count, ...);
-	Parse_stat getparams(MCScriptPoint &spt, MCParameter **params);
+	Parse_stat getparams(MCScriptPoint &spt, bool p_allow_trailing, MCParameter **params);
 	void initpoint(MCScriptPoint &);
 	static bool compare_array_element(void *context, MCArrayRef array, MCNameRef key, MCValueRef value);
     

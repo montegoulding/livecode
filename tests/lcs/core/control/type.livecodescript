@@ -190,6 +190,12 @@ on TestNonLaxHandlers
 	TestAssert "non-lax-handler too many default", try(_NonLaxHandlerMiddleDefault(1, 2, 3, 4), empty) is empty
 	TestAssert "non-lax-handler middle default", try(_NonLaxHandlerMiddleDefault(1, ,3), empty) is "default"
 	TestAssert "non-lax-handler nothing doesn't trigger default", try(_NonLaxHandlerMiddleDefault(1, _nothing_ ,3), empty) is strictly _nothing_
+	TestAssert "non-lax-handler with all trailing", _NonLaxHandlerForTrailing(... [1, 2, 3, 4, 5]) is [1, [2, 3, 4, 5]]
+	TestAssert "non-lax-handler with most trailing", _NonLaxHandlerForTrailing(1, ... [2, 3, 4, 5]) is [1, [2, 3, 4, 5]]
+	TestAssert "non-lax-handler with some trailing", _NonLaxHandlerForTrailing(1, 2, 3, ... [4, 5]) is [1, [2, 3, 4, 5]]
+	TestAssert "non-lax-handler with all trailing unnamed", _NonLaxHandlerForTrailingUnnamed(... [1, 2, 3, 4, 5]) is [1, 2, 3, 4, 5]
+	TestAssert "non-lax-handler with most trailing unnamed", _NonLaxHandlerForTrailingUnnamed(1, ... [2, 3, 4, 5]) is [1, 2, 3, 4, 5]
+	TestAssert "non-lax-handler with all trailing unnamed", _NonLaxHandlerForTrailingUnnamed(1, 2, 3, ... [4, 5]) is [1, 2, 3, 4, 5]
 end TestNonLaxHandlers
 
 function _NonLaxHandler @(copy) pOne
@@ -203,6 +209,15 @@ end _NonLaxHandlerVariadic
 function _NonLaxHandlerUnnamedVariadic ...
 	return the paramCount
 end _NonLaxHandlerUnnamedVariadic
+
+function _NonLaxHandlerForTrailing pOne, pArgsV...
+	return [ pOne, pArgsV ]
+end _NonLaxHandlerForTrailing
+
+function _NonLaxHandlerForTrailingUnnamed ...
+	TestDiagnostic the params
+	return params(1)
+end _NonLaxHandlerForTrailingUnnamed
 
 function _NonLaxHandlerDefault pOne, pTwo default "default"
 	return pTwo

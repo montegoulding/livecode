@@ -168,7 +168,7 @@ public:
     {
         initpoint(sp);
 
-        if (getparams(sp, &params) != PS_NORMAL)
+        if (getparams(sp, false, &params) != PS_NORMAL)
         {
             MCperror->add(ParseError, line, pos);
             return PS_ERROR;

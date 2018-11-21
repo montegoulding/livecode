@@ -366,7 +366,7 @@ Parse_stat MCExpression::getvariableparams(MCScriptPoint &sp, uint32_t p_min_par
 	return t_stat;
 }
 
-Parse_stat MCExpression::getparams(MCScriptPoint &sp, MCParameter **params)
+Parse_stat MCExpression::getparams(MCScriptPoint &sp, bool p_allow_trailing, MCParameter **params)
 {
 	initpoint(sp);
 	if (sp.skip_token(SP_FACTOR, TT_LPAREN) != PS_NORMAL)
@@ -379,44 +379,64 @@ Parse_stat MCExpression::getparams(MCScriptPoint &sp, MCParameter **params)
 		return PS_NORMAL;
 	MCParameter *pptr = NULL;
 	while (True)
-	{
-		if (pptr == NULL)
-			*params = pptr = new (nothrow) MCParameter;
-		else
-		{
-			pptr->setnext(new MCParameter);
-			pptr = pptr->getnext();
-		}
+    {  
+        Symbol_type type;
+        if (sp.next(type) != PS_NORMAL)
+        {
+            return sp.error(PE_FACTOR_NORPAREN);
+        }
+        
+        /* If the next token is '...', then mark as trailing, or throw an error
+         * if not allowed. Otherwise backup for an expression. */
+        bool t_is_trailing = false;
+        if (type == ST_DOTS)
+        {
+            if (!p_allow_trailing)
+            {
+                return sp.error(PE_FACTOR_BADPARAM);
+            }
+        
+            t_is_trailing = true;
+        }
+        else
+        {
+            sp.backup();
+        }
+        
+        /* Allocate a parameter */
+        if (pptr == NULL)
+            *params = pptr = new (nothrow) MCParameter(t_is_trailing);
+        else
+        {
+            pptr->setnext(new (nothrow) MCParameter(t_is_trailing));
+            pptr = pptr->getnext();
+        }
         
         /* If the next token is ',' or ')', then don't parse an expression so
          * the MCParameter is left 'unspecified'. This means the default will
          * be taken. */
-        Symbol_type type;
-        switch(sp.next(type))
+        if (type != ST_SEP &&
+            type != ST_RP)
         {
-        case PS_NORMAL:
-            sp.backup();
-            if (type != ST_SEP &&
-                type != ST_RP)
+            if (pptr->parse(sp) != PS_NORMAL)
             {
-                if (pptr->parse(sp) != PS_NORMAL)
-                {
-                    MCperror->add(PE_FACTOR_BADPARAM, sp);
-                    return PS_ERROR;
-                }
+                MCperror->add(PE_FACTOR_BADPARAM, sp);
+                return PS_ERROR;
             }
-            break;
-        default:
-            return sp.error(PE_FACTOR_NORPAREN);
         }
         
 		if (sp.skip_token(SP_FACTOR, TT_RPAREN) == PS_NORMAL)
 			break;
-		if (sp.next(type) != PS_NORMAL)
+        
+        /* If there is no next token, or no ')' if a trailing parameter was parsed
+         * its an error. */
+		if (sp.next(type) != PS_NORMAL ||
+            (t_is_trailing && type != ST_RP))
 		{
 			MCperror->add(PE_FACTOR_NORPAREN, sp);
 			return PS_ERROR;
 		}
+        
 		if (type != ST_SEP)
 		{
 			MCperror->add(PE_FACTOR_NOTSEP, sp);
@@ -476,7 +496,7 @@ MCFuncref::~MCFuncref()
 Parse_stat MCFuncref::parse(MCScriptPoint &sp, Boolean the)
 {
 	initpoint(sp);
-	if (getparams(sp, &params) != PS_NORMAL)
+	if (getparams(sp, true, &params) != PS_NORMAL)
 	{
 		MCperror->add(PE_FUNCTION_BADPARAMS, sp);
 		return PS_ERROR;
