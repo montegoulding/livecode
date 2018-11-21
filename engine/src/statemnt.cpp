@@ -179,33 +179,53 @@ Parse_stat MCStatement::getparams(MCScriptPoint &sp, MCParameter **params)
 			sp.backup();
 			return PS_NORMAL;
 		}
+        
+        bool t_noexp = false;
+        bool t_done = false;
+        
 		Symbol_type type;
 		switch (sp.next(type))
 		{
 		case PS_NORMAL:
+            /* If the next token is ',', then this is an unspecified parameter
+             * so we don't want an expression. */
+            if (type == ST_SEP)
+                t_noexp = true;
+                
+            /* Still backup, so the separator is caught at the end of the loop. */
 			sp.backup();
 			break;
 		case PS_ERROR:
 			return PS_ERROR;
 		case PS_EOL:
 		case PS_EOF:
-			if (needparam)
+            /* If we haven't seen any parameters, then we are done */
+			if (!needparam)
 			{
-				MCperror->add(PE_STATEMENT_BADPARAM, sp);
-				return PS_ERROR;
-			}
-			return PS_NORMAL;
+                return PS_NORMAL;
+            }
+                
+            /* Otherwise, this must EOL / EOF after a ','. We want an expression-
+             * less parameter in this case. */
+            t_noexp = true;
+            t_done = true;
+            break;
 		default:
 			sp.backup();
 			return PS_NORMAL;
 		}
 		MCParameter *newptr = new (nothrow) MCParameter;
-		if (newptr->parse(sp) != PS_NORMAL)
+        
+        /* Only parse an expression if this is not an empty one (i.e. ',' is
+         * not the next token */
+		if (!t_noexp &&
+            newptr->parse(sp) != PS_NORMAL)
 		{
 			delete newptr;
 			MCperror->add(PE_STATEMENT_BADPARAM, sp);
 			return PS_ERROR;
 		}
+        
 		if (pptr == NULL)
 			*params = pptr = newptr;
 		else
@@ -213,6 +233,14 @@ Parse_stat MCStatement::getparams(MCScriptPoint &sp, MCParameter **params)
 			pptr->setnext(newptr);
 			pptr = newptr;
 		}
+        
+        /* If this was to fulfill the request for an unspecified parameter at
+         * the end of the param list, then exit */
+        if (t_done)
+        {
+            return PS_NORMAL;
+        }
+        
 		if (sp.skip_token(SP_COMMAND, TT_ELSE, S_UNDEFINED) == PS_NORMAL)
 		{
 			sp.backup();

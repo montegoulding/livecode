@@ -182,9 +182,14 @@ on TestNonLaxHandlers
 	TestAssert "non-lax-handler variadic args", try(_NonLaxHandlerVariadic(1, 2, 3), 0) is 3
 	TestAssert "non-lax-handler unnamed variadic args", try(_NonLaxHandlerUnnamedVariadic(1, 2, 3), 0) is 3
 	TestAssert "non-lax-handler default not provided", try(_NonLaxHandlerDefault(1), empty) is "default"
+	TestAssert "non-lax-handler default no expression", try(_NonLaxHandlerDefault(1, ), empty) is "default"
 	TestAssert "non-lax-handler default provided", try(_NonLaxHandlerDefault(1, 2), empty) is 2
 	TestAssert "non-lax-handler too few default", try(_NonLaxHandlerDefault(), empty) is empty
 	TestAssert "non-lax-handler too many default", try(_NonLaxHandlerDefault(1, 2, 3), empty) is empty
+	TestAssert "non-lax-handler too few default", try(_NonLaxHandlerMiddleDefault(1), empty) is empty
+	TestAssert "non-lax-handler too many default", try(_NonLaxHandlerMiddleDefault(1, 2, 3, 4), empty) is empty
+	TestAssert "non-lax-handler middle default", try(_NonLaxHandlerMiddleDefault(1, ,3), empty) is "default"
+	TestAssert "non-lax-handler nothing doesn't trigger default", try(_NonLaxHandlerMiddleDefault(1, _nothing_ ,3), empty) is strictly _nothing_
 end TestNonLaxHandlers
 
 function _NonLaxHandler @(copy) pOne
@@ -202,6 +207,10 @@ end _NonLaxHandlerUnnamedVariadic
 function _NonLaxHandlerDefault pOne, pTwo default "default"
 	return pTwo
 end _NonLaxHandlerDefault
+
+function _NonLaxHandlerMiddleDefault pOne, pTwo default "default", pThree
+	return pTwo
+end _NonLaxHandlerMiddleDefault
 
 on TestTypedHandlers
 	TestAssert "typed handler correct type (number)", try(_TypedHandler(100 + 0), false)

@@ -387,31 +387,40 @@ Parse_stat MCExpression::getparams(MCScriptPoint &sp, MCParameter **params)
 			pptr->setnext(new MCParameter);
 			pptr = pptr->getnext();
 		}
-		if (pptr->parse(sp) != PS_NORMAL)
-		{
-			MCperror->add
-			(PE_FACTOR_BADPARAM, sp);
-			return PS_ERROR;
-		}
+        
+        /* If the next token is ',' or ')', then don't parse an expression so
+         * the MCParameter is left 'unspecified'. This means the default will
+         * be taken. */
+        Symbol_type type;
+        switch(sp.next(type))
+        {
+        case PS_NORMAL:
+            sp.backup();
+            if (type != ST_SEP &&
+                type != ST_RP)
+            {
+                if (pptr->parse(sp) != PS_NORMAL)
+                {
+                    MCperror->add(PE_FACTOR_BADPARAM, sp);
+                    return PS_ERROR;
+                }
+            }
+            break;
+        default:
+            return sp.error(PE_FACTOR_NORPAREN);
+        }
+        
 		if (sp.skip_token(SP_FACTOR, TT_RPAREN) == PS_NORMAL)
 			break;
-		Symbol_type type;
 		if (sp.next(type) != PS_NORMAL)
 		{
-			MCperror->add
-			(PE_FACTOR_NORPAREN, sp);
+			MCperror->add(PE_FACTOR_NORPAREN, sp);
 			return PS_ERROR;
 		}
 		if (type != ST_SEP)
 		{
-			MCperror->add
-			(PE_FACTOR_NOTSEP, sp);
+			MCperror->add(PE_FACTOR_NOTSEP, sp);
 			return PS_ERROR;
-		}
-		if (sp.skip_token(SP_FACTOR, TT_RPAREN) == PS_NORMAL)
-		{
-			pptr->setnext(new MCParameter);
-			break;
 		}
 	}
 	return PS_NORMAL;

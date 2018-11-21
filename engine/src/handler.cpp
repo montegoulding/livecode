@@ -384,17 +384,7 @@ Parse_stat MCHandler::newparam(MCScriptPoint& sp)
             }
         }
     }
-    
-    /* If non_lax then check that if this parameter is not optional, then
-     * the previous one is not optional. */
-    if (non_lax &&
-        (!t_default_value.IsSet() && t_kind != kMCHandlerParamKindVariadic) &&
-        npnames > 0 &&
-        pinfo[npnames - 1].default_value != nullptr)
-    {
-        return sp.error(PE_PARAM_NONOPTAFTEROPT);
-    }
-    
+
 	// OK-2010-01-11: [[Bug 7744]] - Check existing parsed parameters for duplicates.
 	for (uint2 i = 0; i < npnames; i++)
 	{
@@ -777,16 +767,6 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
     /* If this is not an unnamed_variadic handler, then the number of needed
      * parameters is npnames, otherwise it is npassedparams. */
     uindex_t t_arg_count;
-    /* If the number of passed arguments is less than the number of named
-     * parameters, then there must be either optional, or a variadic
-     * parameter after. */
-    if (npassedparams < npnames &&
-        pinfo[npassedparams].default_value == nullptr &&
-        pinfo[npassedparams].kind != kMCHandlerParamKindVariadic)
-    {
-        MCeerror->add(EE_HANDLER_TOOFEWARGS, firstline - 1, 1, name);
-        return ES_ERROR;
-    }
         
     /* If not unnamed_variadic and the number of passed arguments is greater
      * than the number of named parameters, then the last named parameter
@@ -833,6 +813,9 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
         /* This holds the value of the container for a reference argument. */
         MCContainer *t_reference = nullptr;
         
+        /* If true, then the default value of the parameter should be taken */
+        bool t_take_default = false;
+        
         /* What happens depends on whether the argument exists or not and
          * whether we are in the named parameters or not */
         if (p_params != nullptr)
@@ -845,6 +828,15 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                 {
                 case kMCHandlerParamKindNormal:
                 case kMCHandlerParamKindCopy:
+                    /* If the parameter has a default value, and there is no
+                     * expression in the parameter, then take the default */
+                    if (!p_params->hasexp() &&
+                        pinfo[t_arg].default_value != nullptr)
+                    {
+                        t_take_default = true;
+                        break;
+                    }
+                        
                     if (!p_params->eval_argument_ctxt(ctxt, t_value))
                     {
                         t_error = EE_HANDLER_BADPARAM;
@@ -933,11 +925,6 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                 
                 t_name = kMCEmptyName;
             }
-            
-            if (p_params != nullptr)
-            {
-                p_params = p_params->getnext();
-            }
         }
         else
         {
@@ -945,19 +932,19 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
             switch(pinfo[t_arg].kind)
             {
             case kMCHandlerParamKindNormal:
+            case kMCHandlerParamKindReference:
             case kMCHandlerParamKindCopy:
-                /* In the optional case, the argument value is the default. */
-                MCAssert(pinfo[t_arg].default_value != nullptr);
-                MCExecTypeSetValueRef(t_value, MCValueRetain(pinfo[t_arg].default_value));
-                    
-                if (pinfo[t_arg].default_value_not_converted)
+                /* If there is no default clause, then there are too few 
+                 * arguments */
+                if (pinfo[t_arg].default_value == nullptr)
                 {
-                    if (!MCTypeEvalAs(ctxt, pinfo[t_arg].type, t_value))
-                    {
-                        t_error = EE_HANDLER_BADDEFAULTTYPE;
-                        break;
-                    }
+                    t_error = EE_HANDLER_TOOFEWARGS;
+                    break;
                 }
+                    
+                /* Otherwise, mark this argument as needing the default value. */
+                t_take_default = true;
+                /* In the optional case, the argument value is the default. */
                 break;
             case kMCHandlerParamKindVariadic:
                 /* In the variadic case, the argument value is the empty array. */
@@ -979,6 +966,27 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
         /* Create the argument */
         if (t_reference == nullptr)
         {
+            /* If the argument should take the default value, then do so */
+            if (t_take_default)
+            {
+                MCAssert(pinfo[t_arg].default_value != nullptr);
+                MCExecTypeSetValueRef(t_value, MCValueRetain(pinfo[t_arg].default_value));
+                
+                if (pinfo[t_arg].default_value_not_converted)
+                {
+                    if (!MCTypeEvalAs(ctxt, pinfo[t_arg].type, t_value))
+                    {
+                        t_error = EE_HANDLER_BADDEFAULTTYPE;
+                        break;
+                    }
+                    
+                    /* The computed value should probably be reassigned here
+                     * to the pinfo array (technically default expressions must
+                     * be deterministic - i.e. not based on state - rather than
+                     * constant but we don't check quite that at the moment) */
+                }
+            }
+
             MCAutoPointer<MCVariable> t_arg_var;
             if (!MCVariable::createwithname(t_name, &t_arg_var))
             {
@@ -1007,6 +1015,11 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
         else
         {
             t_args[t_arg] = t_reference;
+        }
+        
+        if (p_params != nullptr)
+        {
+            p_params = p_params->getnext();
         }
     }
     

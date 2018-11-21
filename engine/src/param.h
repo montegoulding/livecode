@@ -99,6 +99,14 @@ public:
     bool evalcontainer(MCExecContext& ctxt, MCContainer& r_container);
 	Parse_stat parse(MCScriptPoint &);
 
+    /* Returns true if the parameter has an expression to evaluate. Parameters
+     * without expressions evaluate to "", but in the context of non-lax
+     * handlers we want to trigger the default value, if any. */
+    bool hasexp(void) const
+    {
+        return exp != nullptr;
+    }
+    
 private:
 	// Parameter as syntax (i.e. location of the expression
 	// being passed to a function/command).
