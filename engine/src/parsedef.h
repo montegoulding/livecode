@@ -2214,7 +2214,10 @@ enum {
 	//   as an echoed literal - it represents the data between <?rev ?> blocks in
 	//   SERVER mode. ST_TAG is the type of '?' so we can identify '?>'.
 	ST_DATA,
-	ST_TAG
+	ST_TAG,
+    
+    /* The ST_DOTS symbol type is '...' */
+    ST_DOTS,
 };
 
 enum There_mode {

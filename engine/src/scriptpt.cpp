@@ -382,8 +382,14 @@ codepoint_t MCScriptPoint::getnext()
 codepoint_t MCScriptPoint::getcodepointatindex(uindex_t p_index)
 {
     uindex_t t_index = 0;
-    while (p_index--)
+    while(p_index--)
+    {
+        /* If the index is beyond the end of the buffer, then return NUL */
+        if (t_index >= endptr - curptr)
+            return 0;
+        
         MCUnicodeCodepointAdvance(curptr, endptr - curptr - t_index, t_index);
+    }
     
     return MCUnicodeCodepointAdvance(curptr, endptr - curptr - t_index, t_index);
 }
@@ -395,454 +401,6 @@ void MCScriptPoint::setcurptr(const unichar_t *ptr)
     codepoint = MCUnicodeCodepointAdvance(curptr, endptr - curptr, t_index);
     curlength = t_index;
 }
-
-#ifdef OLD_SCRIPT_POINT
-Parse_stat MCScriptPoint::skip_space()
-{
-	for(;;)
-	{
-        if (gettype(*curptr) == ST_SPC)
-			curptr++;
-		else
-			break;
-	}
-    
-	switch (gettype(*curptr))
-	{
-        case ST_COM:
-            while (*curptr && gettype(*curptr) != ST_EOL)
-                curptr++;
-            if (!*curptr)
-                return PS_EOF;
-            return PS_EOL;
-        case ST_MIN:
-            if (gettype(*(curptr + 1), true) == ST_MIN)
-            {
-                while (*curptr && gettype(*curptr) != ST_EOL)
-                    curptr++;
-                if (*curptr)
-                    return PS_EOL;
-                else
-                    return PS_EOF;
-            }
-            else
-                return PS_NORMAL;
-        case ST_OP:
-            if (*curptr == '/' && *(curptr + 1) == '/')
-            {
-                while (*curptr && gettype(*curptr) != ST_EOL)
-                    curptr++;
-                if (*curptr)
-                    return PS_EOL;
-                else
-                    return PS_EOF;
-            }
-            else
-                if (*curptr == '/' && *(curptr + 1) == '*')
-                {
-                    const unichar_t *startptr = curptr;
-                    const uint2 startline = line;
-                    const uint2 startpos = pos;
-                    do
-                    {
-                        curptr++;
-                        if (*curptr == '*' && *(curptr + 1) == '/')
-                            break;
-                        if (gettype(*curptr) == ST_EOL)
-                        {
-                            // MW-2011-06-23: [[ SERVER ]] If the line ends with CR LF
-                            //   then eat the LF.
-                            if (curptr[0] == 13 && curptr[1] == 10)
-                                curptr++;
-                            
-                            line++;
-                            pos = 1;
-                        }
-                        else
-                            pos++;
-                    }
-                    while (*curptr);
-                    if (*curptr)
-                    {
-                        curptr += 2;
-                        return skip_space();
-                    }
-                    else
-                    {
-                        curptr = startptr;
-                        line = startline;
-                        pos = startpos;
-                        return PS_ERROR;
-                    }
-                }
-                else
-                    return PS_NORMAL;
-        case ST_ESC:
-            while (*curptr && gettype(*curptr) != ST_EOL)
-                curptr++;
-            if (!*curptr)
-                return PS_EOF;
-            // MW-2011-06-23: [[ SERVER ]] If the line ends with CR LF
-            //   then eat the LF.
-            if (curptr[0] == 13 && curptr[1] == 10)
-                curptr++;
-            curptr++;
-            line++;
-            pos = 1;
-            return skip_space();
-        case ST_EOF:
-            return PS_EOF;
-        case ST_SEMI:
-        case ST_EOL:
-            return PS_EOL;
-        case ST_ERR:
-            return PS_ERROR;
-        case ST_TAG:
-            // MW-2011-06-23: [[ SERVER ]] Make sure we return EOL when we
-            //   encounter '?>' (?> is a command separator, essentially)
-            if (in_tag && curptr[1] == '>')
-                return PS_EOL;
-            return PS_NORMAL;
-        default:
-            return PS_NORMAL;
-	}
-}
-
-Parse_stat MCScriptPoint::skip_eol()
-{
-	Symbol_type type;
-	Boolean lit = False;
-	do
-	{
-		type = gettype(*curptr);
-		if (type == ST_EOF)
-			return PS_EOF;
-		if (type == ST_LIT)
-			lit = !lit;
-		// MW-2011-06-23: [[ SERVER ]] When we are asked to skip past a ?>
-		//   we must eat the following newling - PHP-semantics.
-		if (in_tag && type == ST_TAG && curptr[1] == '>')
-		{
-			in_tag = False;
-			
-			// Make sure we eat a subsequence newline
-			if (curptr[2] == 10)
-			{
-				// Take account of CR LF line ending
-				if (curptr[3] == 13)
-					curptr += 1;
-				
-				pos = 1;
-				curptr += 3;
-				line += 1;
-			}
-			else
-			{
-				pos += 2;
-				curptr += 2;
-			}
-            
-			tokenptr = curptr;
-			break;
-		}
-		curptr++;
-	}
-	while (type != ST_EOL && (type != ST_SEMI || lit));
-	if (type == ST_EOL)
-	{
-		// MW-2011-06-23: [[ SERVER ]] If the line ends with CR LF
-		//   then eat the LF.
-		if (curptr[-1] == 13 && curptr[0] == 10)
-			curptr++;
-		line++;
-		pos = 1;
-		tokenptr = curptr;
-	}
-	return PS_NORMAL;
-}
-
-Parse_stat MCScriptPoint::backup()
-{
-	if (curptr == tokenptr)
-	{
-		pos -= curptr - backupptr;
-		curptr = backupptr;
-	}
-	else
-	{
-		pos -= curptr - tokenptr;
-		curptr = tokenptr;
-		
-		// MW-2011-06-23: [[ SERVER ]] Restore the backup 'in tag' state.
-		if (tagged)
-			in_tag = was_in_tag;
-	}
-	cleartoken();
-	return PS_NORMAL;
-}
-
-Parse_stat MCScriptPoint::next(Symbol_type &type)
-{
-	Parse_stat stat;
-	
-	cleartoken();
-    
-	const unichar_t *startptr = curptr;
-	
-	// MW-2011-06-23: [[ SERVER ]] If we are in tagged mode and not in a tag, we
-    //   check to see if there is a ST_DATA to produce. This involves advancing
-    //   through the input buffer until we encounter a '<?rev'
-	if (tagged && !in_tag)
-	{
-		// We were previously not in a tag, so we need to potentially skip '?>' and subsequent
-		// newline. (Indeed, this will be case if we are not at the start)
-		if ((line != 1 || pos != 1) && curptr[0] == '?' && curptr[1] == '>')
-		{
-			if (curptr[2] == 10)
-			{
-				// Take account of CR LF line ending
-				if (curptr[3] == 13)
-					curptr += 1;
-				pos = 1;
-				curptr += 3;
-				line += 1;
-			}
-			else
-			{
-				pos += 2;
-				curptr += 2;
-			}
-			startptr = curptr;
-		}
-		
-		// Store the previous tag state for backup purposes.
-		was_in_tag = False;
-		
-		// We will be inside a tag after this (or at the end!)
-		in_tag = True;
-		
-		// Stores the length of the <? tag (if found)
-		uint32_t t_tag_length = 0;
-        
-		// Loop until a NUL char, or we find '<?rev'
-		bool t_in_comment;
-		t_in_comment = false;
-		while(*curptr != '\0')
-		{
-			if (!t_in_comment && curptr[0] == '<' && curptr[1] == '!' && curptr[2] == '-' && curptr[3] == '-')
-			{
-				pos += 4;
-				curptr += 4;
-				t_in_comment = true;
-				continue;
-			}
-			else if (t_in_comment && curptr[0] == '-' && curptr[1] == '-' && curptr[2] == '>')
-			{
-				pos += 3;
-				curptr += 3;
-				t_in_comment = false;
-				continue;
-			}
-			else if (!t_in_comment && curptr[0] == '<' && curptr[1] == '?')
-			{
-				if (curptr[2] == 'r' && curptr[3] == 'e' && curptr[4] == 'v')
-				{
-					t_tag_length = 5;
-					break;
-				}
-				else if (curptr[2] == 'l' && curptr[3] == 'c')
-				{
-					t_tag_length = 4;
-					break;
-				}
-				else if (strncmp((const char *)(curptr + 2), "livecode", 8) == 0)
-				{
-					t_tag_length = 10;
-					break;
-				}
-			}
-            
-			// Check for and advance past any newlines
-			if (curptr[0] == 13)
-			{
-				if (curptr[1] == 10)
-					curptr += 1;
-                
-				pos = 1, line += 1;
-			}
-			else if (curptr[0] == 10)
-				pos = 1, line += 1;
-			
-			pos += 1;
-			curptr += 1;
-		}
-		
-		if (curptr != startptr)
-		{
-			// Type of symbol is ST_DATA
-			type = ST_DATA;
-			
-			// Set the previous token-pointer
-			backupptr = tokenptr;
-			
-			// Token starts at start (should be immediately after a ?> or beginning of file).
-			tokenptr = startptr;
-			
-			// Set the token string appropriately.
-			token.setstring((const char *)tokenptr);
-			token.setlength(curptr - tokenptr);
-			
-			// If we aren't looking at the end of the data, then advance by 5 to skip '<?rev'.
-			if (*curptr != '\0')
-				curptr += t_tag_length;
-			
-			// Return our token.
-			return PS_NORMAL;
-		}
-		else
-		{
-			// There is no literal data, so just advance curptr and carry on.
-			if (*curptr != '\0')
-				curptr += t_tag_length;
-		}
-	}
-	else if (tagged)
-		was_in_tag = True;
-	
-	if ((stat = skip_space()) != PS_NORMAL)
-	{
-		if (stat == PS_ERROR)
-			MCperror->add(PE_PARSE_BADCHAR, *this);
-		token.setstring((const char *)curptr);
-		return stat;
-	}
-	
-    if (is_identifier(*curptr, true))
-        type = ST_ID;
-    else
-        type = gettype(*curptr);
-    
-	if (type == ST_TAG)
-	{
-		if (tagged && curptr[1] == '>')
-			return PS_EOL;
-		else
-			type = ST_ID;
-	}
-	if (type == ST_EOF)
-	{
-		token.setstring((const char *)curptr);
-		return PS_EOF;
-	}
-	if (type == ST_EOL || type == ST_SEMI)
-		return PS_EOL;
-	if (curptr != tokenptr)
-	{
-		backupptr = tokenptr;
-		tokenptr = curptr;
-	}
-	if (type == ST_LIT)
-		curptr++;
-	token.setstring((const char *)curptr);
-    
-	switch (type)
-	{
-        case ST_ID:
-            if (curptr[0] == '$' && curptr[1] == '#')
-            {
-                curptr += 2;
-            }
-            else
-            {
-                while (True)
-                {
-                    if (!is_identifier(*curptr, false))
-                    {
-                        // Anything other than TAG or TAG> causes the token to finish.
-                        if (gettype(*curptr) != ST_TAG || (tagged && curptr[1] == '>'))
-                            break;
-                    }
-                    curptr++;
-                }
-            }
-            break;
-        case ST_LIT:
-            while (True)
-            {
-                Symbol_type newtype = gettype(*curptr);
-                if (escapes && newtype == ST_ESC && *(curptr + 1))
-                    curptr += 2;
-                else
-                {
-                    if (newtype == ST_EOL || newtype == ST_EOF)
-                    {
-                        MCperror->add(PE_PARSE_BADLIT, *this);
-                        return PS_ERROR;
-                    }
-                    else
-                        if (newtype == ST_LIT)
-                            break;
-                    curptr++;
-                }
-            }
-            break;
-        case ST_OP:
-            while (True)
-            {
-                Symbol_type newtype = gettype(*curptr);
-                if (newtype != type)
-                    break;
-                curptr++;
-            }
-            break;
-        case ST_NUM:
-            while (True)
-            {
-                Symbol_type newtype = gettype(*curptr);
-                if (newtype != type)
-                {
-                    char c = MCS_tolower(*curptr);
-                    if (c == 'e')
-                    {
-                        if (*(curptr + 1) == '+' || *(curptr + 1) == '-')
-                            curptr++;
-                    }
-                    else
-                        if (c != 'x' && (c < 'a' || c > 'f'))
-                            break;
-                }
-                curptr++;
-            }
-            break;
-        default:
-            curptr++;
-            break;
-	}
-	if (type == ST_LIT && gettype(*curptr) == ST_LIT)
-	{
-		token.setlength(curptr - tokenptr - 1);
-		curptr++;
-	}
-	else
-		token.setlength(curptr - tokenptr);
-	pos += curptr - startptr;
-    
-	m_type = type;
-	return PS_NORMAL;
-}
-
-Parse_stat MCScriptPoint::nexttoken()
-{
-	Symbol_type type;
-	Parse_stat ps = next(type);
-	while (ps == PS_EOL)
-	{
-		skip_eol();
-		ps = next(type);
-	}
-	return ps;
-}
-#endif
 
 Parse_stat MCScriptPoint::skip_space()
 {
@@ -1202,6 +760,18 @@ Parse_stat MCScriptPoint::next(Symbol_type &type)
 					if (gettype(getcurrent()) != ST_TAG || (tagged && getnext() == '>'))
 						break;
 				}
+                
+                /* '.' is ST_NUM, and after an initial ST_ID, ST_NUM's are
+                 * considered part of the identifier so to be able to treat
+                 * '...' as self-delimiting, terminate the id if lookahead sees
+                 * it */
+                if (getcurrent() == '.' &&
+                    getnext() == '.' &&
+                    getcodepointatindex(2) == '.')
+                {
+                    break;
+                }
+                
 				advance();
 			}
 		}
@@ -1236,6 +806,18 @@ Parse_stat MCScriptPoint::next(Symbol_type &type)
 		}
 		break;
 	case ST_NUM:
+        /* '.' is ST_NUM so if it is starting a number, check to see if we
+         * actually see '...' in which case the token is ST_DOTS */
+        if (getcurrent() == '.' &&
+            getnext() == '.' &&
+            getcodepointatindex(2) == '.')
+        {
+            advance();
+            advance();
+            advance();
+            type = ST_DOTS;
+            break;
+        }
 		while (True)
 		{
 			Symbol_type newtype = gettype(getcurrent());
@@ -1254,6 +836,16 @@ Parse_stat MCScriptPoint::next(Symbol_type &type)
 					if (c != 'x' && (c < 'a' || c > 'f'))
 						break;
 			}
+            
+            /* '.' is ST_NUM, if lookahead is '...' then terminate the number
+             * now. */
+            if (getcurrent() == '.' &&
+                getnext() == '.' &&
+                getcodepointatindex(2) == '.')
+            {
+                break;
+            }
+            
 			advance();
 		}
 		break;

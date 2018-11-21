@@ -171,7 +171,7 @@ Parse_stat MCHandler::newparam(MCScriptPoint& sp)
     
     /* If the name is '...' then we mark the handler as non_lax_variadic which
      * gives the same behavior as current handlers with extra parameters. */
-    if (MCStringIsEqualToCString(sp.gettoken_stringref(), "...", kMCStringOptionCompareExact))
+    if (sp.current() == ST_DOTS)
     {
         unnamed_variadic = true;
         non_lax = true;
@@ -287,8 +287,7 @@ Parse_stat MCHandler::newparam(MCScriptPoint& sp)
         Symbol_type t_ttype;
         if (sp.next(t_ttype) == PS_NORMAL)
         {
-            if (t_ttype == ST_NUM &&
-                MCStringIsEqualToCString(sp.gettoken_stringref(), "...", kMCStringOptionCompareExact))
+            if (t_ttype == ST_DOTS)
             {
                 /* To have a variadic marker, the parameter kind must be normal
                  * or copy. */
@@ -578,13 +577,31 @@ Parse_stat MCHandler::parse(MCScriptPoint &sp, Boolean isprop)
             t_type == ST_RP)
             break;
         
-		if (t_type == ST_SEP)
-			continue;
+        /* Force presence of ',' in non-lax handlers */
+        if (non_lax)
+        {
+            if (npnames > 0)
+            {
+                if (t_type != ST_SEP)
+                {
+                    return sp.error(PE_HANDLER_NOPARAMSEP);
+                }
+                
+                if (sp.next(t_type) != PS_NORMAL)
+                {
+                    return sp.error(PE_HANDLER_BADPARAMEOL);
+                }
+            }
+        }
+        else
+        {
+            if (t_type == ST_SEP)
+                continue;
+        }
         
 		const LT *t_te;
         MCExpression *newfact = NULL;
-		if ((t_type == ST_NUM &&
-             MCStringIsEqualToCString(sp.gettoken_stringref(), "...", kMCStringOptionCompareExact)) ||
+		if (t_type == ST_DOTS ||
             (t_type == ST_ID &&
                 sp.lookup(SP_FACTOR, t_te) == PS_NO_MATCH &&
                 sp.lookupconstant(&newfact) != PS_NORMAL))

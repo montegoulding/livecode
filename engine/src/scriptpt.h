@@ -175,6 +175,7 @@ public:
 	Parse_stat skip_eol();
 	Parse_stat backup();
 	Parse_stat next(Symbol_type &type);
+    Symbol_type current(void) { return m_type; }
 	Parse_stat nexttoken();
 	void cleartoken(void);
 	Parse_stat lookup(Script_point, const LT *&);

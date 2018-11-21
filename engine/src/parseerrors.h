@@ -1906,6 +1906,9 @@ enum Parse_errors
     
     // {PE-0560} handler: bad return type
     PE_HANDLER_BADRETURNTYPE,
+    
+    // {PE-0561} handler: separator missing
+    PE_HANDLER_NOPARAMSEP,
 };
 
 extern const char *MCparsingerrors;
