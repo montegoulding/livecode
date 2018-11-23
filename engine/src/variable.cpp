@@ -824,31 +824,15 @@ bool MCVariable::converttomutablestring(MCExecContext& ctxt)
 {
 	if (value . type != kMCExecValueTypeStringRef)
 	{
-		MCStringRef t_string = nil;
-        
-        // If we have nothing stored, we don't try to convert - but we may need to release kMCNull in case it has been stored
-        if (value . type != kMCExecValueTypeNone)
-            MCExecTypeConvertAndReleaseAlways(ctxt, value . type, &value, kMCExecValueTypeStringRef, &t_string);
-        else
-            MCExecTypeRelease(value);
-        
-        if (t_string == nil || ctxt . HasError())
+		MCStringRef t_string = nullptr;
+        MCExecTypeConvertAndReleaseAlways(ctxt, value . type, &value, kMCExecValueTypeStringRef, &t_string);
+
+        if (ctxt . HasError())
         {
-            MCStringRef t_mutable_string;
-            ctxt . IgnoreLastError();
-            if (MCStringCreateMutable(0, t_mutable_string))
-            {
-                MCExecTypeRelease(value);
-                MCExecTypeSetValueRef(value, t_mutable_string);
-                return true;
-            }
-            
             return false;
         }
-        else
-        {
-            MCExecTypeSetValueRef(value, t_string);
-        }
+
+        MCExecTypeSetValueRef(value, t_string);
 	}
     
     if (!MCStringIsMutable(value . stringref_value))

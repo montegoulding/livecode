@@ -2845,6 +2845,9 @@ enum Exec_errors
     
     // {EE-0932} handler: invalid trailing argument
     EE_HANDLER_BADTRAILING,
+    
+    // {EE-0933} type operator: no 'to' operator for type conversion
+    EE_TYPEOP_NOTO
 };
 
 extern const char *MCexecutionerrors;

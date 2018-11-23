@@ -142,7 +142,11 @@ bool MCExecContext::ConvertToNumber(MCValueRef p_value, MCNumberRef& r_number)
     if (t_code != kMCValueTypeCodeNumber &&
         t_tag != 0)
     {
-        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindNumber, p_value, (MCValueRef&)r_number);
+        if (!MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindNumber, p_value, (MCValueRef&)r_number))
+        {
+            return false;
+        }
+        return true;
     }
     
     switch(t_code)
@@ -226,7 +230,11 @@ bool MCExecContext::ConvertToArray(MCValueRef p_value, MCArrayRef &r_array, bool
     if (t_code != kMCValueTypeCodeArray &&
         t_tag != 0)
     {
-        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindArray, p_value, (MCValueRef&)r_array);
+        if (!MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindArray, p_value, (MCValueRef&)r_array))
+        {
+            return false;
+        }
+        return true;
     }
     
     if (MCValueIsEmpty(p_value))
@@ -282,7 +290,11 @@ bool MCExecContext::ConvertToBoolean(MCValueRef p_value, MCBooleanRef &r_boolean
     if (t_code != kMCValueTypeCodeBoolean &&
         t_tag != 0)
     {
-        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindBoolean, p_value, (MCValueRef&)r_boolean);
+        if (!MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindBoolean, p_value, (MCValueRef&)r_boolean))
+        {
+            return false;
+        }
+        return true;
     }
     
     switch(t_code)
@@ -414,7 +426,11 @@ bool MCExecContext::ConvertToData(MCValueRef p_value, MCDataRef& r_data)
     if (t_code != kMCValueTypeCodeData &&
         t_tag != 0)
     {
-        return MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindData, p_value, (MCValueRef&)r_data);
+        if (!MCTypeEvalTo(*this, t_tag, kMCTypeOperatorKindData, p_value, (MCValueRef&)r_data))
+        {
+            return false;
+        }
+        return true;
     }
     
     if (t_code == kMCValueTypeCodeData)

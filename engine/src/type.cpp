@@ -215,6 +215,8 @@ public:
             return true;
         }
         
+        ctxt.LegacyThrow(EE_TYPEOP_NOTO);
+        
         return false;
     }
     

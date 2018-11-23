@@ -165,6 +165,14 @@ on TestConcreteType
     TestAssert "mutation of string without other with type has no type", _type_of_(tData) is empty
 end TestConcreteType
 
+on TestToType
+	local tTaggedData
+	put numToByte(1) _with_type_ foo into tTaggedData
+
+	TestAssert "tagged type with no 'to' conversion fails", \
+		TestErrorMatches(try(tTaggedData & empty, error), "EE_TYPEOP_NOTO")
+end TestToType
+
 on TestAsType
 	TestAssert "as type strnum of number", try((100 + 0) _as_type_ test.strnum, empty) is "100"
 	TestAssert "as type strnum of array", try([1 + 0] _as_type_ test.strnum, "failed") is "failed"
