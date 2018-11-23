@@ -175,6 +175,9 @@ on TestArray
 	TestAssert "array of number 0 is [0]", ((0 _as_type_ test.number) _as_array_) is strictly [ 0 _as_number_ ]
 end TestArray
 
+on TestLaxHandlers
+end TestLaxHandlers
+
 on TestNonLaxHandlers
 	TestAssert "non-lax handler too few args", not try(_NonLaxHandler(), false)
 	TestAssert "non-lax handler too many args", not try(_NonLaxHandler(1,2), false)
@@ -196,6 +199,12 @@ on TestNonLaxHandlers
 	TestAssert "non-lax-handler with all trailing unnamed", _NonLaxHandlerForTrailingUnnamed(... [1, 2, 3, 4, 5]) is [1, 2, 3, 4, 5]
 	TestAssert "non-lax-handler with most trailing unnamed", _NonLaxHandlerForTrailingUnnamed(1, ... [2, 3, 4, 5]) is [1, 2, 3, 4, 5]
 	TestAssert "non-lax-handler with all trailing unnamed", _NonLaxHandlerForTrailingUnnamed(1, 2, 3, ... [4, 5]) is [1, 2, 3, 4, 5]
+
+	local tReturn
+	_NonLaxHandlerReturn 1, tReturn
+	TestAssert "non-lax handler reference works", tReturn is 1
+	_NonLaxHandlerNestedReturn 2, tReturn
+	TestAssert "non-lax handler nested reference works", tReturn is 2
 end TestNonLaxHandlers
 
 function _NonLaxHandler @(copy) pOne
@@ -227,6 +236,14 @@ function _NonLaxHandlerMiddleDefault pOne, pTwo default "default", pThree
 	return pTwo
 end _NonLaxHandlerMiddleDefault
 
+command _NonLaxHandlerReturn pValue as test.strnum, @rReturn
+	put pValue into rReturn
+end _NonLaxHandlerReturn
+
+command _NonLaxHandlerNestedReturn pValue as test.strnum, @rReturn
+	_NonLaxHandlerReturn pValue, rReturn
+end _NonLaxHandlerNestedReturn
+
 on TestTypedHandlers
 	TestAssert "typed handler correct type (number)", try(_TypedHandler(100 + 0), false)
 	TestAssert "typed handler correct type (numeric string)", try(_TypedHandler("100.2"), false)
@@ -250,6 +267,54 @@ on TestScriptSignatures
 		TestDiagnostic _valueFormat(tElement)
 	end repeat
 end TestScriptSignatures
+
+/*****/
+
+operator _as_type_ fm.string pValue
+	switch _type_of_(pValue)
+	case "fm.text"
+		return pValue["string"] _as_type_ fm.string
+	case empty
+		switch _strict_type_of_(pValue)
+		case "string"
+			return pValue _with_type_ fm.string
+		case "boolean"
+		case "number"
+		case "data"
+		case "array"
+		default
+			break
+		end switch
+		break
+	default
+		break
+	end switch
+	return _type_error_("fm.string error")
+end _as_type_ fm.string
+
+operator _as_type_ fm.text pValue
+	switch _type_of_(pValue)
+	case "fm.string"
+		return pValue
+	default
+		return pValue _as_type_ fm.string
+	end switch
+	return _type_error_("fm.text error")
+end _as_type_ fm.text
+
+on TestNestedConversion
+	TestAssert "value of nested converted value is value", _TestOuterNest("") is strictly ""
+end TestNestedConversion
+
+function _TestOuterNest(pValue as fm.text) as fm.text
+	return _TestInnerNest(pValue)
+end _TestOuterNest
+
+function _TestInnerNest(pValue as fm.string) as fm.string
+	return pValue
+end _TestInnerNest
+
+/*****/
 
 private function _valueFormat pValue
 	if isSeq(pValue) then

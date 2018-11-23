@@ -894,8 +894,8 @@ Exec_stat MCHandler::enter_non_lax(MCExecContext& ctxt, MCParameter *p_params)
                     if (t_trailing_arg == 0)
                     {
                         /* For reference parameters, evaluate the container */
-                        t_args[t_arg] = p_params->eval_argument_container();
-                        if (t_args[t_arg] == nullptr)
+                        t_reference = p_params->eval_argument_container();
+                        if (t_reference == nullptr)
                         {
                             t_error = EE_HANDLER_BADPARAM;
                         }
