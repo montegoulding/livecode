@@ -145,6 +145,24 @@ on TestConcreteType
 	put [random(100)] _with_type_ foo into tArray
 	add 1 to tArray[1]
 	TestAssert "mutation of array without other with type has no type", _type_of_(tArray) is empty
+
+	local tTestData
+	put randomBytes(20) into tTestData
+
+	local tData, tOtherData
+    put tTestData _with_type_ foo into tData
+    TestAssert "data with type foo has type foo", tData _has_type_ foo
+    TestAssert "data with type has typeof foo", _type_of_(tData) is "foo"
+
+    put tData into tOtherData
+    TestAssert "other of data with type foo has type foo", tOtherData _has_type_ foo
+
+    put numToByte(1) after tData
+    TestAssert "mutation of data with other with type has no type", _type_of_(tData) is empty
+
+    put (numToByte(20)) _with_type_ foo into tData
+    put numToByte(1) after tData
+    TestAssert "mutation of string without other with type has no type", _type_of_(tData) is empty
 end TestConcreteType
 
 on TestAsType

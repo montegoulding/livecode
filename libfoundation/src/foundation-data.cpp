@@ -997,9 +997,81 @@ bool __MCDataImmutableCopy(__MCData *self, bool p_release, __MCData *&r_immutabl
     return MCDataCopyAndRelease(self, r_immutable_value);
 }
 
-bool __MCDataTaggableCopy(__MCData *self, bool p_release, __MCData*& p_other_self)
+bool __MCDataTaggableCopy(__MCData *self, bool p_release, __MCData*& r_taggable_value)
 {
-    return false;
+    /* If we are releasing, and there is only one reference then we can reuse
+     * this data. */
+    if (p_release && self->references == 1)
+    {
+        /* If the data is indirect, and the indirect data has only 1
+         * reference we can use that. */
+        if (__MCDataIsIndirect(self) &&
+            self->contents->references == 1)
+        {
+            r_taggable_value = MCValueRetain(self->contents);
+            MCValueRelease(self);
+            return true;
+        }
+        
+        /* If the data is mutable, make it immutable. */
+        if (MCDataIsMutable(self))
+        {
+            if (!__MCDataMakeImmutable(self))
+            {
+                return false;
+            }
+            self->flags &= ~kMCDataFlagIsMutable;
+        }
+        
+        r_taggable_value = self;
+        
+        return true;
+    }
+    
+    /* There is more than reference to the data, so we will need a new
+     * indirect data which we can tag. */
+    __MCData *t_taggable_data;
+    if (!__MCValueCreate(kMCValueTypeCodeData, t_taggable_data))
+    {
+        return false;
+    }
+    
+    /* If the data is indirect, then the target data is the indirection.
+     * If the data is mutable, then we must make an immutable copy to target.
+     * Otherwise self is the target data. */
+    __MCData *t_target_data;
+    if (__MCDataIsIndirect(self))
+    {
+        t_target_data = self->contents;
+    }
+    else if (MCDataIsMutable(self))
+    {
+        if (!__MCDataMakeImmutable(self) ||
+            !__MCDataMakeIndirect(self))
+        {
+            MCMemoryDelete(t_taggable_data);
+            return false;
+        }
+        t_target_data = self->contents;
+    }
+    else
+    {
+        t_target_data = self;
+    }
+    
+    /* Setup the taggable (indirect) data. */
+    t_taggable_data->flags |= kMCDataFlagIsIndirect;
+    t_taggable_data->contents = MCValueRetain(t_target_data);
+    
+    /* Release the original data, if requested */
+    if (p_release)
+    {
+        MCValueRelease(self);
+    }
+    
+    r_taggable_value = t_taggable_data;
+    
+    return true;
 }
 
 bool __MCDataIsEqualTo(__MCData *self, __MCData *p_other_data)
@@ -1022,6 +1094,12 @@ bool __MCDataCopyDescription(__MCData *self, MCStringRef &r_description)
 
 static bool __MCDataCreateIndirect(__MCData *data, __MCData*& r_data)
 {
+    /* Tagged data is immutable and indirect, so resolve any indirection */
+    if (__MCDataIsIndirect(data))
+    {
+        data = data->contents;
+    }
+    
     MCDataRef self;
     if (!__MCValueCreate(kMCValueTypeCodeData, self))
         return false;
