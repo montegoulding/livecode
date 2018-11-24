@@ -598,13 +598,25 @@ bool MCExecContext::FormatLegacyColor(MCColor p_color, MCStringRef& r_value)
 
 bool MCExecContext::TryToConvertToUnsignedInteger(MCValueRef p_value, bool& r_converted, uinteger_t &r_integer)
 {
+    MCerrorlock++;
     r_converted = ConvertToUnsignedInteger(p_value, r_integer);
+    if (HasError())
+    {
+        IgnoreLastError();
+    }
+    MCerrorlock--;
 	return true;
 }
 
 bool MCExecContext::TryToConvertToReal(MCValueRef p_value, bool& r_converted, real64_t& r_real)
 {
+    MCerrorlock++;
     r_converted = ConvertToReal(p_value, r_real);
+    if (HasError())
+    {
+        IgnoreLastError();
+    }
+    MCerrorlock--;
 	return true;
 }
 

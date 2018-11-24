@@ -201,6 +201,19 @@ on TestArray
 	TestAssert "array of number 0 is [0]", ((0 _as_type_ test.number) _as_array_) is strictly [ 0 _as_number_ ]
 end TestArray
 
+/**/
+
+operator _as_type_ string.type pValue
+	return (pValue & "") _with_type_ string.type
+end _as_type_ string.type
+
+on TestComparison
+	TestAssert "string is string", (("100" + 0) _as_type_ string.type) is (("100" + 0) _as_type_ string.type)
+	TestAssert "string is not string", (("100" + 0) _as_type_ string.type) is (("100.00" + 0) _as_type_ string.type)
+end TestComparison
+
+/**/
+
 on TestLaxHandlers
 end TestLaxHandlers
 
