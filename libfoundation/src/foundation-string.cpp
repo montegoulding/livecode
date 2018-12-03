@@ -1587,8 +1587,17 @@ const unichar_t *MCStringGetCharPtr(MCStringRef self)
 	__MCAssertIsString(self);
 
     if (__MCStringIsIndirect(self))
-		if (!__MCStringResolveIndirect(self))
-			return nil;
+    {
+        if (MCStringIsMutable(self))
+        {
+            if (!__MCStringResolveIndirect(self))
+                return nil;
+        }
+        else
+        {
+            self = self -> string;
+        }
+    }
     
 	if (!__MCStringUnnativize(self))
 	{
@@ -1607,8 +1616,7 @@ const char_t *MCStringGetNativeCharPtr(MCStringRef self)
     {
         // AL-2014-07-25: [[ Bug 12672 ]] Ensure possibly indirect string is resolved before returning char ptr
         if (__MCStringIsIndirect(self))
-			if (!__MCStringResolveIndirect(self))
-				return nil;
+            self = self -> string;
         
         return self -> native_chars;
     }

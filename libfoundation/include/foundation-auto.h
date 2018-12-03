@@ -699,7 +699,20 @@ public:
 
 	bool Lock(MCStringRef p_string)
 	{
-		return MCStringNativeCopy(p_string, &m_string);
+        if (MCStringIsNative(p_string))
+        {
+            m_string = p_string;
+            return true;
+        }
+
+        m_char_count = MCStringGetLength(p_string);
+        if (!MCMemoryNewArray(m_char_count + 1, m_native_chars))
+            return false;
+        
+        MCStringGetNativeChars(p_string, MCRangeMake(0, m_char_count), m_native_chars);
+        m_native_chars[m_char_count] = '\0';
+        
+        return true;
 	}
 	bool Lock(MCStringRef p_string,
 	          const char_t * & r_buffer,
@@ -707,29 +720,68 @@ public:
 	{
 		if (!Lock(p_string))
 			return false;
-		r_buffer = MCStringGetNativeCharPtrAndLength(*m_string,
-		                                             r_length);
+        
+        if (m_native_chars != nullptr)
+        {
+            r_buffer = m_native_chars;
+            r_length = m_char_count;
+        }
+        else
+        {
+            MCAssert(MCStringIsNative(*m_string));
+            r_buffer = MCStringGetNativeCharPtr(*m_string);
+            r_length = MCStringGetLength(*m_string);
+        }
 		return true;
 	}
 	void Unlock()
 	{
-		m_string.Reset();
+        if (m_native_chars != nullptr)
+        {
+            MCMemoryDeleteArray(m_native_chars);
+            m_native_chars = nullptr;
+            m_char_count = 0;
+        }
+        else
+        {
+            m_string.Reset();
+        }
+        
 	}
 	operator bool () const
 	{
-		return m_string.IsSet();
+        if (m_native_chars != nullptr)
+        {
+            return true;
+        }
+        else
+        {
+            return m_string.IsSet();
+        }
 	}
 	const char_t * operator*() const
 	{
-		MCAssert(MCStringIsNative(*m_string));
-		return MCStringGetNativeCharPtr(*m_string);
+        if (m_native_chars != nullptr)
+        {
+            return m_native_chars;
+        }
+        else
+        {
+            MCAssert(MCStringIsNative(*m_string));
+            return MCStringGetNativeCharPtr(*m_string);
+        }
 	}
 	uindex_t Size() const
 	{
-		MCAssert(MCStringIsNative(*m_string));
-		uindex_t t_length;
-		(void) MCStringGetNativeCharPtrAndLength(*m_string, t_length);
-		return t_length;
+        if (m_native_chars != nullptr)
+        {
+            return m_char_count;
+        }
+        else
+        {
+            MCAssert(MCStringIsNative(*m_string));
+            return MCStringGetLength(*m_string);
+        }
 	}
 	MCSpan<const char_t> Span() const
 	{
@@ -737,6 +789,8 @@ public:
 	}
 private:
 	MCAutoStringRef m_string;
+    char_t *m_native_chars = nullptr;
+    uindex_t m_char_count = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
