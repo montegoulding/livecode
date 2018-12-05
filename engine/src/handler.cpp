@@ -1285,8 +1285,10 @@ Exec_stat MCHandler::leave(MCExecContext& ctxt, Exec_stat p_exec_stat)
         delete[] params; /* Allocated with new[] */
     }
     
-    /* If the handler has a return type - perform an implicit as type. */
-    if (return_type != nullptr)
+    /* If the handler has a return type - perform an implicit as type but only
+     * if execution ended normally. */
+    if (p_exec_stat == ES_NORMAL &&
+        return_type != nullptr)
     {
         MCExecValue t_return_value;
         MCresult->take_exec_value(t_return_value);
