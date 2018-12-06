@@ -1948,6 +1948,8 @@ void MCMathEvalIsAnInteger(MCExecContext& ctxt, MCValueRef p_value, bool& r_resu
 void MCMathEvalIsNotAnInteger(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
 void MCMathEvalIsANumber(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
 void MCMathEvalIsNotANumber(MCExecContext& ctxt, MCValueRef p_value, bool& r_result);
+void MCMathEvalIsFinite(MCExecContext& ctxt, real64_t p_value, bool& r_result);
+void MCMathEvalIsNotFinite(MCExecContext& ctxt, real64_t p_value, bool& r_result);
 
 void MCMathGetRandomSeed(MCExecContext& ctxt, integer_t& r_value);
 void MCMathSetRandomSeed(MCExecContext& ctxt, integer_t p_value);

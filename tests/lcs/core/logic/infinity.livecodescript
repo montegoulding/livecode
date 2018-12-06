@@ -47,3 +47,19 @@ on TestInfinityComparisons
 	TestAssert "string(infinity) >= strconst(Infinity)", ("infinity" & empty) >= "Infinity"
 	TestAssert "strconst(infinity) >= string(Infinity)", "infinity" >= ("Infinity" & empty)
 end TestInfinityComparisons
+
+on TestIsFinite
+	TestAssert "isfinite(INFINITY)", not (inf _is_finite_)
+	TestAssert "isfinite(0.0)", 0.0 _is_finite_
+	TestAssert "isfinite(DBL_MIN/2.0)", (4.94065645841246544^-324/2.0) _is_finite_
+	TestAssert "isfinite(1.0)", 1.0 _is_finite_
+	TestAssert "isfinite(exp(800))", not (exp(800) _is_finite_)
+end TestIsFinite
+
+on TestIsNotFinite
+	TestAssert "!isfinite(INFINITY)", inf _is_not_finite_
+	TestAssert "!isfinite(0.0)", not (0.0 _is_not_finite_)
+	TestAssert "!isfinite(DBL_MIN/2.0)", not ((4.94065645841246544^-324/2.0) _is_not_finite_)
+	TestAssert "!isfinite(1.0)", not (1.0 _is_not_finite_)
+	TestAssert "!isfinite(exp(800))", exp(800) _is_not_finite_
+end TestIsNotFinite

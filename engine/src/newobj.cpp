@@ -972,7 +972,11 @@ MCExpression *MCN_new_operator(int2 which)
         return new MCWithType;
     case O_HAS_TYPE:
         return new MCHasType;
-	default:
+    case O_IS_FINITE:
+        return new MCIsFinite;
+    case O_IS_NOT_FINITE:
+        return new MCIsNotFinite;
+    default:
 		return new MCExpression;
 	}
 }

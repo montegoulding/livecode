@@ -817,6 +817,8 @@ enum Operators {
     O_AS_STRING,
     O_AS_DATA,
     O_AS_ARRAY,
+    O_IS_FINITE,
+    O_IS_NOT_FINITE,
 };
 
 // return codes from parsers

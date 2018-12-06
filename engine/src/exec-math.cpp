@@ -886,6 +886,18 @@ void MCMathEvalIsNotANumber(MCExecContext& ctxt, MCValueRef p_value, bool& r_res
 
 ////////////////////////////////////////////////////////////////////////////////
 
+void MCMathEvalIsFinite(MCExecContext& ctxt, real64_t p_value, bool& r_result)
+{
+    r_result = isfinite(p_value);
+}
+
+void MCMathEvalIsNotFinite(MCExecContext& ctxt, real64_t p_value, bool& r_result)
+{
+    r_result = !isfinite(p_value);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 void MCMathGetRandomSeed(MCExecContext& ctxt, integer_t& r_value)
 {
 	r_value = MCrandomseed;

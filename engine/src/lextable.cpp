@@ -554,6 +554,8 @@ const LT factor_table[] =
 		{"_hscrollbarid", TT_PROPERTY, P_HSCROLLBARID},
 #endif
         {"_ideoverride", TT_PROPERTY, P_IDE_OVERRIDE},
+        {"_is_finite_", TT_BINOP, O_IS_FINITE},
+        {"_is_not_finite_", TT_BINOP, O_IS_NOT_FINITE},
         {"_is_type_", TT_BINOP, O_IS_TYPE},
         {"_strict_type_of_", TT_FUNCTION, F_STRICT_TYPE_OF},
         {"_type_error_", TT_FUNCTION, F_TYPE_ERROR},

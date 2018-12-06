@@ -2847,7 +2847,10 @@ enum Exec_errors
     EE_HANDLER_BADTRAILING,
     
     // {EE-0933} type operator: no 'to' operator for type conversion
-    EE_TYPEOP_NOTO
+    EE_TYPEOP_NOTO,
+    
+    // {EE-0934} isfinite operator: bad operand
+    EE_ISFINITE_BADLEFT
 };
 
 extern const char *MCexecutionerrors;

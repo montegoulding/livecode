@@ -260,7 +260,42 @@ public:
     virtual bool canbeunary() const { return CanBeUnary; }
 };
 
-
+template <typename ParamType,
+typename ReturnType,
+void (*EvalMethod)(MCExecContext&, typename MCExecValueTraits<ParamType>::in_type, typename MCExecValueTraits<ReturnType>::out_type),
+Exec_errors EvalError,
+Factor_rank Rank>
+class MCPostfixOperatorCtxt: public MCExpression
+{
+public:
+    MCPostfixOperatorCtxt()
+    {
+        rank = Rank;
+    }
+    
+    virtual Parse_stat parse(MCScriptPoint& sp, Boolean the)
+    {
+        initpoint(sp);
+    
+        return PS_BREAK;
+    }
+    
+    virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value)
+    {
+        ParamType t_right;
+        ReturnType t_result;
+        
+        if (!MCExecValueTraits<ParamType>::eval(ctxt, right, EvalError, t_right))
+            return;
+        
+        EvalMethod(ctxt, t_right, t_result);
+        
+        MCExecValueTraits<ParamType>::release(t_right);
+        
+        if (!ctxt . HasError())
+            MCExecValueTraits<ReturnType>::set(r_value, t_result);
+    }
+};
 
 //////////
 
@@ -496,5 +531,11 @@ class MCEndsWith : public MCBeginsEndsWith
 public:
     virtual void eval_ctxt(MCExecContext &ctxt, MCExecValue &r_value);
 };
+
+class MCIsFinite : public MCPostfixOperatorCtxt<real64_t, bool, MCMathEvalIsFinite, EE_ISFINITE_BADLEFT, FR_UNARY>
+{};
+
+class MCIsNotFinite : public MCPostfixOperatorCtxt<real64_t, bool, MCMathEvalIsNotFinite, EE_ISFINITE_BADLEFT, FR_UNARY>
+{};
 
 #endif
