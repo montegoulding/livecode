@@ -742,7 +742,7 @@ struct MCWindowsPE64Traits
 	static inline void swap_swap_IMAGE_NT_HEADERS(IMAGE_NT_HEADERS& x)
 	{
 		swap_format("l sslllss", &x, FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader));
-		swap_format("sbbllllll lllssssssllllssllllll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll", &x.OptionalHeader, x.FileHeader.SizeOfOptionalHeader);
+		swap_format("sbblllll qllssssssllllssqqqqll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll", &x.OptionalHeader, x.FileHeader.SizeOfOptionalHeader);
 	}
 };
 
