@@ -44,7 +44,7 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #endif
 
 // Defining common types for 32 and 64 bit
-#ifndef _WIN32 || _WIN64
+#if !defined(_WIN32) && !defined(_WIN64)
 
 typedef char CHAR;
 typedef unsigned short WCHAR;
@@ -387,7 +387,7 @@ typedef struct tagVS_FIXEDFILEINFO
 } VS_FIXEDFILEINFO;
 #endif
 
-#ifndef _WIN32
+#if !defined(_WIN32)
 //
 // Optional header format.
 //
@@ -440,8 +440,9 @@ typedef struct _IMAGE_OPTIONAL_HEADER_32 {
 /*
 typedef IMAGE_OPTIONAL_HEADER32             IMAGE_OPTIONAL_HEADER;
 typedef PIMAGE_OPTIONAL_HEADER32            PIMAGE_OPTIONAL_HEADER;
-#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR32_MAGIC
 */
+#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR32_MAGIC
+
 
 typedef struct _IMAGE_NT_HEADERS {
     DWORD Signature;
@@ -459,12 +460,15 @@ typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
 
 #endif // if !defined(_WIN32)
 
-#ifndef _WIN64
+#if !defined(_WIN64)
+
+typedef uint64_t ULONGLONG;
+
 //
 // Optional header format.
 //
 
-typedef struct _IMAGE_OPTIONAL_HEADER64 {
+typedef struct _IMAGE_OPTIONAL_HEADER_64 {
 	// Standard fields
 
 	WORD        Magic;
@@ -508,10 +512,11 @@ typedef struct _IMAGE_OPTIONAL_HEADER64 {
 /*
 typedef IMAGE_OPTIONAL_HEADER64             IMAGE_OPTIONAL_HEADER;
 typedef PIMAGE_OPTIONAL_HEADER64            PIMAGE_OPTIONAL_HEADER;
-#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR32_MAGIC
 */
+#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR64_MAGIC
 
-typedef struct _IMAGE_NT_HEADERS {
+
+typedef struct _IMAGE_NT_HEADERS_64 {
 	DWORD Signature;
 	IMAGE_FILE_HEADER FileHeader;
 	IMAGE_OPTIONAL_HEADER64 OptionalHeader;
@@ -652,10 +657,10 @@ static inline void swap_format(const char *f, void *p, uint32_t s)
 // wrapping these in __BIG_ENDIAN__ switches, since (hopefully) even the poorest
 // of optimizers will notice that the functions they are calling are no-ops :o)
 
-static inline void swap_IMAGE_NT_HEADERS(IMAGE_NT_HEADERS& x)
+template<typename DeployPlatformTrait>
+static inline void swap_IMAGE_NT_HEADERS(typename DeployPlatformTrait::IMAGE_NT_HEADERS& x)
 {
-	swap_format("l sslllss", &x, FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader));
-	swap_format("sbbllllll lllssssssllllssllllll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll", &x . OptionalHeader, x . FileHeader . SizeOfOptionalHeader);
+	DeployPlatformTrait::swap_IMAGE_NT_HEADERS(x);
 }
 
 static inline void swap_IMAGE_DOS_HEADER(IMAGE_DOS_HEADER& x)
@@ -710,6 +715,36 @@ static inline void swap_GRPICONDIRENTRY(GRPICONDIRENTRY& x)
 //
 // This section contains methods for operating on a Windows PE resource tree.
 //
+
+struct MCWindowsPE32Traits
+{
+	typedef IMAGE_OPTIONAL_HEADER32             IMAGE_OPTIONAL_HEADER;
+	typedef PIMAGE_OPTIONAL_HEADER32            PIMAGE_OPTIONAL_HEADER;
+
+	typedef IMAGE_NT_HEADERS32                  IMAGE_NT_HEADERS;
+	typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
+
+	static inline void swap_IMAGE_NT_HEADERS(IMAGE_NT_HEADERS& x)
+	{
+		swap_format("l sslllss", &x, FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader));
+		swap_format("sbbllllll lllssssssllllssllllll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll", &x.OptionalHeader, x.FileHeader.SizeOfOptionalHeader);
+	}
+};
+
+struct MCWindowsPE64Traits
+{
+	typedef IMAGE_OPTIONAL_HEADER64             IMAGE_OPTIONAL_HEADER;
+	typedef PIMAGE_OPTIONAL_HEADER64			PIMAGE_OPTIONAL_HEADER;
+
+	typedef IMAGE_NT_HEADERS64                  IMAGE_NT_HEADERS;
+	typedef PIMAGE_NT_HEADERS64                 PIMAGE_NT_HEADERS;
+
+	static inline void swap_swap_IMAGE_NT_HEADERS(IMAGE_NT_HEADERS& x)
+	{
+		swap_format("l sslllss", &x, FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader));
+		swap_format("sbbllllll lllssssssllllssllllll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll", &x.OptionalHeader, x.FileHeader.SizeOfOptionalHeader);
+	}
+};
 
 struct MCWindowsResources
 {
@@ -1679,7 +1714,8 @@ static bool MCWindowsResourcesWrite(MCWindowsResources& self, uint32_t p_address
 // PE, appropriately munge it and write out a new one.
 //
 
-static bool MCDeployToWindowsReadHeaders(MCDeployFileRef p_file, IMAGE_DOS_HEADER& r_dos_header, IMAGE_NT_HEADERS& r_nt_header, IMAGE_SECTION_HEADER*& r_section_headers)
+template<typename DeployPlatformTrait>
+static bool MCDeployToWindowsReadHeaders(MCDeployFileRef p_file, IMAGE_DOS_HEADER& r_dos_header, typename DeployPlatformTrait::IMAGE_NT_HEADERS& r_nt_header, IMAGE_SECTION_HEADER*& r_section_headers)
 {
 	if (!MCDeployFileRead(p_file, &r_dos_header, sizeof(IMAGE_DOS_HEADER)))
 		return MCDeployThrow(kMCDeployErrorWindowsNoDOSHeader);
@@ -1692,15 +1728,15 @@ static bool MCDeployToWindowsReadHeaders(MCDeployFileRef p_file, IMAGE_DOS_HEADE
 	if (!MCDeployFileSeekSet(p_file, r_dos_header . e_lfanew))
 		return MCDeployThrow(kMCDeployErrorWindowsBadDOSHeader);
 
-	if (!MCDeployFileRead(p_file, &r_nt_header, sizeof(IMAGE_NT_HEADERS)))
+	if (!MCDeployFileRead(p_file, &r_nt_header, sizeof(typename DeployPlatformTrait::IMAGE_NT_HEADERS)))
 		return MCDeployThrow(kMCDeployErrorWindowsNoNTHeader);
 
-	swap_IMAGE_NT_HEADERS(r_nt_header);
+	DeployPlatformTrait::swap_IMAGE_NT_HEADERS(r_nt_header);
 
 	if (r_nt_header . Signature != IMAGE_NT_SIGNATURE)
 		return MCDeployThrow(kMCDeployErrorWindowsBadNTSignature);
 
-	if (!MCDeployFileSeekSet(p_file, r_dos_header . e_lfanew + FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader) + r_nt_header . FileHeader . SizeOfOptionalHeader))
+	if (!MCDeployFileSeekSet(p_file, r_dos_header . e_lfanew + FIELD_OFFSET(typename DeployPlatformTrait::IMAGE_NT_HEADERS, OptionalHeader) + r_nt_header . FileHeader . SizeOfOptionalHeader))
 		return MCDeployThrow(kMCDeployErrorWindowsBadSectionHeaderOffset);
 
 	r_section_headers = new (nothrow) IMAGE_SECTION_HEADER[r_nt_header . FileHeader . NumberOfSections];
@@ -1756,11 +1792,11 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 
 	// First load the headers we need
 	IMAGE_DOS_HEADER t_dos_header;
-	IMAGE_NT_HEADERS t_nt_header;
+	typename DeployPlatformTrait::IMAGE_NT_HEADERS t_nt_header;
 	IMAGE_SECTION_HEADER *t_section_headers;
 	t_section_headers = NULL;
 	if (t_success)
-		t_success = MCDeployToWindowsReadHeaders(t_engine, t_dos_header, t_nt_header, t_section_headers);
+		t_success = MCDeployToWindowsReadHeaders<DeployPlatformTrait>(t_engine, t_dos_header, t_nt_header, t_section_headers);
 
 	IMAGE_SECTION_HEADER *t_payload_section, *t_project_section, *t_resource_section;
 	t_payload_section = t_project_section = t_resource_section = nil;
@@ -1924,7 +1960,7 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	if (t_success)
 	{
 		t_optional_header_size = MCU_min(sizeof(t_nt_header.OptionalHeader), (uint4)t_nt_header.FileHeader.SizeOfOptionalHeader);
-		t_optional_header_offset = t_dos_header.e_lfanew + FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader);
+		t_optional_header_offset = t_dos_header.e_lfanew + FIELD_OFFSET(typename DeployPlatformTrait::IMAGE_NT_HEADERS, OptionalHeader);
 		t_section_headers_offset = t_optional_header_offset + t_nt_header.FileHeader.SizeOfOptionalHeader;
 
 		uint32_t t_payload_section_size, t_payload_section_delta;
@@ -1991,7 +2027,7 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 		t_nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = t_resource_section_size;
 
 		// Byte swap everything we are about to write out
-		swap_IMAGE_NT_HEADERS(t_nt_header);
+		DeployPlatformTrait::swap_IMAGE_NT_HEADERS(t_nt_header);
 		for (uint32_t i = 0; i < t_section_count; i++)
 			swap_IMAGE_SECTION_HEADER(t_section_headers[i]);
 	}
@@ -2021,5 +2057,5 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 
 Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 {
-	
+	return MCDeployToWindows<MCWindowsPE32Traits>(p_params);
 }
