@@ -43,7 +43,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define FIELD_OFFSET(type, field)    ((LONG)(intptr_t)&(((type *)0)->field))
 #endif
 
-#if !defined(_WIN32)
+// Defining common types for 32 and 64 bit
+#ifndef _WIN32 || _WIN64
 
 typedef char CHAR;
 typedef unsigned short WCHAR;
@@ -63,40 +64,40 @@ typedef uintptr_t LONG_PTR;
 #define IMAGE_NT_SIGNATURE                  0x00004550  // PE00
 
 typedef struct _IMAGE_DOS_HEADER {      // DOS .EXE header
-    WORD   e_magic;                     // Magic number
-    WORD   e_cblp;                      // Bytes on last page of file
-    WORD   e_cp;                        // Pages in file
-    WORD   e_crlc;                      // Relocations
-    WORD   e_cparhdr;                   // Size of header in paragraphs
-    WORD   e_minalloc;                  // Minimum extra paragraphs needed
-    WORD   e_maxalloc;                  // Maximum extra paragraphs needed
-    WORD   e_ss;                        // Initial (relative) SS value
-    WORD   e_sp;                        // Initial SP value
-    WORD   e_csum;                      // Checksum
-    WORD   e_ip;                        // Initial IP value
-    WORD   e_cs;                        // Initial (relative) CS value
-    WORD   e_lfarlc;                    // File address of relocation table
-    WORD   e_ovno;                      // Overlay number
-    WORD   e_res[4];                    // Reserved words
-    WORD   e_oemid;                     // OEM identifier (for e_oeminfo)
-    WORD   e_oeminfo;                   // OEM information; e_oemid specific
-    WORD   e_res2[10];                  // Reserved words
-    LONG   e_lfanew;                    // File address of new exe header
-  } IMAGE_DOS_HEADER, *PIMAGE_DOS_HEADER;
-
-typedef struct _IMAGE_FILE_HEADER {
-    WORD    Machine;
-    WORD    NumberOfSections;
-    DWORD   TimeDateStamp;
-    DWORD   PointerToSymbolTable;
-    DWORD   NumberOfSymbols;
-    WORD    SizeOfOptionalHeader;
-    WORD    Characteristics;
-} IMAGE_FILE_HEADER, *PIMAGE_FILE_HEADER;
+	WORD   e_magic;                     // Magic number
+	WORD   e_cblp;                      // Bytes on last page of file
+	WORD   e_cp;                        // Pages in file
+	WORD   e_crlc;                      // Relocations
+	WORD   e_cparhdr;                   // Size of header in paragraphs
+	WORD   e_minalloc;                  // Minimum extra paragraphs needed
+	WORD   e_maxalloc;                  // Maximum extra paragraphs needed
+	WORD   e_ss;                        // Initial (relative) SS value
+	WORD   e_sp;                        // Initial SP value
+	WORD   e_csum;                      // Checksum
+	WORD   e_ip;                        // Initial IP value
+	WORD   e_cs;                        // Initial (relative) CS value
+	WORD   e_lfarlc;                    // File address of relocation table
+	WORD   e_ovno;                      // Overlay number
+	WORD   e_res[4];                    // Reserved words
+	WORD   e_oemid;                     // OEM identifier (for e_oeminfo)
+	WORD   e_oeminfo;                   // OEM information; e_oemid specific
+	WORD   e_res2[10];                  // Reserved words
+	LONG   e_lfanew;                    // File address of new exe header
+} IMAGE_DOS_HEADER, *PIMAGE_DOS_HEADER;
 
 //
 // File header format.
 //
+
+typedef struct _IMAGE_FILE_HEADER {
+	WORD    Machine;
+	WORD    NumberOfSections;
+	DWORD   TimeDateStamp;
+	DWORD   PointerToSymbolTable;
+	DWORD   NumberOfSymbols;
+	WORD    SizeOfOptionalHeader;
+	WORD    Characteristics;
+} IMAGE_FILE_HEADER, *PIMAGE_FILE_HEADER;
 
 #define IMAGE_SIZEOF_FILE_HEADER             20
 
@@ -151,71 +152,12 @@ typedef struct _IMAGE_FILE_HEADER {
 //
 
 typedef struct _IMAGE_DATA_DIRECTORY {
-    DWORD   VirtualAddress;
-    DWORD   Size;
+	DWORD   VirtualAddress;
+	DWORD   Size;
 } IMAGE_DATA_DIRECTORY, *PIMAGE_DATA_DIRECTORY;
 
 #define IMAGE_NUMBEROF_DIRECTORY_ENTRIES    16
 
-//
-// Optional header format.
-//
-
-typedef struct _IMAGE_OPTIONAL_HEADER {
-    //
-    // Standard fields.
-    //
-
-    WORD    Magic;
-    BYTE    MajorLinkerVersion;
-    BYTE    MinorLinkerVersion;
-    DWORD   SizeOfCode;
-    DWORD   SizeOfInitializedData;
-    DWORD   SizeOfUninitializedData;
-    DWORD   AddressOfEntryPoint;
-    DWORD   BaseOfCode;
-    DWORD   BaseOfData;
-
-    //
-    // NT additional fields.
-    //
-
-    DWORD   ImageBase;
-    DWORD   SectionAlignment;
-    DWORD   FileAlignment;
-    WORD    MajorOperatingSystemVersion;
-    WORD    MinorOperatingSystemVersion;
-    WORD    MajorImageVersion;
-    WORD    MinorImageVersion;
-    WORD    MajorSubsystemVersion;
-    WORD    MinorSubsystemVersion;
-    DWORD   Win32VersionValue;
-    DWORD   SizeOfImage;
-    DWORD   SizeOfHeaders;
-    DWORD   CheckSum;
-    WORD    Subsystem;
-    WORD    DllCharacteristics;
-    DWORD   SizeOfStackReserve;
-    DWORD   SizeOfStackCommit;
-    DWORD   SizeOfHeapReserve;
-    DWORD   SizeOfHeapCommit;
-    DWORD   LoaderFlags;
-    DWORD   NumberOfRvaAndSizes;
-    IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
-} IMAGE_OPTIONAL_HEADER32, *PIMAGE_OPTIONAL_HEADER32;
-
-typedef IMAGE_OPTIONAL_HEADER32             IMAGE_OPTIONAL_HEADER;
-typedef PIMAGE_OPTIONAL_HEADER32            PIMAGE_OPTIONAL_HEADER;
-#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR32_MAGIC
-
-typedef struct _IMAGE_NT_HEADERS {
-    DWORD Signature;
-    IMAGE_FILE_HEADER FileHeader;
-    IMAGE_OPTIONAL_HEADER32 OptionalHeader;
-} IMAGE_NT_HEADERS32, *PIMAGE_NT_HEADERS32;
-
-typedef IMAGE_NT_HEADERS32                  IMAGE_NT_HEADERS;
-typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
 
 // Directory Entries
 
@@ -243,19 +185,19 @@ typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
 #define IMAGE_SIZEOF_SHORT_NAME              8
 
 typedef struct _IMAGE_SECTION_HEADER {
-    BYTE    Name[IMAGE_SIZEOF_SHORT_NAME];
-    union {
-            DWORD   PhysicalAddress;
-            DWORD   VirtualSize;
-    } Misc;
-    DWORD   VirtualAddress;
-    DWORD   SizeOfRawData;
-    DWORD   PointerToRawData;
-    DWORD   PointerToRelocations;
-    DWORD   PointerToLinenumbers;
-    WORD    NumberOfRelocations;
-    WORD    NumberOfLinenumbers;
-    DWORD   Characteristics;
+	BYTE    Name[IMAGE_SIZEOF_SHORT_NAME];
+	union {
+		DWORD   PhysicalAddress;
+		DWORD   VirtualSize;
+	} Misc;
+	DWORD   VirtualAddress;
+	DWORD   SizeOfRawData;
+	DWORD   PointerToRawData;
+	DWORD   PointerToRelocations;
+	DWORD   PointerToLinenumbers;
+	WORD    NumberOfRelocations;
+	WORD    NumberOfLinenumbers;
+	DWORD   Characteristics;
 } IMAGE_SECTION_HEADER, *PIMAGE_SECTION_HEADER;
 
 #define IMAGE_SIZEOF_SECTION_HEADER          40
@@ -335,17 +277,18 @@ typedef struct _IMAGE_SECTION_HEADER {
 //
 
 typedef struct _IMAGE_RESOURCE_DIRECTORY {
-    DWORD   Characteristics;
-    DWORD   TimeDateStamp;
-    WORD    MajorVersion;
-    WORD    MinorVersion;
-    WORD    NumberOfNamedEntries;
-    WORD    NumberOfIdEntries;
-//  IMAGE_RESOURCE_DIRECTORY_ENTRY DirectoryEntries[];
+	DWORD   Characteristics;
+	DWORD   TimeDateStamp;
+	WORD    MajorVersion;
+	WORD    MinorVersion;
+	WORD    NumberOfNamedEntries;
+	WORD    NumberOfIdEntries;
+	//  IMAGE_RESOURCE_DIRECTORY_ENTRY DirectoryEntries[];
 } IMAGE_RESOURCE_DIRECTORY, *PIMAGE_RESOURCE_DIRECTORY;
 
 #define IMAGE_RESOURCE_NAME_IS_STRING        0x80000000
 #define IMAGE_RESOURCE_DATA_IS_DIRECTORY     0x80000000
+
 //
 // Each directory contains the 32-bit Name of the entry and an offset,
 // relative to the beginning of the resource directory of the data associated
@@ -362,31 +305,31 @@ typedef struct _IMAGE_RESOURCE_DIRECTORY {
 //
 
 typedef struct _IMAGE_RESOURCE_DIRECTORY_ENTRY {
-    union {
-        struct {
-            DWORD NameOffset:31;
-            DWORD NameIsString:1;
-        };
-        DWORD   Name;
+	union {
+		struct {
+			DWORD NameOffset : 31;
+			DWORD NameIsString : 1;
+		};
+		DWORD   Name;
 #ifdef __BIG_ENDIAN__
 		WORD __pad;
 		WORD Id;
 #else
-        WORD    Id;
+		WORD    Id;
 #endif
-    };
-    union {
-        DWORD   OffsetToData;
-        struct {
+	};
+	union {
+		DWORD   OffsetToData;
+		struct {
 #ifdef __BIG_ENDIAN__
-            DWORD   DataIsDirectory:1;
-            DWORD   OffsetToDirectory:31;
+			DWORD   DataIsDirectory : 1;
+			DWORD   OffsetToDirectory : 31;
 #else
-            DWORD   OffsetToDirectory:31;
-            DWORD   DataIsDirectory:1;
+			DWORD   OffsetToDirectory : 31;
+			DWORD   DataIsDirectory : 1;
 #endif
-        };
-    };
+		};
+	};
 } IMAGE_RESOURCE_DIRECTORY_ENTRY, *PIMAGE_RESOURCE_DIRECTORY_ENTRY;
 
 //
@@ -399,14 +342,14 @@ typedef struct _IMAGE_RESOURCE_DIRECTORY_ENTRY {
 //
 
 typedef struct _IMAGE_RESOURCE_DIRECTORY_STRING {
-    WORD    Length;
-    CHAR    NameString[ 1 ];
+	WORD    Length;
+	CHAR    NameString[1];
 } IMAGE_RESOURCE_DIRECTORY_STRING, *PIMAGE_RESOURCE_DIRECTORY_STRING;
 
 
 typedef struct _IMAGE_RESOURCE_DIR_STRING_U {
-    WORD    Length;
-    WCHAR   NameString[ 1 ];
+	WORD    Length;
+	WCHAR   NameString[1];
 } IMAGE_RESOURCE_DIR_STRING_U, *PIMAGE_RESOURCE_DIR_STRING_U;
 
 
@@ -420,30 +363,169 @@ typedef struct _IMAGE_RESOURCE_DIR_STRING_U {
 //
 
 typedef struct _IMAGE_RESOURCE_DATA_ENTRY {
-    DWORD   OffsetToData;
-    DWORD   Size;
-    DWORD   CodePage;
-    DWORD   Reserved;
+	DWORD   OffsetToData;
+	DWORD   Size;
+	DWORD   CodePage;
+	DWORD   Reserved;
 } IMAGE_RESOURCE_DATA_ENTRY, *PIMAGE_RESOURCE_DATA_ENTRY;
 
 typedef struct tagVS_FIXEDFILEINFO
 {
-    DWORD   dwSignature;            /* e.g. 0xfeef04bd */
-    DWORD   dwStrucVersion;         /* e.g. 0x00000042 = "0.42" */
-    DWORD   dwFileVersionMS;        /* e.g. 0x00030075 = "3.75" */
-    DWORD   dwFileVersionLS;        /* e.g. 0x00000031 = "0.31" */
-    DWORD   dwProductVersionMS;     /* e.g. 0x00030010 = "3.10" */
-    DWORD   dwProductVersionLS;     /* e.g. 0x00000031 = "0.31" */
-    DWORD   dwFileFlagsMask;        /* = 0x3F for version "0.42" */
-    DWORD   dwFileFlags;            /* e.g. VFF_DEBUG | VFF_PRERELEASE */
-    DWORD   dwFileOS;               /* e.g. VOS_DOS_WINDOWS16 */
-    DWORD   dwFileType;             /* e.g. VFT_DRIVER */
-    DWORD   dwFileSubtype;          /* e.g. VFT2_DRV_KEYBOARD */
-    DWORD   dwFileDateMS;           /* e.g. 0 */
-    DWORD   dwFileDateLS;           /* e.g. 0 */
+	DWORD   dwSignature;            /* e.g. 0xfeef04bd */
+	DWORD   dwStrucVersion;         /* e.g. 0x00000042 = "0.42" */
+	DWORD   dwFileVersionMS;        /* e.g. 0x00030075 = "3.75" */
+	DWORD   dwFileVersionLS;        /* e.g. 0x00000031 = "0.31" */
+	DWORD   dwProductVersionMS;     /* e.g. 0x00030010 = "3.10" */
+	DWORD   dwProductVersionLS;     /* e.g. 0x00000031 = "0.31" */
+	DWORD   dwFileFlagsMask;        /* = 0x3F for version "0.42" */
+	DWORD   dwFileFlags;            /* e.g. VFF_DEBUG | VFF_PRERELEASE */
+	DWORD   dwFileOS;               /* e.g. VOS_DOS_WINDOWS16 */
+	DWORD   dwFileType;             /* e.g. VFT_DRIVER */
+	DWORD   dwFileSubtype;          /* e.g. VFT2_DRV_KEYBOARD */
+	DWORD   dwFileDateMS;           /* e.g. 0 */
+	DWORD   dwFileDateLS;           /* e.g. 0 */
 } VS_FIXEDFILEINFO;
+#endif
+
+#ifndef _WIN32
+//
+// Optional header format.
+//
+typedef struct _IMAGE_OPTIONAL_HEADER_32 {
+    //
+    // Standard fields.
+    //
+
+    WORD    Magic;
+    BYTE    MajorLinkerVersion;
+    BYTE    MinorLinkerVersion;
+    DWORD   SizeOfCode;
+    DWORD   SizeOfInitializedData;
+    DWORD   SizeOfUninitializedData;
+    DWORD   AddressOfEntryPoint;
+    DWORD   BaseOfCode;
+    DWORD   BaseOfData;
+
+    //
+    // NT additional fields.
+    //
+
+    DWORD   ImageBase;
+    DWORD   SectionAlignment;
+    DWORD   FileAlignment;
+    WORD    MajorOperatingSystemVersion;
+    WORD    MinorOperatingSystemVersion;
+    WORD    MajorImageVersion;
+    WORD    MinorImageVersion;
+    WORD    MajorSubsystemVersion;
+    WORD    MinorSubsystemVersion;
+    DWORD   Win32VersionValue;
+    DWORD   SizeOfImage;
+    DWORD   SizeOfHeaders;
+    DWORD   CheckSum;
+    WORD    Subsystem;
+    WORD    DllCharacteristics;
+    DWORD   SizeOfStackReserve;
+    DWORD   SizeOfStackCommit;
+    DWORD   SizeOfHeapReserve;
+    DWORD   SizeOfHeapCommit;
+    DWORD   LoaderFlags;
+    DWORD   NumberOfRvaAndSizes;
+    IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+} IMAGE_OPTIONAL_HEADER32, *PIMAGE_OPTIONAL_HEADER32;
+
+// The following section should move to the template args
+// in the templated version of MCDeployWindows
+
+/*
+typedef IMAGE_OPTIONAL_HEADER32             IMAGE_OPTIONAL_HEADER;
+typedef PIMAGE_OPTIONAL_HEADER32            PIMAGE_OPTIONAL_HEADER;
+#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR32_MAGIC
+*/
+
+typedef struct _IMAGE_NT_HEADERS {
+    DWORD Signature;
+    IMAGE_FILE_HEADER FileHeader;
+    IMAGE_OPTIONAL_HEADER32 OptionalHeader;
+} IMAGE_NT_HEADERS32, *PIMAGE_NT_HEADERS32;
+
+// The following section should move to the template args
+// in the templated version of MCDeployWindows
+
+/*
+typedef IMAGE_NT_HEADERS32                  IMAGE_NT_HEADERS;
+typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
+*/
 
 #endif // if !defined(_WIN32)
+
+#ifndef _WIN64
+//
+// Optional header format.
+//
+
+typedef struct _IMAGE_OPTIONAL_HEADER64 {
+	// Standard fields
+
+	WORD        Magic;
+	BYTE        MajorLinkerVersion;
+	BYTE        MinorLinkerVersion;
+	DWORD       SizeOfCode;
+	DWORD       SizeOfInitializedData;
+	DWORD       SizeOfUninitializedData;
+	DWORD       AddressOfEntryPoint;
+	DWORD       BaseOfCode;
+
+	// NT Fields
+
+	ULONGLONG   ImageBase;
+	DWORD       SectionAlignment;
+	DWORD       FileAlignment;
+	WORD        MajorOperatingSystemVersion;
+	WORD        MinorOperatingSystemVersion;
+	WORD        MajorImageVersion;
+	WORD        MinorImageVersion;
+	WORD        MajorSubsystemVersion;
+	WORD        MinorSubsystemVersion;
+	DWORD       Win32VersionValue;
+	DWORD       SizeOfImage;
+	DWORD       SizeOfHeaders;
+	DWORD       CheckSum;
+	WORD        Subsystem;
+	WORD        DllCharacteristics;
+	ULONGLONG   SizeOfStackReserve;
+	ULONGLONG   SizeOfStackCommit;
+	ULONGLONG   SizeOfHeapReserve;
+	ULONGLONG   SizeOfHeapCommit;
+	DWORD       LoaderFlags;
+	DWORD       NumberOfRvaAndSizes;
+	IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+} IMAGE_OPTIONAL_HEADER64, *PIMAGE_OPTIONAL_HEADER64;
+
+// The following section should move to the template args
+// in the templated version of MCDeployWindows
+
+/*
+typedef IMAGE_OPTIONAL_HEADER64             IMAGE_OPTIONAL_HEADER;
+typedef PIMAGE_OPTIONAL_HEADER64            PIMAGE_OPTIONAL_HEADER;
+#define IMAGE_NT_OPTIONAL_HDR_MAGIC         IMAGE_NT_OPTIONAL_HDR32_MAGIC
+*/
+
+typedef struct _IMAGE_NT_HEADERS {
+	DWORD Signature;
+	IMAGE_FILE_HEADER FileHeader;
+	IMAGE_OPTIONAL_HEADER64 OptionalHeader;
+} IMAGE_NT_HEADERS64, *PIMAGE_NT_HEADERS64;
+
+// The following section should move to the template args
+// in the templated version of MCDeployWindows
+
+/*
+typedef IMAGE_NT_HEADERS64                  IMAGE_NT_HEADERS;
+typedef PIMAGE_NT_HEADERS64                 PIMAGE_NT_HEADERS;
+*/
+
+#endif // if !defined(_WIN64)
 
 // The following structures are for those used in ICO files and in ICON and
 // GROUP_ICON resources. These (for some reason) do not appear in any of the
@@ -1653,22 +1735,23 @@ static bool MCDeployToWindowsReadHeaders(MCDeployFileRef p_file, IMAGE_DOS_HEADE
 // section, and that (as is usual) the '.rsrc' section is at the end of the
 // executable.
 //
+template<typename DeployPlatformTrait>
 Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 {
 	bool t_success;
 	t_success = true;
 
-    // Are we running deploy just for the purpose of changing the EXE icons?
-    bool t_icons_only = false;
-    if (MCStringIsEmpty(p_params.stackfile) && !MCStringIsEmpty(p_params.app_icon))
-        t_icons_only = true;
-    
+	// Are we running deploy just for the purpose of changing the EXE icons?
+	bool t_icons_only = false;
+	if (MCStringIsEmpty(p_params.stackfile) && !MCStringIsEmpty(p_params.app_icon))
+		t_icons_only = true;
+
 	// First thing to do is to open the files.
 	MCDeployFileRef t_engine, t_output;
 	t_engine = t_output = NULL;
-	if (t_success && !MCDeployFileOpen(p_params . engine, kMCOpenFileModeRead, t_engine))
+	if (t_success && !MCDeployFileOpen(p_params.engine, kMCOpenFileModeRead, t_engine))
 		t_success = MCDeployThrow(kMCDeployErrorNoEngine);
-	if (t_success && !MCDeployFileOpen(p_params . output, kMCOpenFileModeCreate, t_output))
+	if (t_success && !MCDeployFileOpen(p_params.output, kMCOpenFileModeCreate, t_output))
 		t_success = MCDeployThrow(kMCDeployErrorNoOutput);
 
 	// First load the headers we need
@@ -1678,61 +1761,61 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	t_section_headers = NULL;
 	if (t_success)
 		t_success = MCDeployToWindowsReadHeaders(t_engine, t_dos_header, t_nt_header, t_section_headers);
-    
+
 	IMAGE_SECTION_HEADER *t_payload_section, *t_project_section, *t_resource_section;
-    t_payload_section = t_project_section = t_resource_section = nil;
-    
-    
+	t_payload_section = t_project_section = t_resource_section = nil;
+
+
 	uint32_t t_section_count;
-    
-    uint32_t t_output_offset = 0;
-    uint32_t t_base_address = 0;
-    
-    bool t_swap_payload = false;
-    if (t_success)
+
+	uint32_t t_output_offset = 0;
+	uint32_t t_base_address = 0;
+
+	bool t_swap_payload = false;
+	if (t_success)
 	{
-		t_section_count = t_nt_header . FileHeader . NumberOfSections;
-        
-        IMAGE_SECTION_HEADER *t_temp_section;
-        for (uint32_t t_index = 0; t_index < t_section_count; t_index++)
-        {
-            t_temp_section = &t_section_headers[t_index];
-            
-            if (memcmp(t_temp_section -> Name, ".payload", 8) == 0)
-            {
-                t_payload_section = t_temp_section;
-                if (t_output_offset == 0)
-                {
-                    t_output_offset = t_temp_section -> PointerToRawData;
-                    t_base_address = t_temp_section -> VirtualAddress;
-                }
-                else
-                {
-                    // payload is should be third last
-                    t_swap_payload = true;
-                }
-            }
-            else if (memcmp(t_temp_section -> Name, ".project", 8) == 0)
-            {
-                t_project_section = t_temp_section;
-                if (t_output_offset == 0)
-                {
-                    t_output_offset = t_temp_section -> PointerToRawData;
-                    t_base_address = t_temp_section -> VirtualAddress;
-                }
-            }
-            else if (memcmp(t_temp_section -> Name, ".rsrc", 5) == 0)
-            {
-                t_resource_section = t_temp_section;
-                if (t_output_offset == 0)
-                {
-                    t_output_offset = t_temp_section -> PointerToRawData;
-                    t_base_address = t_temp_section -> VirtualAddress;
-                }
-            }
-        }
-    }
-    
+		t_section_count = t_nt_header.FileHeader.NumberOfSections;
+
+		IMAGE_SECTION_HEADER *t_temp_section;
+		for (uint32_t t_index = 0; t_index < t_section_count; t_index++)
+		{
+			t_temp_section = &t_section_headers[t_index];
+
+			if (memcmp(t_temp_section->Name, ".payload", 8) == 0)
+			{
+				t_payload_section = t_temp_section;
+				if (t_output_offset == 0)
+				{
+					t_output_offset = t_temp_section->PointerToRawData;
+					t_base_address = t_temp_section->VirtualAddress;
+				}
+				else
+				{
+					// payload is should be third last
+					t_swap_payload = true;
+				}
+			}
+			else if (memcmp(t_temp_section->Name, ".project", 8) == 0)
+			{
+				t_project_section = t_temp_section;
+				if (t_output_offset == 0)
+				{
+					t_output_offset = t_temp_section->PointerToRawData;
+					t_base_address = t_temp_section->VirtualAddress;
+				}
+			}
+			else if (memcmp(t_temp_section->Name, ".rsrc", 5) == 0)
+			{
+				t_resource_section = t_temp_section;
+				if (t_output_offset == 0)
+				{
+					t_output_offset = t_temp_section->PointerToRawData;
+					t_base_address = t_temp_section->VirtualAddress;
+				}
+			}
+		}
+	}
+
 	// Next we check that there are at least two sections, and they are the
 	// right ones.
 	if (t_success && t_section_count < 2)
@@ -1741,47 +1824,47 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 		t_success = MCDeployThrow(kMCDeployErrorWindowsNoResourceSection);
 	if (t_success && !t_icons_only && t_project_section == nil)
 		t_success = MCDeployThrow(kMCDeployErrorWindowsNoProjectSection);
-	if (t_success && !MCStringIsEmpty(p_params . payload) && t_payload_section == nil)
+	if (t_success && !MCStringIsEmpty(p_params.payload) && t_payload_section == nil)
 		t_success = MCDeployThrow(kMCDeployErrorWindowsNoPayloadSection);
-    
+
 	// Read in the resources
 	MCWindowsResources t_resources;
 	MCWindowsResourcesInitialize(t_resources);
 	if (t_success)
 		t_success = MCWindowsResourcesRead(t_engine,
-			t_nt_header . OptionalHeader . DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE] . VirtualAddress,
-			t_resource_section -> PointerToRawData,
-			t_resource_section -> SizeOfRawData,
+			t_nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress,
+			t_resource_section->PointerToRawData,
+			t_resource_section->SizeOfRawData,
 			t_resources);
 
 	// Augment the resources as appropriate
-	
+
 	// If we are setting both app and doc icons, clear out the existing
 	// icon resources
-	if (t_success && !MCStringIsEmpty(p_params . app_icon) && !MCStringIsEmpty(p_params . doc_icon))
+	if (t_success && !MCStringIsEmpty(p_params.app_icon) && !MCStringIsEmpty(p_params.doc_icon))
 		MCWindowsResourcesClearIcons(t_resources);
 
-	if (t_success && !MCStringIsEmpty(p_params . app_icon))
+	if (t_success && !MCStringIsEmpty(p_params.app_icon))
 	{
-		t_success = MCWindowsResourcesAddIcon(t_resources, p_params . app_icon, 111, 0x0409);
+		t_success = MCWindowsResourcesAddIcon(t_resources, p_params.app_icon, 111, 0x0409);
 		if (!t_success)
 			t_success = MCDeployThrow(kMCDeployErrorWindowsBadAppIcon);
 	}
-	if (t_success && !MCStringIsEmpty(p_params . doc_icon))
+	if (t_success && !MCStringIsEmpty(p_params.doc_icon))
 	{
-		t_success = MCWindowsResourcesAddIcon(t_resources, p_params . doc_icon, 112, 0x0409);
+		t_success = MCWindowsResourcesAddIcon(t_resources, p_params.doc_icon, 112, 0x0409);
 		if (!t_success)
 			t_success = MCDeployThrow(kMCDeployErrorWindowsBadDocIcon);
 	}
 
 	// If there is a version info array, then build a VERSIONINFO resource and
 	// add it.
-	if (t_success && !MCArrayIsEmpty(p_params . version_info))
-		t_success = MCWindowsResourcesAddVersionInfo(t_resources, p_params . version_info);
+	if (t_success && !MCArrayIsEmpty(p_params.version_info))
+		t_success = MCWindowsResourcesAddVersionInfo(t_resources, p_params.version_info);
 
 	// Add the manifest to the resources
-	if (t_success && !MCStringIsEmpty(p_params . manifest))
-		t_success = MCWindowsResourcesAddManifest(t_resources, p_params . manifest);
+	if (t_success && !MCStringIsEmpty(p_params.manifest))
+		t_success = MCWindowsResourcesAddManifest(t_resources, p_params.manifest);
 
 	// Now we have the various references we need and have prepared the
 	// data to output. We write out the first part of the exe and then the main
@@ -1794,45 +1877,45 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	{
 		t_success = MCDeployFileCopy(t_output, 0, t_engine, 0, t_output_offset);
 	}
-    
-    uint32_t t_base_offset = t_output_offset;
-    
-    // Write out the payload capsule struct (if needed)
+
+	uint32_t t_base_offset = t_output_offset;
+
+	// Write out the payload capsule struct (if needed)
 	uint32_t t_payload_size = 0;
-    if (t_success && t_payload_section != nil)
+	if (t_success && t_payload_section != nil)
 	{
-        if (!MCStringIsEmpty(p_params . payload))
-        {
-            t_success = MCDeployWritePayload(p_params, false, t_output, t_output_offset, t_payload_size);
-            if (t_success)
-                t_output_offset += (t_payload_size + 4095) & ~4095;
-        }
-        else
-        {
-            t_success = MCDeployFileCopy(t_output, t_output_offset, t_engine, t_payload_section -> PointerToRawData, t_payload_section -> SizeOfRawData);
-            if (t_success)
-            {
-                t_payload_size = t_payload_section -> SizeOfRawData;
-                t_output_offset += (t_payload_section -> SizeOfRawData + 4095) & ~4095;
-            }
-        }
-    }
+		if (!MCStringIsEmpty(p_params.payload))
+		{
+			t_success = MCDeployWritePayload(p_params, false, t_output, t_output_offset, t_payload_size);
+			if (t_success)
+				t_output_offset += (t_payload_size + 4095) & ~4095;
+		}
+		else
+		{
+			t_success = MCDeployFileCopy(t_output, t_output_offset, t_engine, t_payload_section->PointerToRawData, t_payload_section->SizeOfRawData);
+			if (t_success)
+			{
+				t_payload_size = t_payload_section->SizeOfRawData;
+				t_output_offset += (t_payload_section->SizeOfRawData + 4095) & ~4095;
+			}
+		}
+	}
 
 	// Write out the project capsule struct
 	uint32_t t_project_size;
 	t_project_size = 0;
 	if (t_success && t_project_section != nil)
-    {
-        if (!t_icons_only)
-        {
-            t_success = MCDeployWriteProject(p_params, false, t_output, t_output_offset, t_project_size);
-        }
-        else
-        {
-            t_project_size = t_project_section -> SizeOfRawData;
-            t_success = MCDeployFileCopy(t_output, t_output_offset, t_engine, t_project_section -> PointerToRawData, t_project_size);
-        }
-    }
+	{
+		if (!t_icons_only)
+		{
+			t_success = MCDeployWriteProject(p_params, false, t_output, t_output_offset, t_project_size);
+		}
+		else
+		{
+			t_project_size = t_project_section->SizeOfRawData;
+			t_success = MCDeployFileCopy(t_output, t_output_offset, t_engine, t_project_section->PointerToRawData, t_project_size);
+		}
+	}
 
 	// Next use the project size to compute the updated header values we need.
 	uint32_t t_optional_header_size, t_optional_header_offset, t_section_headers_offset;
@@ -1840,82 +1923,82 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	uint32_t t_resource_section_offset, t_resource_section_old_offset;
 	if (t_success)
 	{
-		t_optional_header_size = MCU_min(sizeof(t_nt_header . OptionalHeader), (uint4)t_nt_header . FileHeader . SizeOfOptionalHeader);
-		t_optional_header_offset = t_dos_header . e_lfanew + FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader);
-		t_section_headers_offset = t_optional_header_offset + t_nt_header . FileHeader . SizeOfOptionalHeader;
+		t_optional_header_size = MCU_min(sizeof(t_nt_header.OptionalHeader), (uint4)t_nt_header.FileHeader.SizeOfOptionalHeader);
+		t_optional_header_offset = t_dos_header.e_lfanew + FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader);
+		t_section_headers_offset = t_optional_header_offset + t_nt_header.FileHeader.SizeOfOptionalHeader;
 
 		uint32_t t_payload_section_size, t_payload_section_delta;
 		t_payload_section_size = (t_payload_size + 4095) & ~4095;
-		t_payload_section_delta = t_payload_section == nil ? 0 : t_payload_section_size - t_payload_section -> SizeOfRawData;
+		t_payload_section_delta = t_payload_section == nil ? 0 : t_payload_section_size - t_payload_section->SizeOfRawData;
 
 		uint32_t t_project_section_size, t_project_section_delta;
 		t_project_section_size = (t_project_size + 4095) & ~4095;
-        t_project_section_delta = t_project_section == nil ? 0 : t_project_section_size - t_project_section -> SizeOfRawData;
+		t_project_section_delta = t_project_section == nil ? 0 : t_project_section_size - t_project_section->SizeOfRawData;
 
 		uint32_t t_resource_section_size;
 		t_resource_section_size = MCWindowsResourcesMeasure(t_resources);
-		t_resource_section_old_offset = t_resource_section -> PointerToRawData;
-		t_resource_section_old_address = t_resource_section -> VirtualAddress;
+		t_resource_section_old_offset = t_resource_section->PointerToRawData;
+		t_resource_section_old_address = t_resource_section->VirtualAddress;
 
 		// Resize the payload section (if present)
 		if (t_payload_section != nil)
 		{
-			t_payload_section -> SizeOfRawData = t_payload_section_size;
-			t_payload_section -> Misc . VirtualSize = t_payload_section_size;
-            t_payload_section -> PointerToRawData = t_base_offset;
-            t_payload_section -> VirtualAddress = t_base_address;
+			t_payload_section->SizeOfRawData = t_payload_section_size;
+			t_payload_section->Misc.VirtualSize = t_payload_section_size;
+			t_payload_section->PointerToRawData = t_base_offset;
+			t_payload_section->VirtualAddress = t_base_address;
 
-			t_project_section -> VirtualAddress = t_payload_section -> VirtualAddress + t_payload_section_size;
-			t_project_section -> PointerToRawData = t_payload_section -> PointerToRawData + t_payload_section_size;
+			t_project_section->VirtualAddress = t_payload_section->VirtualAddress + t_payload_section_size;
+			t_project_section->PointerToRawData = t_payload_section->PointerToRawData + t_payload_section_size;
 		}
-        
+
 		// Resize and shift up the project section (if present)
-        if (t_project_section != nil)
-        {
-            t_project_section -> SizeOfRawData = t_project_section_size;
-            t_project_section -> Misc . VirtualSize = t_project_section_size;
-        }
+		if (t_project_section != nil)
+		{
+			t_project_section->SizeOfRawData = t_project_section_size;
+			t_project_section->Misc.VirtualSize = t_project_section_size;
+		}
 
 		// Resize and shift up the resource section.
-        if (t_project_section != nil)
-        {
-            t_resource_section -> VirtualAddress = t_project_section -> VirtualAddress + t_project_section_size;
-            t_resource_section -> PointerToRawData = t_project_section -> PointerToRawData + t_project_section_size;
-        }
-		t_resource_section -> SizeOfRawData = t_resource_section_size;
-		t_resource_section -> Misc . VirtualSize = t_resource_section_size;
+		if (t_project_section != nil)
+		{
+			t_resource_section->VirtualAddress = t_project_section->VirtualAddress + t_project_section_size;
+			t_resource_section->PointerToRawData = t_project_section->PointerToRawData + t_project_section_size;
+		}
+		t_resource_section->SizeOfRawData = t_resource_section_size;
+		t_resource_section->Misc.VirtualSize = t_resource_section_size;
 
-		t_resource_section_offset = t_resource_section -> PointerToRawData;
-		t_resource_section_address = t_resource_section -> VirtualAddress;
-        
-        if (t_swap_payload)
-        {
-            IMAGE_SECTION_HEADER t_swap_header = *t_payload_section;
-            t_section_headers[t_section_count - 2] = *t_project_section;
-            t_section_headers[t_section_count - 3] = t_swap_header;
-        }
+		t_resource_section_offset = t_resource_section->PointerToRawData;
+		t_resource_section_address = t_resource_section->VirtualAddress;
+
+		if (t_swap_payload)
+		{
+			IMAGE_SECTION_HEADER t_swap_header = *t_payload_section;
+			t_section_headers[t_section_count - 2] = *t_project_section;
+			t_section_headers[t_section_count - 3] = t_swap_header;
+		}
 
 		// Update the resource data directory entry and the size of image/initialized data
-		t_nt_header . OptionalHeader . SizeOfImage = t_resource_section_address + t_resource_section_size;
-        
-        t_nt_header . OptionalHeader . SizeOfInitializedData = 0;
-		for(uint32_t i = 0; i < t_section_count; i++)
-			if (t_section_headers[i] . Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA)
-				t_nt_header . OptionalHeader . SizeOfInitializedData += MCU_max((unsigned)t_section_headers[i] . SizeOfRawData, (unsigned)(t_section_headers[i] . Misc . VirtualSize + 4095) & ~4095);
+		t_nt_header.OptionalHeader.SizeOfImage = t_resource_section_address + t_resource_section_size;
+
+		t_nt_header.OptionalHeader.SizeOfInitializedData = 0;
+		for (uint32_t i = 0; i < t_section_count; i++)
+			if (t_section_headers[i].Characteristics & IMAGE_SCN_CNT_INITIALIZED_DATA)
+				t_nt_header.OptionalHeader.SizeOfInitializedData += MCU_max((unsigned)t_section_headers[i].SizeOfRawData, (unsigned)(t_section_headers[i].Misc.VirtualSize + 4095) & ~4095);
 
 		// Update the data directory
-		t_nt_header . OptionalHeader . DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE] . VirtualAddress = t_resource_section -> VirtualAddress;
-		t_nt_header . OptionalHeader . DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE] . Size = t_resource_section_size;
+		t_nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].VirtualAddress = t_resource_section->VirtualAddress;
+		t_nt_header.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE].Size = t_resource_section_size;
 
 		// Byte swap everything we are about to write out
 		swap_IMAGE_NT_HEADERS(t_nt_header);
-		for(uint32_t i = 0; i < t_section_count; i++)
+		for (uint32_t i = 0; i < t_section_count; i++)
 			swap_IMAGE_SECTION_HEADER(t_section_headers[i]);
 	}
 
 	// Now overwrite the nt optional header with our newly computed one
 	if (t_success)
-		t_success = MCDeployFileWriteAt(t_output, &t_nt_header . OptionalHeader, t_optional_header_size, t_optional_header_offset);
+		t_success = MCDeployFileWriteAt(t_output, &t_nt_header.OptionalHeader, t_optional_header_size, t_optional_header_offset);
 
 	// Next we overwrite our section headers array
 	if (t_success)
@@ -1934,4 +2017,9 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	MCDeployFileClose(t_output);
 
 	return t_success ? ES_NORMAL : ES_ERROR;
+}
+
+Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
+{
+	
 }
