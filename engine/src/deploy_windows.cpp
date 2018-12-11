@@ -43,6 +43,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #define FIELD_OFFSET(type, field)    ((LONG)(intptr_t)&(((type *)0)->field))
 #endif
 
+#define WIN_NIDENT 16
+
 // Defining common types for 32 and 64 bit
 #if !defined(_WIN32) && !defined(_WIN64)
 
@@ -410,27 +412,27 @@ typedef struct _IMAGE_OPTIONAL_HEADER_32 {
     // NT additional fields.
     //
 
-    DWORD   ImageBase;
-    DWORD   SectionAlignment;
-    DWORD   FileAlignment;
-    WORD    MajorOperatingSystemVersion;
-    WORD    MinorOperatingSystemVersion;
-    WORD    MajorImageVersion;
-    WORD    MinorImageVersion;
-    WORD    MajorSubsystemVersion;
-    WORD    MinorSubsystemVersion;
-    DWORD   Win32VersionValue;
-    DWORD   SizeOfImage;
-    DWORD   SizeOfHeaders;
-    DWORD   CheckSum;
-    WORD    Subsystem;
-    WORD    DllCharacteristics;
-    DWORD   SizeOfStackReserve;
-    DWORD   SizeOfStackCommit;
-    DWORD   SizeOfHeapReserve;
-    DWORD   SizeOfHeapCommit;
-    DWORD   LoaderFlags;
-    DWORD   NumberOfRvaAndSizes;
+    DWORD   ImageBase; // l
+    DWORD   SectionAlignment; // l
+    DWORD   FileAlignment; // l
+    WORD    MajorOperatingSystemVersion; // s
+    WORD    MinorOperatingSystemVersion; // s
+    WORD    MajorImageVersion; // s
+    WORD    MinorImageVersion; // s
+    WORD    MajorSubsystemVersion; // s
+    WORD    MinorSubsystemVersion; // s
+    DWORD   Win32VersionValue; // l
+    DWORD   SizeOfImage; // l
+    DWORD   SizeOfHeaders; // l
+    DWORD   CheckSum; // l
+    WORD    Subsystem; // s
+    WORD    DllCharacteristics; // s
+    DWORD   SizeOfStackReserve; // l
+    DWORD   SizeOfStackCommit; // l
+    DWORD   SizeOfHeapReserve; // l
+    DWORD   SizeOfHeapCommit; // l
+    DWORD   LoaderFlags; // l
+    DWORD   NumberOfRvaAndSizes; // l
     IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
 } IMAGE_OPTIONAL_HEADER32, *PIMAGE_OPTIONAL_HEADER32;
 
@@ -460,7 +462,7 @@ typedef PIMAGE_NT_HEADERS32                 PIMAGE_NT_HEADERS;
 
 #endif // if !defined(_WIN32)
 
-#if !defined(_WIN64)
+#if !defined(_WIN64) && !defined(_WINNT_)
 
 typedef uint64_t ULONGLONG;
 
@@ -471,39 +473,41 @@ typedef uint64_t ULONGLONG;
 typedef struct _IMAGE_OPTIONAL_HEADER_64 {
 	// Standard fields
 
-	WORD        Magic;
-	BYTE        MajorLinkerVersion;
-	BYTE        MinorLinkerVersion;
-	DWORD       SizeOfCode;
-	DWORD       SizeOfInitializedData;
-	DWORD       SizeOfUninitializedData;
-	DWORD       AddressOfEntryPoint;
-	DWORD       BaseOfCode;
+	WORD        Magic; // s
+	BYTE        MajorLinkerVersion; // b
+	BYTE        MinorLinkerVersion; // b
+	DWORD       SizeOfCode; // l
+	DWORD       SizeOfInitializedData; // l
+	DWORD       SizeOfUninitializedData; // l
+	DWORD       AddressOfEntryPoint; // l
+	DWORD       BaseOfCode; // l
 
 	// NT Fields
 
-	ULONGLONG   ImageBase;
-	DWORD       SectionAlignment;
-	DWORD       FileAlignment;
-	WORD        MajorOperatingSystemVersion;
-	WORD        MinorOperatingSystemVersion;
-	WORD        MajorImageVersion;
-	WORD        MinorImageVersion;
-	WORD        MajorSubsystemVersion;
-	WORD        MinorSubsystemVersion;
-	DWORD       Win32VersionValue;
-	DWORD       SizeOfImage;
-	DWORD       SizeOfHeaders;
-	DWORD       CheckSum;
-	WORD        Subsystem;
-	WORD        DllCharacteristics;
-	ULONGLONG   SizeOfStackReserve;
-	ULONGLONG   SizeOfStackCommit;
-	ULONGLONG   SizeOfHeapReserve;
-	ULONGLONG   SizeOfHeapCommit;
-	DWORD       LoaderFlags;
-	DWORD       NumberOfRvaAndSizes;
+	ULONGLONG   ImageBase; // q
+	DWORD       SectionAlignment; // l
+	DWORD       FileAlignment; // l
+	WORD        MajorOperatingSystemVersion; // s
+	WORD        MinorOperatingSystemVersion; // s
+	WORD        MajorImageVersion; // s
+	WORD        MinorImageVersion; // s
+	WORD        MajorSubsystemVersion; // s
+	WORD        MinorSubsystemVersion; // s
+	DWORD       Win32VersionValue; // l
+	DWORD       SizeOfImage; // l
+	DWORD       SizeOfHeaders; // l
+	DWORD       CheckSum; // l
+	WORD        Subsystem; // s
+	WORD        DllCharacteristics; // s
+	ULONGLONG   SizeOfStackReserve; // q
+	ULONGLONG   SizeOfStackCommit; // q
+	ULONGLONG   SizeOfHeapReserve; // q
+	ULONGLONG   SizeOfHeapCommit; // q
+	DWORD       LoaderFlags; // l
+	DWORD       NumberOfRvaAndSizes; // l
 	IMAGE_DATA_DIRECTORY DataDirectory[IMAGE_NUMBEROF_DIRECTORY_ENTRIES];
+
+	// sbbl lll l q ll ss ss ss l l l l s s q q q q l l 
 } IMAGE_OPTIONAL_HEADER64, *PIMAGE_OPTIONAL_HEADER64;
 
 // The following section should move to the template args
@@ -752,7 +756,7 @@ struct MCWindowsResources
 	uint32_t id;
 
 	// The name of the resource - note either an id or a name is valid, but
-	// not both. An unnamd entry wil have a NULL name pointer.
+	// not both. An unnamd entry wil have a nullptr name pointer.
 	uint32_t name_length;
 	uint16_t *name;
 
@@ -817,12 +821,12 @@ static void MCWindowsResourcesFinalizeData(MCWindowsResources& self)
 	self . data . size = 0;
 	self . data . codepage = 0;
 	self . data . in_file = false;
-	self . data . buffer = NULL;
+	self . data . buffer = nullptr;
 }
 
 static void MCWindowsResourcesFinalize(MCWindowsResources& self)
 {
-	if (self . name != NULL)
+	if (self . name != nullptr)
 		delete[] self . name;
 
 	MCWindowsResourcesFinalizeData(self);
@@ -846,7 +850,7 @@ static bool MCWindowsResourcesFind(MCWindowsResources& self, uint32_t p_id, MCWi
 
 	MCWindowsResources *t_new_entries;
 	t_new_entries = (MCWindowsResources *)realloc(self . table . entries, sizeof(MCWindowsResources) * (self . table . entry_count + 1));
-	if (t_new_entries == NULL)
+	if (t_new_entries == nullptr)
 		return MCDeployThrow(kMCDeployErrorNoMemory);
 
 	self . table . entries = t_new_entries;
@@ -900,7 +904,7 @@ static bool MCWindowsResourcesAddIcon(MCWindowsResources& self, MCStringRef p_ic
 
 	// First thing to do is try to and open the icon file
 	MCDeployFileRef t_icon;
-	t_icon = NULL;
+	t_icon = nullptr;
 	if (t_success)
 		t_success = MCDeployFileOpen(p_icon_file, kMCOpenFileModeRead, t_icon);
 
@@ -914,11 +918,11 @@ static bool MCWindowsResourcesAddIcon(MCWindowsResources& self, MCStringRef p_ic
 
 	// Now read in the entries - care here to ensure correct structure size
 	ICONDIRENTRY *t_entries;
-	t_entries = NULL;
+	t_entries = nullptr;
 	if (t_success)
 	{
 		t_entries = new (nothrow) ICONDIRENTRY[t_dir . idCount];
-		if (t_entries == NULL)
+		if (t_entries == nullptr)
 			t_success = MCDeployThrow(kMCDeployErrorNoMemory);
 	}
 
@@ -958,11 +962,11 @@ static bool MCWindowsResourcesAddIcon(MCWindowsResources& self, MCStringRef p_ic
 	// We have our grpicon resource leaf, so now we construct the grpicon data
 	// and set.
 	uint8_t *t_grpicon_data;
-	t_grpicon_data = NULL;
+	t_grpicon_data = nullptr;
 	if (t_success)
 	{
 		t_grpicon_data = new (nothrow) uint8_t[sizeof_GRPICONDIR + sizeof_GRPICONDIRENTRY * t_dir . idCount];
-		if (t_grpicon_data == NULL)
+		if (t_grpicon_data == nullptr)
 			t_success = MCDeployThrow(kMCDeployErrorNoMemory);
 	}
 
@@ -998,7 +1002,7 @@ static bool MCWindowsResourcesAddIcon(MCWindowsResources& self, MCStringRef p_ic
 
 		// Note: Set takes ownership of the given buffer
 		MCWindowsResourcesSet(*t_grpicon, t_grpicon_data, sizeof_GRPICONDIR + sizeof_GRPICONDIRENTRY * t_dir . idCount);
-		t_grpicon_data = NULL;
+		t_grpicon_data = nullptr;
 	}
 
 	// Now we've constructed the grpicon resource, we must add the icons
@@ -1008,7 +1012,7 @@ static bool MCWindowsResourcesAddIcon(MCWindowsResources& self, MCStringRef p_ic
 			// First allocate memory and load the image data
 			uint8_t *t_image;
 			t_image = new (nothrow) uint8_t[t_entries[i] . dwBytesInRes];
-			if (t_image != NULL)
+			if (t_image != nullptr)
 				t_success = MCDeployFileReadAt(t_icon, t_image, t_entries[i] . dwBytesInRes, t_entries[i] . dwImageOffset);
 
 			// Now try to create a new resource
@@ -1020,7 +1024,7 @@ static bool MCWindowsResourcesAddIcon(MCWindowsResources& self, MCStringRef p_ic
 			if (t_success)
 			{
 				MCWindowsResourcesSet(*t_icon_res, t_image, t_entries[i] . dwBytesInRes);
-				t_image = NULL;
+				t_image = nullptr;
 			}
 
 			delete[] t_image;
@@ -1050,31 +1054,31 @@ static bool MCWindowsVersionInfoAdd(MCWindowsVersionInfo *p_parent, const char *
 	t_success = true;
 
 	MCWindowsVersionInfo *t_child;
-	t_child = NULL;
+	t_child = nullptr;
 	if (t_success)
 	{
 		t_child = new (nothrow) MCWindowsVersionInfo;
-		if (t_child == NULL)
+		if (t_child == nullptr)
 			t_success = MCDeployThrow(kMCDeployErrorNoMemory);
 	}
 
 	void *t_value;
-	t_value = NULL;
-	if (t_success && p_value != NULL)
+	t_value = nullptr;
+	if (t_success && p_value != nullptr)
 	{
 		t_value = malloc(p_value_length);
-		if (t_value != NULL)
+		if (t_value != nullptr)
 			memcpy(t_value, p_value, p_value_length);
 		else
 			t_success = MCDeployThrow(kMCDeployErrorNoMemory);
 	}
 
 	char *t_key;
-	t_key = NULL;
+	t_key = nullptr;
 	if (t_success)
 	{
 		t_key = strdup(p_key);
-		if (t_key == NULL)
+		if (t_key == nullptr)
 			t_success = MCDeployThrow(kMCDeployErrorNoMemory);
 	}
 
@@ -1084,9 +1088,9 @@ static bool MCWindowsVersionInfoAdd(MCWindowsVersionInfo *p_parent, const char *
 		t_child -> key = t_key;
 		t_child -> value = t_value;
 		t_child -> value_length = p_value_length;
-		t_child -> next = NULL;
-		t_child -> children = NULL;
-		if (p_parent != NULL)
+		t_child -> next = nullptr;
+		t_child -> children = nullptr;
+		if (p_parent != nullptr)
 		{
 			t_child -> next = p_parent -> children;
 			p_parent -> children = t_child;
@@ -1122,15 +1126,15 @@ static void MCWindowsVersionInfoMeasure(MCWindowsVersionInfo *self, uint32_t& x_
 
 	x_size += sizeof(WORD) * (strlen(self -> key) + 1);
 
-	if (self -> value != NULL)
+	if (self -> value != nullptr)
 	{
 		x_size = (x_size + 3) & ~3;
 		x_size += self -> value_length;
 	}
 
-	if (self -> children != NULL)
+	if (self -> children != nullptr)
 	{
-		for(MCWindowsVersionInfo *t_child = self -> children; t_child != NULL; t_child = t_child -> next)
+		for(MCWindowsVersionInfo *t_child = self -> children; t_child != nullptr; t_child = t_child -> next)
 		{
 			x_size = (x_size + 3) & ~3;
 			MCWindowsVersionInfoMeasure(t_child, x_size);
@@ -1169,7 +1173,7 @@ static void MCWindowsVersionInfoBuild(MCWindowsVersionInfo *self, void *p_buffer
 	}
 
 	// Value
-	if (self -> value != NULL)
+	if (self -> value != nullptr)
 	{
 		x_offset = (x_offset + 3) & ~3;
 		memcpy(t_buffer + x_offset, self -> value, self -> value_length);
@@ -1177,9 +1181,9 @@ static void MCWindowsVersionInfoBuild(MCWindowsVersionInfo *self, void *p_buffer
 	}
 
 	// Children
-	if (self -> children != NULL)
+	if (self -> children != nullptr)
 	{
-		for(MCWindowsVersionInfo *t_child = self -> children; t_child != NULL; t_child = t_child -> next)
+		for(MCWindowsVersionInfo *t_child = self -> children; t_child != nullptr; t_child = t_child -> next)
 		{
 			x_offset = (x_offset + 3) & ~3;
 			MCWindowsVersionInfoBuild(t_child, t_buffer, x_offset);
@@ -1191,7 +1195,7 @@ static void MCWindowsVersionInfoDestroy(MCWindowsVersionInfo *self)
 {
 	free(self -> key);
 	free(self -> value);
-	while(self -> children != NULL)
+	while(self -> children != nullptr)
 	{
 		MCWindowsVersionInfo *t_child;
 		t_child = self -> children;
@@ -1270,7 +1274,7 @@ static bool MCWindowsResourcesAddVersionInfo(MCWindowsResources& self, MCArrayRe
 	}
 	
 	MCWindowsVersionInfo *t_version_info;
-	t_version_info = NULL;
+	t_version_info = nullptr;
 	if (t_success)
 	{
 		VS_FIXEDFILEINFO t_fixed_info;
@@ -1288,7 +1292,7 @@ static bool MCWindowsResourcesAddVersionInfo(MCWindowsResources& self, MCArrayRe
 		t_fixed_info . dwProductVersionMS = (uint32_t)(t_product_version >> 32);
 		t_fixed_info . dwProductVersionLS = (uint32_t)(t_product_version & 0xffffffff);
 		MCDeployByteSwapRecord(false, "lllllllllllll", &t_fixed_info, sizeof(VS_FIXEDFILEINFO));
-		t_success = MCWindowsVersionInfoAdd(NULL, "VS_VERSION_INFO", false, &t_fixed_info, sizeof(VS_FIXEDFILEINFO), t_version_info);
+		t_success = MCWindowsVersionInfoAdd(nullptr, "VS_VERSION_INFO", false, &t_fixed_info, sizeof(VS_FIXEDFILEINFO), t_version_info);
 	}
 
 	MCWindowsVersionInfo *t_var_file_info;
@@ -1298,30 +1302,30 @@ static bool MCWindowsResourcesAddVersionInfo(MCWindowsResources& self, MCArrayRe
 		t_var_info = (1200 << 16) | 0x0409;
 		MCDeployByteSwap32(false, t_var_info);
 		t_success =
-			MCWindowsVersionInfoAdd(t_version_info, "VarFileInfo", true, NULL, 0, t_var_file_info) && 
+			MCWindowsVersionInfoAdd(t_version_info, "VarFileInfo", true, nullptr, 0, t_var_file_info) && 
 			MCWindowsVersionInfoAdd(t_var_file_info, "Translation", false, &t_var_info, sizeof(DWORD), t_var_file_info);
 	}
 
 	MCWindowsVersionInfo *t_string_file_info;
 	if (t_success)
-		t_success = MCWindowsVersionInfoAdd(t_version_info, "StringFileInfo", true, NULL, 0, t_string_file_info);
+		t_success = MCWindowsVersionInfoAdd(t_version_info, "StringFileInfo", true, nullptr, 0, t_string_file_info);
 
 	MCWindowsVersionInfo *t_string_table;
 	if (t_success)
-		t_success = MCWindowsVersionInfoAdd(t_string_file_info, "040904b0", true, NULL, 0, t_string_table);
+		t_success = MCWindowsVersionInfoAdd(t_string_file_info, "040904b0", true, nullptr, 0, t_string_table);
 
 	if (t_success)
 		t_success = MCArrayApply(p_info, add_version_info_entry, t_string_table);
 
 	void *t_data;
 	uint32_t t_data_size;
-	t_data = NULL;
+	t_data = nullptr;
 	if (t_success)
 	{
 		t_data_size = 0;
 		MCWindowsVersionInfoMeasure(t_version_info, t_data_size);
 		t_data = malloc(t_data_size);
-		if (t_data != NULL)
+		if (t_data != nullptr)
 		{
 			uint32_t t_offset;
 			t_offset = 0;
@@ -1333,7 +1337,7 @@ static bool MCWindowsResourcesAddVersionInfo(MCWindowsResources& self, MCArrayRe
 	}
 
 	MCWindowsResources *t_resource;
-	t_resource = NULL;
+	t_resource = nullptr;
 	if (t_success)
 		t_success =
 			MCWindowsResourcesFind(self, 16, t_resource) &&
@@ -1359,7 +1363,7 @@ static bool MCWindowsResourcesAddManifest(MCWindowsResources& self, MCStringRef 
 
 	// First thing to do is try to and open the manifest file
 	MCDeployFileRef t_manifest;
-	t_manifest = NULL;
+	t_manifest = nullptr;
 	if (t_success)
 		t_success = MCDeployFileOpen(p_manifest_path, kMCOpenFileModeRead, t_manifest);
 
@@ -1370,11 +1374,11 @@ static bool MCWindowsResourcesAddManifest(MCWindowsResources& self, MCStringRef 
 
 	// Allocate the memory for the manifest
 	void *t_data;
-	t_data = NULL;
+	t_data = nullptr;
 	if (t_success)
 	{
 		t_data = malloc(t_size);
-		if (t_data == NULL)
+		if (t_data == nullptr)
 			t_success = MCDeployThrow(kMCDeployErrorNoMemory);
 	}
 
@@ -1414,7 +1418,7 @@ static bool MCWindowsReadResourceEntryName(MCDeployFileRef p_file, uint32_t p_st
 	r_entry . name_length = t_length;
 
 	r_entry . name = new (nothrow) uint16_t[r_entry . name_length];
-	if (r_entry . name == NULL)
+	if (r_entry . name == nullptr)
 		return MCDeployThrow(kMCDeployErrorNoMemory);
 
 	if (!MCDeployFileReadAt(p_file, r_entry . name, sizeof(uint16_t) * r_entry . name_length, p_start + p_at))
@@ -1455,7 +1459,7 @@ static bool MCWindowsReadResourceDir(MCDeployFileRef p_file, uint32_t p_address,
 	r_resources . is_table = true;
 	r_resources . table . entry_count = t_dir . NumberOfIdEntries + t_dir . NumberOfNamedEntries;
 	r_resources . table . entries = new (nothrow) MCWindowsResources[r_resources . table . entry_count];
-	if (r_resources . table . entries == NULL)
+	if (r_resources . table . entries == nullptr)
 		return MCDeployThrow(kMCDeployErrorNoMemory);
 
 	for(uint32_t i = 0; i < r_resources . table . entry_count; i++)
@@ -1529,7 +1533,7 @@ static void MCWindowsResourcesMeasureDir(MCWindowsResources& self, uint32_t& x_h
 		MCWindowsResources& t_entry = self . table . entries[i];
 
 		// If the entry is named - make room for that.
-		if (t_entry . name != NULL)
+		if (t_entry . name != nullptr)
 			x_string += 1 + self . name_length;
 
 		// Now add size depending on type
@@ -1576,7 +1580,7 @@ static bool MCWindowsResourcesWriteDir(MCWindowsResources& self, uint32_t& x_hea
 	t_header . NumberOfIdEntries = 0;
 
 	for(uint32_t i = 0; i < self . table . entry_count; i++)
-		if (self . table . entries[i] . name != NULL)
+		if (self . table . entries[i] . name != nullptr)
 			t_header . NumberOfNamedEntries += 1;
 		else
 			t_header . NumberOfIdEntries += 1;
@@ -1600,7 +1604,7 @@ static bool MCWindowsResourcesWriteDir(MCWindowsResources& self, uint32_t& x_hea
 		MCWindowsResources& t_entry = self . table . entries[i];
 		IMAGE_RESOURCE_DIRECTORY_ENTRY t_entry_header;
 
-		if (t_entry . name == NULL)
+		if (t_entry . name == nullptr)
 		{
 			t_entry_header . Name = t_entry . id;
 		}
@@ -1740,7 +1744,7 @@ static bool MCDeployToWindowsReadHeaders(MCDeployFileRef p_file, IMAGE_DOS_HEADE
 		return MCDeployThrow(kMCDeployErrorWindowsBadSectionHeaderOffset);
 
 	r_section_headers = new (nothrow) IMAGE_SECTION_HEADER[r_nt_header . FileHeader . NumberOfSections];
-	if (r_section_headers == NULL)
+	if (r_section_headers == nullptr)
 		return MCDeployThrow(kMCDeployErrorNoMemory);
 
 	if (!MCDeployFileRead(p_file, r_section_headers, sizeof(IMAGE_SECTION_HEADER) * r_nt_header . FileHeader . NumberOfSections))
@@ -1774,6 +1778,8 @@ static bool MCDeployToWindowsReadHeaders(MCDeployFileRef p_file, IMAGE_DOS_HEADE
 template<typename DeployPlatformTrait>
 Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 {
+	typedef typename DeployPlatformTrait::IMAGE_NT_HEADERS IMAGE_NT_HEADERS;
+
 	bool t_success;
 	t_success = true;
 
@@ -1784,7 +1790,7 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 
 	// First thing to do is to open the files.
 	MCDeployFileRef t_engine, t_output;
-	t_engine = t_output = NULL;
+	t_engine = t_output = nullptr;
 	if (t_success && !MCDeployFileOpen(p_params.engine, kMCOpenFileModeRead, t_engine))
 		t_success = MCDeployThrow(kMCDeployErrorNoEngine);
 	if (t_success && !MCDeployFileOpen(p_params.output, kMCOpenFileModeCreate, t_output))
@@ -1792,9 +1798,9 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 
 	// First load the headers we need
 	IMAGE_DOS_HEADER t_dos_header;
-	typename DeployPlatformTrait::IMAGE_NT_HEADERS t_nt_header;
+	IMAGE_NT_HEADERS t_nt_header;
 	IMAGE_SECTION_HEADER *t_section_headers;
-	t_section_headers = NULL;
+	t_section_headers = nullptr;
 	if (t_success)
 		t_success = MCDeployToWindowsReadHeaders<DeployPlatformTrait>(t_engine, t_dos_header, t_nt_header, t_section_headers);
 
@@ -1960,7 +1966,7 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	if (t_success)
 	{
 		t_optional_header_size = MCU_min(sizeof(t_nt_header.OptionalHeader), (uint4)t_nt_header.FileHeader.SizeOfOptionalHeader);
-		t_optional_header_offset = t_dos_header.e_lfanew + FIELD_OFFSET(typename DeployPlatformTrait::IMAGE_NT_HEADERS, OptionalHeader);
+		t_optional_header_offset = t_dos_header.e_lfanew + FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader);
 		t_section_headers_offset = t_optional_header_offset + t_nt_header.FileHeader.SizeOfOptionalHeader;
 
 		uint32_t t_payload_section_size, t_payload_section_delta;
@@ -2046,7 +2052,7 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 
 	MCWindowsResourcesFinalize(t_resources);
 
-	if (t_section_headers != NULL)
+	if (t_section_headers != nullptr)
 		delete[] t_section_headers;
 
 	MCDeployFileClose(t_engine);
@@ -2057,5 +2063,20 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 
 Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 {
-	return MCDeployToWindows<MCWindowsPE32Traits>(p_params);
+	bool t_success;
+	t_success = true;
+
+	// MW-2013-05-03: [[ Linux64 ]] Snoop the engine type from the ident field.
+
+	MCDeployFileRef t_engine;
+	t_engine = NULL;
+	if (t_success && !MCDeployFileOpen(p_params.engine, kMCOpenFileModeRead, t_engine))
+		t_success = MCDeployThrow(kMCDeployErrorNoEngine);
+
+	char t_ident[WIN_NIDENT];
+	if (t_success && !MCDeployFileRead(t_engine, t_ident, WIN_NIDENT))
+		t_success = MCDeployThrow(kMCDeployErrorLinuxNoHeader);
+
+	MCLog("The t_ident is %s\n", t_ident);
+	return ES_ERROR;
 }
