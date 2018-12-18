@@ -31,6 +31,17 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 
 #include "deploy.h"
 
+// Define the two platforms for which we build Windows binaries
+enum MCWindowsDeployPlatform {
+	Windows_x64,
+	Windows_x32
+};
+
+constexpr uint32_t kAddressToPEAddress = 60;
+constexpr uint32_t kPEAddressSize = 4;
+constexpr uint32_t kMagicOffset = 0x18;
+constexpr uint16_t kMagicSize = 2;
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 // This section contains definitions for the various structures needed to
@@ -42,8 +53,6 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 #ifndef FIELD_OFFSET
 #define FIELD_OFFSET(type, field)    ((LONG)(intptr_t)&(((type *)0)->field))
 #endif
-
-#define WIN_NIDENT 16
 
 // Defining common types for 32 and 64 bit
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -743,7 +752,7 @@ struct MCWindowsPE64Traits
 	typedef IMAGE_NT_HEADERS64                  IMAGE_NT_HEADERS;
 	typedef PIMAGE_NT_HEADERS64                 PIMAGE_NT_HEADERS;
 
-	static inline void swap_swap_IMAGE_NT_HEADERS(IMAGE_NT_HEADERS& x)
+	static inline void swap_IMAGE_NT_HEADERS(IMAGE_NT_HEADERS& x)
 	{
 		swap_format("l sslllss", &x, FIELD_OFFSET(IMAGE_NT_HEADERS, OptionalHeader));
 		swap_format("sbblllll qllssssssllllssqqqqll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll ll", &x.OptionalHeader, x.FileHeader.SizeOfOptionalHeader);
@@ -2061,22 +2070,61 @@ Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
 	return t_success ? ES_NORMAL : ES_ERROR;
 }
 
-Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
+bool MCDeployToWindowsExtractPlatform(MCDeployParameters const &p_params, MCWindowsDeployPlatform &r_platform)
 {
 	bool t_success;
 	t_success = true;
 
-	// MW-2013-05-03: [[ Linux64 ]] Snoop the engine type from the ident field.
-
+	// AB-2018-12-18: [[ Win64 ]] Identify the engine type from the PE header
 	MCDeployFileRef t_engine;
-	t_engine = NULL;
+	t_engine = nullptr;
 	if (t_success && !MCDeployFileOpen(p_params.engine, kMCOpenFileModeRead, t_engine))
 		t_success = MCDeployThrow(kMCDeployErrorNoEngine);
 
-	char t_ident[WIN_NIDENT];
-	if (t_success && !MCDeployFileRead(t_engine, t_ident, WIN_NIDENT))
+	char t_ident[kAddressToPEAddress + kPEAddressSize];
+	if (t_success && !MCDeployFileRead(t_engine, t_ident, kAddressToPEAddress + kPEAddressSize))
 		t_success = MCDeployThrow(kMCDeployErrorLinuxNoHeader);
+	
+	uint32_t *t_header_offset = reinterpret_cast<uint32_t *>(&t_ident[kAddressToPEAddress]);
+	/*
+		The address of the magic is
+		1.) The offset of the PE header in th file
+		2.) The offset to the magic number : 0x18
+	*/
+	uint32_t t_magic_address = *t_header_offset + kMagicOffset;
+	char t_magic[kMagicSize];
 
-	MCLog("The t_ident is %s\n", t_ident);
-	return ES_ERROR;
+	if (t_success && !MCDeployFileReadAt(t_engine, t_magic, kMagicSize, t_magic_address))
+	{
+		t_success = MCDeployThrow(kMCDeployErrorNoEngine);
+	}
+
+	uint16_t *t_magic_number = reinterpret_cast<uint16_t *>(t_magic);
+	
+	r_platform = *t_magic_number == 0x10b ? MCWindowsDeployPlatform::Windows_x32 : MCWindowsDeployPlatform::Windows_x64;
+
+	return t_success;
+}
+
+Exec_stat MCDeployToWindows(const MCDeployParameters& p_params)
+{
+	bool t_success = true;
+	MCWindowsDeployPlatform t_platform;
+	if (!MCDeployToWindowsExtractPlatform(p_params, t_platform))
+	{
+		t_success = MCDeployThrow(kMCDeployErrorNoEngine);
+	}
+	switch(t_platform)
+	{
+		case Windows_x32: {
+			return MCDeployToWindows<MCWindowsPE32Traits>(p_params);
+		}
+		case Windows_x64:{
+			return MCDeployToWindows<MCWindowsPE64Traits>(p_params);
+		}
+		default: {
+			MCDeployThrow(kMCDeployErrorWindowsUnkownPlatform);
+			return ES_ERROR;
+		}
+	}
 }
