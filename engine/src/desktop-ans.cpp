@@ -143,7 +143,7 @@ static bool filter_to_type_list(MCStringRef p_filter, MCStringRef *&r_types, uin
 }
 
 
-int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
     MCAutoStringRefArray t_types;
     
@@ -162,12 +162,14 @@ int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MC
 	
 	MCPlatformDialogResult t_result;
 	MCAutoStringRef t_file, t_type;
+    MCAutoArrayRef t_options;
     
 	for(;;)
 	{
         MCValueRelease(*t_file);
         MCValueRelease(*t_type);
-		t_result = MCPlatformEndFileDialog(t_kind, &t_file, &t_type);
+        MCValueRelease(*t_options);
+        t_result = MCPlatformEndFileDialog(t_kind, &t_file, &t_type, &t_options);
 		if (t_result != kMCPlatformDialogResultContinue)
 			break;
 		
@@ -175,12 +177,33 @@ int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MC
 	}
 	
 	if (t_result == kMCPlatformDialogResultSuccess)
-		r_value = MCValueRetain(*t_file);
+    {
+        if (p_custom_options != nullptr)
+        {
+            r_result = nullptr;
+            MCAutoArrayRef t_value;
+            MCArrayCreateMutable(&t_value);
+            MCArrayStoreValue(*t_value, false, MCNAME("file"), MCValueRetain(*t_file));
+            if (*t_type != nil)
+            {
+                MCArrayStoreValue(*t_value, false, MCNAME("type"), MCValueRetain(*t_type));
+            }
+            MCArrayStoreValue(*t_value, false, MCNAME("options"), MCValueRetain(*t_options));
+            
+            t_value.MakeImmutable();
+            r_value = t_value.Take();
+        }
+        else
+        {
+            r_value = MCValueRetain(*t_file);
+            r_result = nil;
+        }
+    }
 	
 	return 0;
 }
 
-int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	MCPlatformWindowRef t_owner;
     t_owner = compute_sheet_owner(p_options);
@@ -191,16 +214,18 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
 	else
 		t_kind = kMCPlatformFileDialogKindOpen;
 	
-	MCPlatformBeginFolderOrFileDialog(t_kind, t_owner, p_title, p_prompt, p_initial, p_types, p_type_count);
+	MCPlatformBeginFolderOrFileDialog(t_kind, t_owner, p_title, p_prompt, p_initial, p_types, p_type_count, p_custom_options);
 	
 	MCPlatformDialogResult t_result;
-	MCAutoStringRef t_file, t_type;
+    MCAutoStringRef t_file, t_type;
+    MCAutoArrayRef t_options;
     
-	for(;;)
-	{
+    for(;;)
+    {
         MCValueRelease(*t_file);
         MCValueRelease(*t_type);
-		t_result = MCPlatformEndFileDialog(t_kind, &t_file, &t_type);
+        MCValueRelease(*t_options);
+        t_result = MCPlatformEndFileDialog(t_kind, &t_file, &t_type, &t_options);
 		if (t_result != kMCPlatformDialogResultContinue)
 			break;
 		
@@ -209,16 +234,34 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
 	
 	if (t_result == kMCPlatformDialogResultSuccess)
     {        
-        r_value = MCValueRetain(*t_file);
-        if (*t_type != nil)
-            r_result = MCValueRetain(*t_file);
+        if (p_custom_options != nullptr)
+        {
+            r_result = nullptr;
+            MCAutoArrayRef t_value;
+            MCArrayCreateMutable(&t_value);
+            MCArrayStoreValue(*t_value, false, MCNAME("file"), MCValueRetain(*t_file));
+            if (*t_type != nil)
+            {
+                MCArrayStoreValue(*t_value, false, MCNAME("type"), MCValueRetain(*t_type));
+            }
+            MCArrayStoreValue(*t_value, false, MCNAME("options"), MCValueRetain(*t_options));
+            
+            t_value.MakeImmutable();
+            r_value = t_value.Take();
+        }
+        else
+        {
+            r_value = MCValueRetain(*t_file);
+            if (*t_type != nil)
+                r_result = MCValueRetain(*t_type);
+        }
     }
 	
 	return 0;
 	
 }
 
-int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
     MCAutoStringRefArray t_types;
     
@@ -227,16 +270,18 @@ int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter
 	MCPlatformWindowRef t_owner;
     t_owner = compute_sheet_owner(p_options);
 	
-	MCPlatformBeginFolderOrFileDialog(kMCPlatformFileDialogKindSave, t_owner, p_title, p_prompt, p_initial, *t_types, t_types . Count());
+	MCPlatformBeginFolderOrFileDialog(kMCPlatformFileDialogKindSave, t_owner, p_title, p_prompt, p_initial, *t_types, t_types . Count(), p_custom_options);
 	
 	MCPlatformDialogResult t_result;
-	MCAutoStringRef t_file, t_type;
+    MCAutoStringRef t_file, t_type;
+    MCAutoArrayRef t_options;
     
-	for(;;)
-	{
+    for(;;)
+    {
         MCValueRelease(*t_file);
         MCValueRelease(*t_type);
-		t_result = MCPlatformEndFileDialog(kMCPlatformFileDialogKindSave, &t_file, &t_type);
+        MCValueRelease(*t_options);
+        t_result = MCPlatformEndFileDialog(kMCPlatformFileDialogKindSave, &t_file, &t_type, &t_options);
 		if (t_result != kMCPlatformDialogResultContinue)
 			break;
 		
@@ -244,26 +289,49 @@ int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter
 	}
 	
 	if (t_result == kMCPlatformDialogResultSuccess)
-		r_value = MCValueRetain(*t_file);
+    {
+        if (p_custom_options != nullptr)
+        {
+            r_result = nullptr;
+            MCAutoArrayRef t_value;
+            MCArrayCreateMutable(&t_value);
+            MCArrayStoreValue(*t_value, false, MCNAME("file"), MCValueRetain(*t_file));
+            if (*t_type != nil)
+            {
+                MCArrayStoreValue(*t_value, false, MCNAME("type"), MCValueRetain(*t_type));
+            }
+            MCArrayStoreValue(*t_value, false, MCNAME("options"), MCValueRetain(*t_options));
+            
+            t_value.MakeImmutable();
+            r_value = t_value.Take();
+        }
+        else
+        {
+            r_value = MCValueRetain(*t_file);
+            r_result = nil;
+        }
+    }
 	
 	return 0;
 }
 
-int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	MCPlatformWindowRef t_owner;
     t_owner = compute_sheet_owner(p_options);
 	
-	MCPlatformBeginFolderOrFileDialog(kMCPlatformFileDialogKindSave, t_owner, p_title, p_prompt, p_initial, p_types, p_type_count);
+	MCPlatformBeginFolderOrFileDialog(kMCPlatformFileDialogKindSave, t_owner, p_title, p_prompt, p_initial, p_types, p_type_count, p_custom_options);
 	
 	MCPlatformDialogResult t_result;
-	MCAutoStringRef t_file, t_type;
+    MCAutoStringRef t_file, t_type;
+    MCAutoArrayRef t_options;
     
-	for(;;)
-	{
+    for(;;)
+    {
         MCValueRelease(*t_file);
         MCValueRelease(*t_type);
-		t_result = MCPlatformEndFileDialog(kMCPlatformFileDialogKindSave, &t_file, &t_type);
+        MCValueRelease(*t_options);
+        t_result = MCPlatformEndFileDialog(kMCPlatformFileDialogKindSave, &t_file, &t_type, &t_options);
 		if (t_result != kMCPlatformDialogResultContinue)
 			break;
 		
@@ -272,12 +340,30 @@ int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringR
 	
 	if (t_result == kMCPlatformDialogResultSuccess)
 	{
-        r_value = MCValueRetain(*t_file);
-        // SN-2014-10-31: [[ Bug 13893 ]] MCPlatformEndFileDialog might return a nil value
-        if (*t_type != nil)
-            r_result = MCValueRetain(*t_type);
+        if (p_custom_options != nullptr)
+        {
+            r_result = nullptr;
+            MCAutoArrayRef t_value;
+            MCArrayCreateMutable(&t_value);
+            MCArrayStoreValue(*t_value, false, MCNAME("file"), MCValueRetain(*t_file));
+            if (*t_type != nil)
+            {
+                MCArrayStoreValue(*t_value, false, MCNAME("type"), MCValueRetain(*t_type));
+            }
+            MCArrayStoreValue(*t_value, false, MCNAME("options"), MCValueRetain(*t_options));
+            
+            t_value.MakeImmutable();
+            r_value = t_value.Take();
+        }
         else
-            r_result = nil;
+        {
+            r_value = MCValueRetain(*t_file);
+            // SN-2014-10-31: [[ Bug 13893 ]] MCPlatformEndFileDialog might return a nil value
+            if (*t_type != nil)
+                r_result = MCValueRetain(*t_type);
+            else
+                r_result = nil;
+        }
 	}
 	
 	return 0;

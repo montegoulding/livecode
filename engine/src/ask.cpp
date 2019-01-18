@@ -64,6 +64,7 @@ MCAsk::~MCAsk(void)
 		for(uint4 t_type = 0; t_type < file . type_count; ++t_type)
 			delete file . types[t_type];
 		delete[] file . types; /* Allocated with new[] */
+        delete file . options;
 	break;
 
 	default:
@@ -193,8 +194,12 @@ Parse_errors MCAsk::parse_file(MCScriptPoint& sp)
 
 	if (t_error == PE_UNDEFINED && sp . skip_token(SP_REPEAT, TT_UNDEFINED, RF_WITH) == PS_NORMAL)
 	{
-		if (sp . skip_token(SP_COMMAND, TT_STATEMENT, S_FILTER) == PS_NORMAL || sp . skip_token(SP_COMMAND, TT_STATEMENT, S_TYPE) == PS_NORMAL)
+		if (sp . skip_token(SP_COMMAND, TT_STATEMENT, S_FILTER) == PS_NORMAL ||
+                sp . skip_token(SP_COMMAND, TT_STATEMENT, S_TYPE) == PS_NORMAL ||
+                sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_OPTIONS) == PS_NORMAL)
+        {
 			sp . backup(), sp . backup();
+        }
 		else if (sp . parseexp(False, True, &file . initial) != PS_NORMAL)
 			t_error = PE_ASK_BADREPLY;
 	}
@@ -223,6 +228,16 @@ Parse_errors MCAsk::parse_file(MCScriptPoint& sp)
 			t_error = PE_ASK_BADREPLY;
 	}
 
+    
+    if (t_error == PE_UNDEFINED && sp . skip_token(SP_REPEAT, TT_UNDEFINED, RF_WITH) == PS_NORMAL)
+    {
+        if (sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_OPTIONS) != PS_NORMAL ||
+                 sp . parseexp(False, True, &file . options) != PS_NORMAL)
+        {
+            t_error = PE_ASK_BADREPLY;
+        }
+    }
+    
 	return t_error;
 }
 
@@ -259,6 +274,10 @@ void MCAsk::exec_ctxt(class MCExecContext& ctxt)
             if (!ctxt . EvalOptionalExprAsNullableStringRef(file.filter, EE_ANSWER_BADQUESTION, &t_filter))
                 return;
             
+            MCAutoArrayRef t_options;
+            if (!ctxt . EvalOptionalExprAsNullableArrayRef(file.options, EE_ANSWER_BADQUESTION, &t_options))
+                return;
+            
             MCAutoStringRef t_initial_resolved;
             if (*t_initial != nil)
             {
@@ -291,11 +310,11 @@ void MCAsk::exec_ctxt(class MCExecContext& ctxt)
             }
             
             if (t_types.Count() > 0)
-                MCDialogExecAskFileWithTypes(ctxt, *t_prompt, *t_initial_resolved, *t_types, t_types . Count(), *t_title, sheet == True);
+                MCDialogExecAskFileWithTypes(ctxt, *t_prompt, *t_initial_resolved, *t_types, t_types . Count(), *t_title, sheet == True, *t_options);
             else if (*t_filter != nil)
-                MCDialogExecAskFileWithFilter(ctxt, *t_prompt, *t_initial_resolved, *t_filter, *t_title, sheet == True);
+                MCDialogExecAskFileWithFilter(ctxt, *t_prompt, *t_initial_resolved, *t_filter, *t_title, sheet == True, *t_options);
             else
-                MCDialogExecAskFile(ctxt, *t_prompt, *t_initial_resolved, *t_title, sheet == True);
+                MCDialogExecAskFile(ctxt, *t_prompt, *t_initial_resolved, *t_title, sheet == True, *t_options);
         }
             break;
             

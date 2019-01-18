@@ -954,11 +954,11 @@ enum MCPlatformFileDialogKind
     kMCPlatformFileDialogKindFolder,
 };
 
-void MCPlatformBeginFolderOrFileDialog(MCPlatformFileDialogKind p_kind, MCPlatformWindowRef p_owner, MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef *p_types = nullptr, uint4 p_type_count = 0);
+void MCPlatformBeginFolderOrFileDialog(MCPlatformFileDialogKind p_kind, MCPlatformWindowRef p_owner, MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef *p_types = nullptr, uint4 p_type_count = 0, MCArrayRef p_custom_options = nullptr);
 MCPlatformDialogResult MCPlatformEndFolderDialog(MCStringRef & r_selected_folder);
 
 
-MCPlatformDialogResult MCPlatformEndFileDialog(MCPlatformFileDialogKind p_kind, MCStringRef& r_paths, MCStringRef& r_type);
+MCPlatformDialogResult MCPlatformEndFileDialog(MCPlatformFileDialogKind p_kind, MCStringRef& r_paths, MCStringRef& r_type, MCArrayRef& r_options);
 
 void MCPlatformBeginColorDialog(MCStringRef p_title, const MCColor& p_color);
 MCPlatformDialogResult MCPlatformEndColorDialog(MCColor& r_new_color);

@@ -213,12 +213,14 @@ Parse_errors MCAnswer::parse_file(MCScriptPoint& sp)
 	
 	if (t_error == PE_UNDEFINED && sp . skip_token(SP_REPEAT, TT_UNDEFINED, RF_WITH) == PS_NORMAL)
 	{
-		if (sp . skip_token(SP_COMMAND, TT_STATEMENT, S_FILTER) == PS_NORMAL || sp . skip_token(SP_COMMAND, TT_STATEMENT, S_TYPE) == PS_NORMAL)
+		if (sp . skip_token(SP_COMMAND, TT_STATEMENT, S_FILTER) == PS_NORMAL ||
+                sp . skip_token(SP_COMMAND, TT_STATEMENT, S_TYPE) == PS_NORMAL ||
+                sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_OPTIONS) == PS_NORMAL)
 			sp . backup(), sp . backup();
 		else if (sp . parseexp(False, True, &file . initial) != PS_NORMAL)
 			t_error = PE_ANSWER_BADRESPONSE;
 	}
-		
+    
 	if (t_error == PE_UNDEFINED && sp . skip_token(SP_REPEAT, TT_UNDEFINED, RF_WITH) == PS_NORMAL)
 	{
 		if (sp . skip_token(SP_COMMAND, TT_STATEMENT, S_FILTER) == PS_NORMAL)
@@ -240,7 +242,9 @@ Parse_errors MCAnswer::parse_file(MCScriptPoint& sp)
 						(sp . skip_token(SP_COMMAND, TT_STATEMENT, S_TYPE) == PS_NORMAL || sp . skip_token(SP_ASK, TT_UNDEFINED, AT_TYPES) == PS_NORMAL));
 		}
 		else
-			t_error = PE_ANSWER_BADRESPONSE;
+        {
+             sp . backup(), sp . backup();
+        }
 	}
 	else if (t_error == PE_UNDEFINED && sp . skip_token(SP_FACTOR, TT_OF) == PS_NORMAL)
 	{
@@ -248,6 +252,15 @@ Parse_errors MCAnswer::parse_file(MCScriptPoint& sp)
 				sp . parseexp(False, True, &file . filter) != PS_NORMAL)
 			t_error = PE_ANSWER_BADRESPONSE;
 	}
+    
+    if (t_error == PE_UNDEFINED && sp . skip_token(SP_REPEAT, TT_UNDEFINED, RF_WITH) == PS_NORMAL)
+    {
+        if (sp . skip_token(SP_SUGAR, TT_UNDEFINED, SG_OPTIONS) != PS_NORMAL ||
+                 sp . parseexp(False, True, &file . options) != PS_NORMAL)
+        {
+            t_error = PE_ANSWER_BADRESPONSE;
+        }
+    }
 		
 	return t_error;
 }
@@ -341,6 +354,9 @@ void MCAnswer::exec_ctxt(MCExecContext& ctxt)
 			if (!ctxt . EvalOptionalExprAsStringRef(file.filter, kMCEmptyString, EE_ANSWER_BADQUESTION, &t_filter))
                 return;
             
+            MCAutoArrayRef t_options;
+            if (!ctxt . EvalOptionalExprAsNullableArrayRef(file.options, EE_ANSWER_BADQUESTION, &t_options))
+                return;
             
             MCAutoStringRef t_initial_resolved;            
             if (*t_initial != nil)
@@ -371,11 +387,11 @@ void MCAnswer::exec_ctxt(MCExecContext& ctxt)
 			}
             
 			if (t_types.Count() > 0)
-				MCDialogExecAnswerFileWithTypes(ctxt, mode == AT_FILES, *t_prompt, *t_initial_resolved, *t_types, t_types.Count(), *t_title, sheet == True);
+				MCDialogExecAnswerFileWithTypes(ctxt, mode == AT_FILES, *t_prompt, *t_initial_resolved, *t_types, t_types.Count(), *t_title, sheet == True, *t_options);
 			else if (*t_filter != nil)
-				MCDialogExecAnswerFileWithFilter(ctxt, mode == AT_FILES, *t_prompt, *t_initial_resolved, *t_filter, *t_title, sheet == True);
+				MCDialogExecAnswerFileWithFilter(ctxt, mode == AT_FILES, *t_prompt, *t_initial_resolved, *t_filter, *t_title, sheet == True, *t_options);
 			else
-				MCDialogExecAnswerFile(ctxt, mode == AT_FILES, *t_prompt, *t_initial_resolved, *t_title, sheet == True);
+				MCDialogExecAnswerFile(ctxt, mode == AT_FILES, *t_prompt, *t_initial_resolved, *t_title, sheet == True, *t_options);
             
 			break;
 		}

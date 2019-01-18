@@ -333,7 +333,7 @@ bool MCU_w32path2std(MCStringRef p_path, MCStringRef &r_std_path)
 	return MCStringCopy(*t_std_path, r_std_path);
 }
 
-static int MCA_do_file_dialog(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+static int MCA_do_file_dialog(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	int t_result = 0;
 
@@ -404,7 +404,7 @@ static int MCA_do_file_dialog(MCStringRef p_title, MCStringRef p_prompt, MCStrin
 			/* UNCHECKED */ MCStringsSplit(p_filter, '\0', t_filters.PtrRef(), t_filters.CountRef());
 		}
 
-		MCRemoteFileDialog(p_title, p_prompt, *t_filters, t_filters.Count(), *t_initial_native_folder, *t_initial_file, (p_options & MCA_OPTION_SAVE_DIALOG) != 0, (p_options & MCA_OPTION_PLURAL) != 0, r_value);
+		MCRemoteFileDialog(p_title, p_prompt, *t_filters, t_filters.Count(), *t_initial_native_folder, *t_initial_file, (p_options & MCA_OPTION_SAVE_DIALOG) != 0, (p_options & MCA_OPTION_PLURAL) != 0, (MCStringRef&)r_value);
 
 		return 0;
 	}
@@ -698,7 +698,7 @@ static int MCA_do_file_dialog(MCStringRef p_title, MCStringRef p_prompt, MCStrin
 			t_end = UINDEX_MAX;
 			/* UNCHECKED */ MCStringFirstIndexOfChar(p_filter, '\0', t_offset, kMCStringOptionCompareExact, t_end);
             
-			/* UNCHECKED */ MCStringCopySubstring(p_filter, MCRangeMakeMinMax(t_offset, t_end), r_result);
+			/* UNCHECKED */ MCStringCopySubstring(p_filter, MCRangeMakeMinMax(t_offset, t_end), (MCStringRef&)r_result);
 		}
 
 		t_result = 0;
@@ -767,20 +767,20 @@ static void get_new_filter(MCStringRef *p_types, uint4 p_type_count, MCStringRef
 }
 
 // MW-2005-05-15: New answer file with types call
-int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	MCAutoStringRef t_filters;
 	get_new_filter(p_types, p_type_count, &t_filters);
 
-	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString : p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filters, p_initial, p_options | MCA_OPTION_RETURN_FILTER, r_value, r_result);
+	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString : p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filters, p_initial, p_options | MCA_OPTION_RETURN_FILTER, p_custom_options, r_value, r_result);
 }
 
 // MW-2005-05-15: Updated for new answer command restructuring
-int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	MCAutoStringRef t_filter;
 	getfilter(p_filter, &t_filter);
-	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString : p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filter, p_initial, p_options, r_value, r_result);
+	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString : p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filter, p_initial, p_options, p_custom_options, r_value, r_result);
 }
 
 
@@ -832,7 +832,10 @@ static unsigned int get_dll_version(const wchar_t *p_dll)
 int MCA_folder(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
 {
 	if (MCmajorosversion >= 0x0600 && MCModeMakeLocalWindows())
-		return MCA_file(p_title, p_prompt, nil, p_initial, p_options | MCA_OPTION_FOLDER_DIALOG, r_value, r_result);
+    {
+        MCAutoArrauRef t_custom_options;
+		return MCA_file(p_title, p_prompt, nil, p_initial, p_options | MCA_OPTION_FOLDER_DIALOG, &t_custom_options, (MCValueRef&)r_value, (MCValueRef&)r_result);
+    }
 
 // MW-2005-05-27: We'll use a static (I know bad me) to store the version
 //   of the shell dll.
@@ -1029,19 +1032,19 @@ void MCA_getcolordialogcolors(MCColor*& r_colors, uindex_t& r_count)
     t_list . Take(r_colors, r_count);
 }
 
-int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	MCAutoStringRef t_filters;
 	get_new_filter(p_types, p_type_count, &t_filters);
 
-	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString : p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filters, p_initial, p_options | MCA_OPTION_RETURN_FILTER | MCA_OPTION_SAVE_DIALOG, r_value, r_result);
+	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString : p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filters, p_initial, p_options | MCA_OPTION_RETURN_FILTER | MCA_OPTION_SAVE_DIALOG, p_custom_options, r_value, r_result);
 }
 
 // Mw-2005-06-02: Updated to use new answer file prototype
-int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	MCAutoStringRef t_filters;
 	getfilter(p_filter, &t_filters);
 
-	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString: p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filters, p_initial, p_options | MCA_OPTION_SAVE_DIALOG, r_value, r_result);
+	return MCA_do_file_dialog(p_title == NULL ? kMCEmptyString: p_title, p_prompt == NULL ? kMCEmptyString : p_prompt, *t_filters, p_initial, p_options | MCA_OPTION_SAVE_DIALOG, p_custom_options, r_value, r_result);
 }

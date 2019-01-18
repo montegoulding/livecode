@@ -59,6 +59,7 @@ class MCAsk : public MCStatement
 			MCExpression *initial;
 			MCExpression *filter;
 			MCExpression **types;
+            MCExpression *options;
 			uint4 type_count;
 		} file;
 	};
@@ -72,6 +73,7 @@ public:
 		file . type_count = 0;
 		mode = AT_UNDEFINED;
 		sheet = False;
+        file . options = nullptr;
 	}
 	virtual ~MCAsk(void);
 

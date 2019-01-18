@@ -2863,19 +2863,19 @@ extern MCExecEnumTypeInfo *kMCInterfaceScrollbarOrientationTypeInfo;
 ///////////
 
 void MCDialogExecAnswerColor(MCExecContext &ctxt, MCColor *initial_color, MCStringRef p_title, bool p_sheet);
-void MCDialogExecAnswerFile(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef p_title, bool p_sheet);
-void MCDialogExecAnswerFileWithFilter(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef p_filter, MCStringRef p_title, bool p_sheet);
-void MCDialogExecAnswerFileWithTypes(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef *p_types, uindex_t p_type_count, MCStringRef p_title, bool p_sheet);
+void MCDialogExecAnswerFile(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef p_title, bool p_sheet, MCArrayRef p_custom_options);
+void MCDialogExecAnswerFileWithFilter(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef p_filter, MCStringRef p_title, bool p_sheet, MCArrayRef p_custom_options);
+void MCDialogExecAnswerFileWithTypes(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef *p_types, uindex_t p_type_count, MCStringRef p_title, bool p_sheet, MCArrayRef p_custom_options);
 void MCDialogExecAnswerFolder(MCExecContext &ctxt, bool p_plural, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef p_title, bool p_sheet);
 void MCDialogExecAnswerNotify(MCExecContext &ctxt, int p_type, MCStringRef p_prompt, MCStringRef *p_buttons, uindex_t p_button_count, MCStringRef p_title, bool p_sheet);
 void MCDialogExecCustomAnswerDialog(MCExecContext &ctxt, MCNameRef p_stack, MCNameRef p_type, bool p_sheet, MCStringRef *p_arg_list, uindex_t p_arg_count, MCStringRef &r_result);
 
 void MCDialogExecAskQuestion(MCExecContext& ctxt, int type, MCStringRef prompt, MCStringRef answer, bool hint_answer, MCStringRef title, bool as_sheet);
 void MCDialogExecAskPassword(MCExecContext& ctxt, bool clear, MCStringRef prompt, MCStringRef answer, bool hint_answer, MCStringRef title, bool as_sheet);
-void MCDialogExecAskFile(MCExecContext& ctxt, MCStringRef prompt, MCStringRef initial, MCStringRef title, bool as_sheet);
-void MCDialogExecAskFileWithFilter(MCExecContext& ctxt, MCStringRef prompt, MCStringRef initial, MCStringRef filter, MCStringRef title, bool as_sheet);
-void MCDialogExecAskFileWithTypes(MCExecContext& ctxt, MCStringRef prompt, MCStringRef intial, MCStringRef *types, uindex_t type_count, MCStringRef title, bool as_sheet);
-void MCDialogExecCustomAskDialog(MCExecContext& ctxt, MCNameRef p_stack, MCNameRef p_type, bool p_sheet, MCStringRef *p_arglist, uindex_t p_arg_count, bool& r_cancelled, MCStringRef& r_result);
+void MCDialogExecAskFile(MCExecContext& ctxt, MCStringRef prompt, MCStringRef initial, MCStringRef title, bool as_sheet, MCArrayRef p_options);
+void MCDialogExecAskFileWithFilter(MCExecContext& ctxt, MCStringRef prompt, MCStringRef initial, MCStringRef filter, MCStringRef title, bool as_sheet, MCArrayRef p_options);
+void MCDialogExecAskFileWithTypes(MCExecContext& ctxt, MCStringRef prompt, MCStringRef intial, MCStringRef *types, uindex_t type_count, MCStringRef title, bool as_sheet, MCArrayRef p_options);
+void MCDialogExecCustomAskDialog(MCExecContext& ctxt, MCNameRef p_stack, MCNameRef p_type, bool p_sheet, MCStringRef *p_arglist, uindex_t p_arg_count, bool& r_cancelled, MCValueRef& r_result);
 
 void MCDialogGetColorDialogColors(MCExecContext& ctxt, uindex_t& r_count, MCStringRef*& r_color_list);
 void MCDialogSetColorDialogColors(MCExecContext& ctxt, uindex_t p_count, MCStringRef* p_color_list);

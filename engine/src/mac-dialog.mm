@@ -21,6 +21,7 @@
 #include "typedefs.h"
 #include "platform.h"
 #include "platform-internal.h"
+#include "exec.h"
 
 #include "mac-internal.h"
 
@@ -336,6 +337,8 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
     NSSavePanel *m_panel;
     
     id m_panel_view_hack;
+    
+    NSArray *m_custom_options;
 }
 
 - (id)initWithPanel: (NSSavePanel *)panel;
@@ -343,6 +346,9 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
 
 - (void)setLabel: (NSString *)newLabel;
 - (void)setTypes: (MCStringRef *)p_types length: (uint32_t)p_count;
+
+- (void)setCustomOptions: (NSArray *)p_custom_options;
+- (NSArray*)getCustomOptions;
 
 - (void)typeChanged: (id)sender;
 
@@ -374,17 +380,14 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
 	[ m_options setAction: @selector(typeChanged:) ];
 	[ m_options setAutoenablesItems: NO ];
 	
-	[ self addSubview: m_label ];
-	[ self addSubview: m_options ];
-	
-	[ self setFrameSize: NSMakeSize(250 + 63, 30) ];
-	
 	m_filters = nil;
 	m_filter = nil;
 	m_filter_index = 0;
     
     m_panel = panel;
 	
+    m_custom_options = nil;
+    
 	return self;
 }
 
@@ -396,6 +399,12 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
 	[ m_label release ];
 	[ m_options release ];
 	[ super dealloc ];
+    
+    for (NSView *object in m_custom_options)
+    {
+        [object release];
+    }
+    [m_custom_options release];
 }
 
 - (void)setLabel: (NSString *)newLabel
@@ -405,6 +414,24 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
 
 - (void)setTypes: (MCStringRef *)p_types length: (uint32_t)p_count
 {
+    CGSize t_size = NSMakeSize(250 + 63, 0);
+    if (p_count > 1)
+    {
+        t_size.height += 30;
+    }
+    
+    if (m_custom_options != nil)
+    {
+        for (NSControl *t_control in m_custom_options)
+        {
+            [t_control sizeToFit];
+            t_size.height += t_control.frame.size.height + 2;
+        }
+        
+    }
+    
+    [ self setFrameSize: t_size];
+    
 	for(uint32_t i = 0; i < p_count; i++)
 	{
 		MCFileFilter *t_filter;
@@ -416,6 +443,35 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
 		}
 	}
 	m_filter = m_filters;
+    
+    if (p_count > 1)
+    {
+        [ m_label setFrame:NSMakeRect(0, t_size.height - 21, 61, 17)];
+        [ self addSubview: m_label ];
+        [ m_options setFrame:NSMakeRect(63, t_size.height - 28, 250, 26)];
+        [ self addSubview: m_options ];
+        t_size.height -= 30;
+    }
+    
+    for (NSControl *t_control in m_custom_options)
+    {
+        NSRect t_rect = [t_control frame];
+        t_rect.origin.x = 63;
+        t_rect.origin.y = t_size.height - t_rect.size.height;
+        [t_control setFrame:t_rect];
+        [self addSubview:t_control];
+        t_size.height -= t_rect.size.height + 2;
+    }
+}
+
+- (void)setCustomOptions: (NSArray *)p_custom_options
+{
+    m_custom_options = [p_custom_options retain];
+}
+
+- (NSArray*)getCustomOptions
+{
+    return m_custom_options;
 }
 
 // MW-2014-07-25: [[ Bug 12250 ]] Hack to find tableview inside the savepanel so we can force
@@ -562,7 +618,7 @@ static bool hfs_code_to_string(unsigned long p_code, char *r_string)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void MCPlatformBeginFolderOrFileDialog(MCPlatformFileDialogKind p_kind, MCPlatformWindowRef p_owner, MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef *p_types, uint4 p_type_count)
+void MCPlatformBeginFolderOrFileDialog(MCPlatformFileDialogKind p_kind, MCPlatformWindowRef p_owner, MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_initial, MCStringRef *p_types, uint4 p_type_count, MCArrayRef p_custom_options)
 {
     MCAutoStringRef t_initial_folder;
     if (p_initial != nil)
@@ -598,17 +654,67 @@ void MCPlatformBeginFolderOrFileDialog(MCPlatformFileDialogKind p_kind, MCPlatfo
             [t_panel setTitle: MCStringConvertToAutoreleasedNSString(p_prompt)];
     }
     
+    NSMutableArray *t_custom_options = [NSMutableArray array];
+    if (p_custom_options != nullptr && MCArrayIsSequence(p_custom_options))
+    {
+        for(uindex_t i = 0; i < MCArrayGetCount(p_custom_options); i++)
+        {
+            // We know this will succeed as we have a sequence.
+            MCValueRef t_element;
+            MCArrayFetchValueAtIndex(p_custom_options, i + 1, t_element);
+            
+            if (!MCValueIsArray(t_element))
+            {
+                break;
+            }
+            
+            MCValueRef t_type, t_label, t_default;
+            if (MCArrayFetchValue(static_cast<MCArrayRef>(t_element), false, MCNAME("type"), t_type) &&
+                MCArrayFetchValue(static_cast<MCArrayRef>(t_element), false, MCNAME("label"), t_label) &&
+                MCArrayFetchValue(static_cast<MCArrayRef>(t_element), false, MCNAME("default"), t_default))
+            {
+                MCAutoStringRef t_type_string;
+                MCExecContext ctxt;
+                if (ctxt.ConvertToString(t_type, &t_type_string) &&
+                    MCStringIsEqualTo(*t_type_string, MCSTR("checkbox"), kMCCompareCaseless))
+                {
+                    NSButton *t_checkbox = [[NSButton alloc] init];
+                    [t_checkbox setButtonType:NSSwitchButton];
+                    
+                    MCAutoStringRef t_label_string;
+                    if (ctxt.ConvertToString(t_label, &t_label_string))
+                    {
+                        [t_checkbox setTitle:MCStringConvertToAutoreleasedNSString(*t_label_string)];
+                    }
+                    
+                    bool t_state;
+                    if (ctxt.ConvertToBool(t_default, t_state) && t_state)
+                    {
+                        [t_checkbox setState:NSOnState];
+                    }
+                    else
+                    {
+                        [t_checkbox setState:NSOffState];
+                    }
+                    
+                    [t_custom_options addObject:t_checkbox];
+                }
+            }
+        }
+    }
+    
     if (p_kind != kMCPlatformFileDialogKindFolder)
     {
         // MW-2014-07-17: [[ Bug 12826 ]] If we have at least one type, add a delegate. Only add as
         //   an accessory view if more than one type.
         MCFileDialogAccessoryView *t_accessory;
-        if (p_type_count > 0)
+        if (p_type_count > 0 || [t_custom_options count] > 0)
         {
             t_accessory = [[MCFileDialogAccessoryView alloc] initWithPanel: t_panel];
+            [t_accessory setCustomOptions: t_custom_options];
             [t_accessory setTypes: p_types length: p_type_count];
             [t_accessory setLabel: @"Format:"];
-            if (p_type_count > 1)
+            if (p_type_count > 1 || [t_custom_options count] > 0)
                 [t_panel setAccessoryView: t_accessory];
             [t_panel setDelegate: t_accessory];
         }
@@ -637,7 +743,7 @@ void MCPlatformBeginFolderOrFileDialog(MCPlatformFileDialogKind p_kind, MCPlatfo
     MCMacPlatformBeginOpenSaveDialog(p_owner, t_panel, *t_initial_folder, p_kind != kMCPlatformFileDialogKindFolder ? *t_initial_file : nil);
 }
 
-MCPlatformDialogResult MCPlatformEndFileDialog(MCPlatformFileDialogKind p_kind, MCStringRef &r_paths, MCStringRef &r_type)
+MCPlatformDialogResult MCPlatformEndFileDialog(MCPlatformFileDialogKind p_kind, MCStringRef &r_paths, MCStringRef &r_type, MCArrayRef& r_options)
 {
 	if (s_dialog_nesting -> result == kMCPlatformDialogResultContinue)
 		return kMCPlatformDialogResultContinue;
@@ -676,9 +782,52 @@ MCPlatformDialogResult MCPlatformEndFileDialog(MCPlatformFileDialogKind p_kind, 
 			else
 				r_type = nil;
 		}
+        
+        NSArray* t_custom_options = [t_accessory getCustomOptions];
+        MCAutoArrayRef t_option_values;
+        if (!MCArrayCreateMutable(&t_option_values))
+        {
+            return kMCPlatformDialogResultError;
+        }
+        
+        if (t_custom_options != nil)
+        {
+            
+            for (NSView *t_view in t_custom_options)
+            {
+                uindex_t t_index = 1;
+                if ([t_view isKindOfClass:[NSButton class]])
+                {
+                    NSButton *t_button = (NSButton*) t_view;
+                    NSInteger t_state = [t_button state];
+                    
+                    switch (t_state)
+                    {
+                        case NSOnState:
+                            MCArrayStoreValueAtIndex(*t_option_values, t_index, MCValueRetain(kMCTrueString));
+                            break;
+                        case NSOffState:
+                            MCArrayStoreValueAtIndex(*t_option_values, t_index, MCValueRetain(kMCFalseString));
+                            break;
+                        case NSMixedState:
+                            MCArrayStoreValueAtIndex(*t_option_values, t_index, MCValueRetain(kMCMixedString));
+                            break;
+                        default:
+                            MCUnreachableReturn(kMCPlatformDialogResultError);
+                            break;
+                    }
+                }
+            }
+        }
+        
+        if (t_option_values.MakeMutable())
+        {
+            r_options = t_option_values.Take();
+        }
+        
 	}
 	else
-		r_paths = nil, r_type = nil;
+		r_paths = nil, r_type = nil, r_options = nil;
     
     // MW-2014-07-17: [[ Bug 12826 ]] Make sure we release the delegate (might be nil, but no
     //   problem here with that).

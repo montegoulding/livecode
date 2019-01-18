@@ -533,16 +533,16 @@ static bool types_to_remote_types(MCStringRef *p_types, uint4 p_type_count, MCSt
 	return true;
 }
 
-int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {	
-    MCA_file_with_types(p_title, p_prompt, NULL, 0, p_initial, p_options, r_value, r_result);
+    MCA_file_with_types(p_title, p_prompt, NULL, 0, p_initial, p_options, p_custom_options, r_value, r_result);
     return(1);
 }
 
 
 
 
-int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 
 {
 	if (!MCModeMakeLocalWindows())
@@ -556,7 +556,7 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
         uindex_t t_count;
         if (types_to_remote_types(p_types, p_type_count, t_rtypes, t_count))
 		{
-            MCRemoteFileDialog(p_title, p_prompt, t_rtypes, t_count, NULL, *t_resolved_path, false, t_plural, r_result);
+            MCRemoteFileDialog(p_title, p_prompt, t_rtypes, t_count, NULL, *t_resolved_path, false, t_plural, (MCStringRef&)r_result);
             for (uint32_t i = 0; i < t_count; ++i)
                 MCValueRelease(t_rtypes[i]);
 
@@ -586,12 +586,12 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
 
 	// Run the dialog ... this will be replaced with our own loop which will call the REV event handler too.
 
-    run_dialog(dialog, r_value);
+    run_dialog(dialog, (MCStringRef&)r_value);
 
     if (r_value == nil)
-        /* UNCHECKED */ MCStringCreateWithCString(MCcancelstring, r_result);
+        /* UNCHECKED */ MCStringCreateWithCString(MCcancelstring, (MCStringRef&)r_result);
     else if ((p_options & MCA_OPTION_RETURN_FILTER) != 0)
-        /* UNCHECKED */ MCStringCreateWithSysString(get_current_filter_name(dialog), r_result);
+        /* UNCHECKED */ MCStringCreateWithSysString(get_current_filter_name(dialog), (MCStringRef&)r_result);
 
 	
 	if (G_last_opened_path != nil)
@@ -606,15 +606,15 @@ int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *
 
 
 
-int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
 	//TODO : This still needs to pass over the p_filter.
-    MCA_ask_file_with_types ( p_title, p_prompt, NULL, 0, p_initial, p_options, r_value, r_result);
+    MCA_ask_file_with_types ( p_title, p_prompt, NULL, 0, p_initial, p_options, p_custom_options, r_value, r_result);
 	return(1);
 }
 
 
-int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result)
+int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result)
 {
     if (!MCModeMakeLocalWindows())
     {
@@ -626,7 +626,7 @@ int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringR
 
         if (types_to_remote_types(p_types, p_type_count, t_rtypes, t_count))
 		{
-            MCRemoteFileDialog(p_title, p_prompt, t_rtypes, t_count, NULL, *t_resolved_path, true, t_plural, r_result);
+            MCRemoteFileDialog(p_title, p_prompt, t_rtypes, t_count, NULL, *t_resolved_path, true, t_plural, (MCStringRef&)r_result);
             for (uint32_t i = 0; i < t_count; ++i)
                 MCValueRelease(t_rtypes[i]);
 
@@ -698,9 +698,9 @@ int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringR
 		gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(dialog), G_last_saved_path);
 	}
 	
-    run_dialog(dialog, r_value) ;
+    run_dialog(dialog, (MCStringRef&)r_value) ;
 
-    MCStringCreateWithSysString(get_current_filter_name(dialog), r_result);
+    MCStringCreateWithSysString(get_current_filter_name(dialog), (MCStringRef&)r_result);
 
 	if (G_last_saved_path != NULL)
 		g_free(G_last_saved_path);

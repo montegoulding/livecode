@@ -44,8 +44,8 @@ along with LiveCode.  If not see <http://www.gnu.org/licenses/>.  */
 //
 // The LiveCode syntax that uses this call is deprecated.
 //
-extern int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result);
-extern int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result); //const char *prompt, char *fn, MCExecPoint& ep, Boolean sheet);
+extern int MCA_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result);
+extern int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p_filter, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result); //const char *prompt, char *fn, MCExecPoint& ep, Boolean sheet);
 
 // Display a system file open dialog with a list of file types.
 //   p_title - this string should appear in the titlebar
@@ -67,8 +67,8 @@ extern int MCA_ask_file(MCStringRef p_title, MCStringRef p_prompt, MCStringRef p
 //   If MCA_OPTION_RETURN_FILTER is specified MCresult should contain the label of the
 //   filetype in effect when the dialog was closed (but not cancelled).
 //
-extern int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result);
-extern int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCStringRef &r_value, MCStringRef &r_result);
+extern int MCA_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result);
+extern int MCA_ask_file_with_types(MCStringRef p_title, MCStringRef p_prompt, MCStringRef *p_types, uint4 p_type_count, MCStringRef p_initial, unsigned int p_options, MCArrayRef p_custom_options, MCValueRef &r_value, MCValueRef &r_result);
 
 // Display a system folder selection dialog.
 //   p_title - this string should appear in the titlebar

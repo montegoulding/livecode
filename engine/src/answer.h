@@ -51,6 +51,7 @@ class MCAnswer : public MCStatement
 			MCExpression *initial;
 			MCExpression *filter;
 			MCExpression **types;
+            MCExpression *options;
 			uint4 type_count;
 		} file;
 		struct
@@ -75,6 +76,7 @@ public:
 		notify . prompt = NULL;
 		notify . buttons = NULL;
 		notify . button_count = 0;
+        file . options = nullptr;
 	}
 	virtual ~MCAnswer();
 	
