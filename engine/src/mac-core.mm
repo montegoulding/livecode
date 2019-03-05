@@ -1994,23 +1994,23 @@ CGFloat get_desktop_height()
 	return s_desktop_height;
 }
 
-void MCMacPlatformMapScreenMCPointToNSPoint(MCPoint p, NSPoint& r_point)
+extern "C" MC_DLLEXPORT_DEF void MCMacPlatformMapScreenMCPointToNSPoint(MCPoint p, NSPoint& r_point)
 {
 	r_point = NSMakePoint(p . x, get_desktop_height() - p . y);
 }
 
-void MCMacPlatformMapScreenNSPointToMCPoint(NSPoint p, MCPoint& r_point)
+extern "C" MC_DLLEXPORT_DEF void MCMacPlatformMapScreenNSPointToMCPoint(NSPoint p, MCPoint& r_point)
 {
 	r_point . x = int16_t(p . x);
 	r_point . y = int16_t(get_desktop_height() - p . y);
 }
 
-void MCMacPlatformMapScreenMCRectangleToNSRect(MCRectangle r, NSRect& r_rect)
+extern "C" MC_DLLEXPORT_DEF void MCMacPlatformMapScreenMCRectangleToNSRect(MCRectangle r, NSRect& r_rect)
 {
 	r_rect = NSMakeRect(CGFloat(r . x), get_desktop_height() - CGFloat(r . y + r . height), CGFloat(r . width), CGFloat(r . height));
 }
 
-void MCMacPlatformMapScreenNSRectToMCRectangle(NSRect r, MCRectangle& r_rect)
+extern "C" MC_DLLEXPORT_DEF void MCMacPlatformMapScreenNSRectToMCRectangle(NSRect r, MCRectangle& r_rect)
 {
 	r_rect = MCRectangleMake(int16_t(r . origin . x), int16_t(get_desktop_height() - (r . origin . y + r . size . height)), int16_t(r . size . width), int16_t(r . size . height));
 }

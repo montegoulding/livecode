@@ -605,11 +605,11 @@ bool MCMacMapNSStringToCodepoint(NSString *string, codepoint_t& r_codepoint);
 bool MCMacMapCodepointToNSString(codepoint_t p_codepoint, NSString*& r_string);
 bool MCMacMapSelectorToTextInputAction(SEL p_selector, MCPlatformTextInputAction& r_action);
 
-void MCMacPlatformMapScreenMCPointToNSPoint(MCPoint point, NSPoint& r_point);
-void MCMacPlatformMapScreenNSPointToMCPoint(NSPoint point, MCPoint& r_point);
+extern "C" MC_DLLEXPORT void MCMacPlatformMapScreenMCPointToNSPoint(MCPoint point, NSPoint& r_point);
+extern "C" MC_DLLEXPORT void MCMacPlatformMapScreenNSPointToMCPoint(NSPoint point, MCPoint& r_point);
 
-void MCMacPlatformMapScreenMCRectangleToNSRect(MCRectangle rect, NSRect& r_rect);
-void MCMacPlatformMapScreenNSRectToMCRectangle(NSRect rect, MCRectangle& r_rect);
+extern "C" MC_DLLEXPORT void MCMacPlatformMapScreenMCRectangleToNSRect(MCRectangle rect, NSRect& r_rect);
+extern "C" MC_DLLEXPORT void MCMacPlatformMapScreenNSRectToMCRectangle(NSRect rect, MCRectangle& r_rect);
 
 MCPlatformModifiers MCMacPlatformMapNSModifiersToModifiers(NSUInteger p_modifiers);
 
