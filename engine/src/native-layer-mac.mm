@@ -228,13 +228,15 @@ bool MCNativeLayerMac::getParentView(NSView *&r_view)
 	}
 	else
 	{
-        NSWindow* t_window;
-        t_window = getStackWindow();
+        MCMacPlatformWindow *t_window;
+        t_window = (MCMacPlatformWindow*)(m_object->getstack()->getwindow());
         
+        NSLog(@"t_window %@", t_window);
         if (t_window != nil)
         {
-            r_view = [t_window contentView];
-            return true;
+            r_view = t_window->GetView();
+            NSLog(@"r_view %@", r_view);
+            return r_view != nil;
         }
 	}
 

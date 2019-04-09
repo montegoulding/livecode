@@ -1291,9 +1291,22 @@ static void map_key_event(NSEvent *event, MCPlatformKeyCode& r_key_code, codepoi
 
 //////////
 
+//- (BOOL)wantsForwardedScrollEventsForAxis:(NSEventGestureAxis)axis
+//{
+//    NSLog(@"wantsForwardedScrollEventsForAxis");
+//    return YES;
+//}
+
+//- (BOOL)wantsScrollEventsForSwipeTrackingOnAxis:(NSEventGestureAxis)axis
+//{
+//    NSLog(@"wantsScrollEventsForSwipeTrackingOnAxis");
+//    return YES;
+//}
+
 - (void)scrollWheel: (NSEvent *)event
 {
-	MCMacPlatformHandleModifiersChanged(MCMacPlatformMapNSModifiersToModifiers([event modifierFlags]));
+    NSLog(@"scrollWheel %@", [self subviews]);
+    MCMacPlatformHandleModifiersChanged(MCMacPlatformMapNSModifiersToModifiers([event modifierFlags]));
 	
 	MCMacPlatformWindow *t_window;
 	t_window = [self platformWindow];
@@ -1685,7 +1698,9 @@ MCMacPlatformWindow::~MCMacPlatformWindow(void)
 
 MCWindowView *MCMacPlatformWindow::GetView(void)
 {
-	return m_view;
+    if (m_view == nil)
+        RealizeAndNotify();
+    return m_view;
 }
 
 MCWindowContainerView *MCMacPlatformWindow::GetContainerView(void)
@@ -2565,6 +2580,17 @@ bool MCMacMapSelectorToTextInputAction(SEL p_selector, MCPlatformTextInputAction
 - (BOOL)isFlipped
 {
     return YES;
+}
+
+- (BOOL)acceptsFirstResponder
+{
+    return YES;
+}
+
+- (void)scrollWheel: (NSEvent *)event
+{
+    NSLog(@"com_runrev_livecode_Flipped_NSView scrollWheel");
+    [[self nextResponder] scrollWheel:event];
 }
 
 @end
