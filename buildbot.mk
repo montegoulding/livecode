@@ -191,11 +191,11 @@ distmac-bundle-business:
 dist-upload-files.txt sha1sum.txt:
 	set -e; \
 	find . -maxdepth 1 -name 'LiveCode*-*-Mac.dmg' \
-	                -o -name 'LiveCode*Installer-*-Windows.exe' \
+	                -o -name 'LiveCode*Installer-*-Windows-*.exe' \
 	                -o -name 'LiveCode*Installer-*-Linux.*' \
 	                -o -name 'LiveCode*Server-*-Linux*.zip' \
 	                -o -name 'LiveCode*Server-*-Mac.zip' \
-	                -o -name 'LiveCode*Server-*-Windows.zip' \
+	                -o -name 'LiveCode*Server-*-Windows-*.zip' \
 	                -o -name 'LiveCode*Docs-*.zip' \
 	                -o -name '*-bin.tar.xz' \
 	                -o -name '*-bin.tar.bz2' \
