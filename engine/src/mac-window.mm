@@ -2561,3 +2561,73 @@ void MCMacPlatformCreateWindow(MCPlatformWindowRef& r_window)
 
 ////////////////////////////////////////////////////////////////////////////////
 
+
+@protocol com_runrev_livecode_SwipeRecognizerDelegate <NSObject>
+
+- (void)swipeGesture:(CGFloat)p_amount atX:(CGFloat)p_x Y:(CGFloat) p_y inPhase:(NSEventPhase) p_phase isComplete: (bool) p_complete;
+
+@end
+
+@interface com_runrev_livecode_SwipeRecognizer : NSView
+{
+    id<com_runrev_livecode_SwipeRecognizerDelegate> m_delegate;
+}
+
+- (BOOL)isFlipped;
+
+- (void)scrollWheel: (NSEvent *)event;
+
+@property(retain) id<com_runrev_livecode_SwipeRecognizerDelegate> delegate;
+
+@end
+
+@implementation com_runrev_livecode_SwipeRecognizer
+
+@synthesize delegate = m_delegate;
+
+- (id) init
+{
+    self = [super init];
+    if (self != nil)
+    {
+        m_delegate = nil;
+    }
+    return self;
+}
+
+- (BOOL)isFlipped
+{
+    return YES;
+}
+
+- (BOOL)wantsScrollEventsForSwipeTrackingOnAxis:(NSEventGestureAxis)axis
+{
+    // track only horizontal swipes for the moment
+    return axis == NSEventGestureAxisHorizontal;
+}
+
+- (void)scrollWheel: (NSEvent *)event
+{
+    __block NSPoint t_local_point = [self convertPoint:event.locationInWindow fromView:nil];
+    if ([event phase] == NSEventPhaseBegan)
+    {
+        [event trackSwipeEventWithOptions:0 dampenAmountThresholdMin:-1 max:1
+                             usingHandler:^(CGFloat gestureAmount, NSEventPhase phase, BOOL isComplete, BOOL *stop)
+         {
+             if (m_delegate != nil && [m_delegate respondsToSelector:@selector(swipeGesture:atX:Y:inPhase:isComplete:)])
+             {
+                 [m_delegate swipeGesture:gestureAmount atX:t_local_point.x Y:t_local_point.y inPhase:phase isComplete:isComplete];
+             }
+             
+             if (isComplete)
+             {
+                 *stop = YES;
+             }
+         }];
+    }
+}
+
+@end
+
+////////////////////////////////////////////////////////////////////////////////
+
